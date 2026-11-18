@@ -208,21 +208,22 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
     return out;
 }
 
-std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites) {
-    struct Region {
-        size_t page;
-        Text* text;
-        std::string source;
-        std::string cells;  ///< values read from Excel, as saved
-        std::string markup;
-        std::string newCells;
-    };
-    std::vector<Region> regions;
+namespace {
 
-    // 1. Collect the regions in reading order. The evaluation itself happens without holding the document lock,
-    //    because talking to Excel may dispatch window messages (e.g. a repaint that needs the lock)
+struct Region {
+    size_t page;
+    Text* text;
+    std::string source;
+    std::string cells;  ///< values read from Excel, as saved
+    std::string markup;
+    std::string newCells;
+};
+
+/// The calculation regions in reading order, and the folder of the document. Locks the document while reading it
+std::vector<Region> collectRegions(Document* doc, fs::path& baseDir) {
+    std::vector<Region> regions;
     doc->lock_shared();
-    fs::path baseDir = doc->getFilepath();
+    baseDir = doc->getFilepath();
     baseDir = baseDir.empty() ? fs::path() : baseDir.parent_path();
     const size_t pageCount = doc->getPageCount();
     for (size_t p = 0; p < pageCount; p++) {
@@ -255,6 +256,44 @@ std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites) {
         }
     }
     doc->unlock_shared();
+    return regions;
+}
+
+}  // namespace
+
+std::vector<std::string> documentSources(Document* doc, fs::path* baseDir) {
+    fs::path dir;
+    std::vector<std::string> out;
+    for (auto& r: collectRegions(doc, dir)) {
+        out.push_back(std::move(r.source));
+    }
+    if (baseDir) {
+        *baseDir = dir;
+    }
+    return out;
+}
+
+Environment documentVariables(Document* doc) {
+    fs::path baseDir;
+    auto regions = collectRegions(doc, baseDir);
+    ExcelLink link(baseDir, false);
+    Environment env;
+    env.cells = &link;
+    for (auto& r: regions) {
+        CellCache saved = parseCellCache(r.cells);
+        CellCache fresh;
+        link.setRegionCache(&saved, &fresh);
+        evaluateText(r.source, env);
+    }
+    env.cells = nullptr;
+    return env;
+}
+
+std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites) {
+    // 1. Collect the regions in reading order. The evaluation itself happens without holding the document lock,
+    //    because talking to Excel may dispatch window messages (e.g. a repaint that needs the lock)
+    fs::path baseDir;
+    std::vector<Region> regions = collectRegions(doc, baseDir);
 
     // 2. Evaluate
     ExcelLink link(baseDir, excelWrites);

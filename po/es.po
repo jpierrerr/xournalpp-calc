@@ -4937,3 +4937,12 @@ msgstr "Convertir a texto mientras escribo"
 
 msgid "Convert to text while writing"
 msgstr "Convertir a texto mientras escribo"
+
+msgid "Link Excel Workbook…"
+msgstr "Ligar libro de Excel…"
+
+msgid "Input Value from Excel…"
+msgstr "Valor de entrada desde Excel…"
+
+msgid "Output Value to Excel…"
+msgstr "Valor de salida hacia Excel…"

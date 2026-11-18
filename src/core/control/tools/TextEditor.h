@@ -80,6 +80,8 @@ public:
     void setCalc(bool calc);
     /// Insert a string at the cursor, as if typed (used by the Greek letters palette)
     void insertText(const std::string& str);
+    /// Insert a whole line at the cursor, on a new line if the cursor is not at the start of an empty one
+    void insertLine(const std::string& line);
 
     PangoLayout* getUpToDateLayout() const;
 

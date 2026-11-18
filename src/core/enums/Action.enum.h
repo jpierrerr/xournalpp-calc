@@ -152,6 +152,9 @@ enum class Action : size_t {
     CALC_INK_TO_TEXT,   ///< Convert the selected handwriting into text
     CALC_INK_LIVE,      ///< Convert the handwriting into calculation regions while writing
     CALC_INK_LIVE_TEXT, ///< Convert the handwriting into text while writing
+    CALC_EXCEL_LINK,    ///< Link an Excel workbook (inserts excel("...") in a calculation region)
+    CALC_EXCEL_INPUT,   ///< Read a cell of the workbook into a variable
+    CALC_EXCEL_OUTPUT,  ///< Send a variable to a cell of the workbook
 
     // Plugin Menu
     PLUGIN_MANAGER,

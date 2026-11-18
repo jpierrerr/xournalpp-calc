@@ -325,6 +325,15 @@ public:
     void inkStrokeFinished(const PageRef& page, Stroke* stroke);
     /// xournalpp-calc: convert now the strokes waiting for the pause
     void flushLiveInk();
+    /// xournalpp-calc: choose an Excel workbook and insert excel("...") in a calculation region. Returns the
+    /// workbook, or an empty path if cancelled
+    fs::path excelLinkWorkbook();
+    /// xournalpp-calc: pick a cell of the linked workbook and insert a line that reads it into a variable (input)
+    /// or sends a variable to it (output)
+    void excelPickCell(bool input);
+    /// xournalpp-calc: add a line to the calculation region being edited, or to a new region below the last one
+    /// of the current page
+    void insertCalcLine(const std::string& line);
 
     GladeSearchpath* getGladeSearchPath() const;
 

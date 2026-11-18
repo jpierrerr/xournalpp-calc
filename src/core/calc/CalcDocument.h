@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -37,5 +38,11 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
  * @return the indices of the pages whose display changed
  */
 std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites = true);
+
+/// The variables defined in the calculation regions of the document (evaluated without writing to Excel)
+Environment documentVariables(Document* doc);
+
+/// The text of the calculation regions in reading order, and (if baseDir is given) the folder of the document
+std::vector<std::string> documentSources(Document* doc, std::filesystem::path* baseDir = nullptr);
 
 }  // namespace xoj::calc

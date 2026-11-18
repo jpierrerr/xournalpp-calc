@@ -13,7 +13,10 @@
 #pragma once
 
 #include <filesystem>
+#include <map>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace xoj::calc {
 
@@ -39,7 +42,20 @@ std::filesystem::path pathFromUtf8(const std::string& s);
 /// Column letters for a 1-based column number (1 → "A", 28 → "AB")
 std::string columnName(int col);
 
+/// Contents of a sheet as they are shown, to pick a cell: (row, column) → text, 1-based
+struct SheetPreview {
+    std::map<std::pair<int, int>, std::string> cells;
+    int rows = 0;  ///< last row with content
+    int cols = 0;  ///< last column with content
+};
+
 namespace xlsx {
+
+/// Names of the sheets of a workbook, in order. Throws CalcError
+std::vector<std::string> sheetNames(const std::filesystem::path& file);
+
+/// The cells with content of a sheet ("" = the first one), up to maxRows × maxCols. Throws CalcError
+SheetPreview preview(const std::filesystem::path& file, const std::string& sheet, int maxRows, int maxCols);
 
 /// Number in a cell. Throws CalcError (missing file, sheet or cell, text that is not a number, ...)
 double read(const std::filesystem::path& file, const CellRef& ref);

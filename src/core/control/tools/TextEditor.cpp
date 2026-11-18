@@ -497,6 +497,28 @@ void TextEditor::insertText(const std::string& str) {
 }
 
 
+void TextEditor::insertLine(const std::string& line) {
+    GtkTextIter cursor = getIteratorAtCursor(this->buffer.get());
+    GtkTextIter lineStart = cursor;
+    gtk_text_iter_set_line_offset(&lineStart, 0);
+    GtkTextIter lineEnd = lineStart;
+    if (!gtk_text_iter_ends_line(&lineEnd)) {
+        gtk_text_iter_forward_to_line_end(&lineEnd);
+    }
+    gchar* current = gtk_text_buffer_get_text(this->buffer.get(), &lineStart, &lineEnd, false);
+    const bool blank = current == nullptr || g_strstrip(current)[0] == '\0';
+    g_free(current);
+
+    gtk_text_buffer_begin_user_action(this->buffer.get());
+    if (!blank) {
+        gtk_text_buffer_place_cursor(this->buffer.get(), &lineEnd);
+        gtk_text_buffer_insert_at_cursor(this->buffer.get(), "\n", -1);
+    }
+    gtk_text_buffer_insert_at_cursor(this->buffer.get(), line.c_str(), -1);
+    gtk_text_buffer_end_user_action(this->buffer.get());
+    this->contentsChanged(true);
+}
+
 void TextEditor::insertDefinition() { insertText("≔"); }
 
 void TextEditor::greekifyBeforeCursor() {

@@ -888,6 +888,21 @@
       <attribute name="action">win.calc-ink-live-text</attribute>
       <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;x</attribute>
      </item>
+     <submenu>
+      <attribute name="label" translatable="yes">Excel</attribute>
+      <item>
+       <attribute name="label" translatable="yes">Link Excel Workbook…</attribute>
+       <attribute name="action">win.calc-excel-link</attribute>
+      </item>
+      <item>
+       <attribute name="label" translatable="yes">Input Value from Excel…</attribute>
+       <attribute name="action">win.calc-excel-input</attribute>
+      </item>
+      <item>
+       <attribute name="label" translatable="yes">Output Value to Excel…</attribute>
+       <attribute name="action">win.calc-excel-output</attribute>
+      </item>
+     </submenu>
     </section>
     <item>
      <attribute name="label" translatable="yes">Record / Stop</attribute>

@@ -338,11 +338,141 @@ bool write(const fs::path& file, const CellRef& ref, double value) {
     return true;
 }
 
+namespace {
+
+int intProperty(IDispatch* obj, const wchar_t* name) {
+    Var v;
+    invoke(obj, name, DISPATCH_PROPERTYGET, {}, &v.v);
+    if (FAILED(VariantChangeType(&v.v, &v.v, 0, VT_I4))) {
+        throw CalcError("Excel: respuesta inesperada de " + narrow(name));
+    }
+    return v.v.lVal;
+}
+
+/// Text of a value as it is shown in the preview
+std::string displayText(VARIANT& v) {
+    switch (v.vt) {
+        case VT_EMPTY:
+        case VT_NULL:
+            return {};
+        case VT_BSTR:
+            return narrow(v.bstrVal);
+        case VT_BOOL:
+            return v.boolVal != VARIANT_FALSE ? "VERDADERO" : "FALSO";
+        case VT_ERROR:
+            return "#ERROR";
+        default: {
+            VARIANT d;
+            VariantInit(&d);
+            if (FAILED(VariantChangeType(&d, &v, 0, VT_R8))) {
+                return {};
+            }
+            char buf[40];
+            std::snprintf(buf, sizeof(buf), "%.10g", d.dblVal);
+            return buf;
+        }
+    }
+}
+
+}  // namespace
+
+std::optional<std::vector<std::string>> sheetNames(const fs::path& file) {
+    Disp wb = findWorkbook(file);
+    if (!wb) {
+        return std::nullopt;
+    }
+    try {
+        Disp sheets = getObject(wb.get(), L"Worksheets");
+        int n = intProperty(sheets.get(), L"Count");
+        std::vector<std::string> names;
+        for (int i = 1; i <= n; i++) {
+            Var idx(i);
+            Disp ws = getObject(sheets.get(), L"Item", {&idx.v});
+            Var name;
+            invoke(ws.get(), L"Name", DISPATCH_PROPERTYGET, {}, &name.v);
+            names.push_back(name.v.vt == VT_BSTR ? narrow(name.v.bstrVal) : std::string());
+        }
+        return names;
+    } catch (const CalcError&) {
+        return std::nullopt;  // Excel is busy: the file is used instead
+    }
+}
+
+std::optional<SheetPreview> preview(const fs::path& file, const std::string& sheet, int maxRows, int maxCols) {
+    Disp wb = findWorkbook(file);
+    if (!wb) {
+        return std::nullopt;
+    }
+    Disp sheets = getObject(wb.get(), L"Worksheets");
+    Disp ws;
+    try {
+        if (sheet.empty()) {
+            Var first(1);
+            ws = getObject(sheets.get(), L"Item", {&first.v});
+        } else {
+            Var name(widen(sheet));
+            ws = getObject(sheets.get(), L"Item", {&name.v});
+        }
+    } catch (const CalcError&) {
+        throw CalcError("no existe la hoja «" + sheet + "» en el libro abierto en Excel");
+    }
+    Disp used = getObject(ws.get(), L"UsedRange");
+    const int row0 = intProperty(used.get(), L"Row");
+    const int col0 = intProperty(used.get(), L"Column");
+    Disp rowsObj = getObject(used.get(), L"Rows");
+    Disp colsObj = getObject(used.get(), L"Columns");
+    int nRows = std::min(intProperty(rowsObj.get(), L"Count"), std::max(0, maxRows - row0 + 1));
+    int nCols = std::min(intProperty(colsObj.get(), L"Count"), std::max(0, maxCols - col0 + 1));
+    SheetPreview out;
+    if (nRows <= 0 || nCols <= 0) {
+        return out;
+    }
+    // Only the part that is shown: Range(Cells(row0, col0), Cells(row0 + nRows - 1, col0 + nCols - 1))
+    std::wstring addr = widen(columnName(col0) + std::to_string(row0) + ":" + columnName(col0 + nCols - 1) +
+                              std::to_string(row0 + nRows - 1));
+    Var a(addr);
+    Disp range = getObject(ws.get(), L"Range", {&a.v});
+    Var values;
+    invoke(range.get(), L"Value2", DISPATCH_PROPERTYGET, {}, &values.v);
+    auto put = [&](int r, int c, VARIANT& v) {
+        std::string text = displayText(v);
+        if (!text.empty()) {
+            out.cells[{r, c}] = text;
+            out.rows = std::max(out.rows, r);
+            out.cols = std::max(out.cols, c);
+        }
+    };
+    if ((values.v.vt & VT_ARRAY) && values.v.parray && SafeArrayGetDim(values.v.parray) == 2) {
+        SAFEARRAY* arr = values.v.parray;
+        LONG r1, r2, c1, c2;
+        SafeArrayGetLBound(arr, 1, &r1);
+        SafeArrayGetUBound(arr, 1, &r2);
+        SafeArrayGetLBound(arr, 2, &c1);
+        SafeArrayGetUBound(arr, 2, &c2);
+        for (LONG r = r1; r <= r2; r++) {
+            for (LONG c = c1; c <= c2; c++) {
+                LONG idx[2] = {r, c};
+                VARIANT v;
+                VariantInit(&v);
+                if (SUCCEEDED(SafeArrayGetElement(arr, idx, &v))) {
+                    put(row0 + static_cast<int>(r - r1), col0 + static_cast<int>(c - c1), v);
+                }
+                VariantClear(&v);
+            }
+        }
+    } else {
+        put(row0, col0, values.v);  // a single cell
+    }
+    return out;
+}
+
 #else  // not Windows: there is no Excel to talk to, the files are used
 
 bool isOpen(const fs::path&) { return false; }
 std::optional<double> read(const fs::path&, const CellRef&) { return std::nullopt; }
 bool write(const fs::path&, const CellRef&, double) { return false; }
+std::optional<std::vector<std::string>> sheetNames(const fs::path&) { return std::nullopt; }
+std::optional<SheetPreview> preview(const fs::path&, const std::string&, int, int) { return std::nullopt; }
 
 #endif
 

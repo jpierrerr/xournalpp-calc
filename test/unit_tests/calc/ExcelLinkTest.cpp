@@ -241,3 +241,15 @@ TEST_F(XlsxFileTest, link) {
     EXPECT_EQ(readOnly.write("B2", 1), "B2 (no enviado)");
     EXPECT_DOUBLE_EQ(xlsx::read(file, parseCellRef("B2")), 350.5);
 }
+
+TEST_F(XlsxFileTest, sheetsAndPreview) {
+    EXPECT_EQ(xlsx::sheetNames(file), (std::vector<std::string>{"Cargas", "Mi hoja"}));
+    auto pv = xlsx::preview(file, "Cargas", 100, 30);
+    EXPECT_EQ(pv.rows, 10);
+    EXPECT_EQ(pv.cols, 4);
+    EXPECT_EQ(pv.cells[std::make_pair(1, 2)], "P (kN)");
+    EXPECT_EQ(pv.cells[std::make_pair(2, 2)], "350.5");
+    EXPECT_EQ(pv.cells[std::make_pair(10, 4)], "7");
+    auto small = xlsx::preview(file, "", 3, 30);  // first sheet, only the first rows
+    EXPECT_EQ(small.rows, 3);
+}

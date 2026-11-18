@@ -47,8 +47,11 @@ public:
     /// for it are stored
     void setRegionCache(const CellCache* saved, CellCache* fresh);
 
-private:
+    /// Absolute path of a workbook written in excel("..."): relative to the document, ".xlsx" added if there is no
+    /// extension. Throws CalcError
     std::filesystem::path resolve(const std::string& path) const;
+
+private:
     std::filesystem::path workbookFor(const CellRef& r) const;
 
     std::filesystem::path baseDir;
@@ -70,6 +73,13 @@ std::optional<double> read(const std::filesystem::path& file, const CellRef& ref
 
 /// Write a number in a cell of an open workbook; false if it is not open in Excel. Throws CalcError
 bool write(const std::filesystem::path& file, const CellRef& ref, double value);
+
+/// Sheet names of an open workbook; nullopt if it is not open in Excel
+std::optional<std::vector<std::string>> sheetNames(const std::filesystem::path& file);
+
+/// Cells of a sheet of an open workbook (its used range); nullopt if it is not open in Excel. Throws CalcError
+std::optional<SheetPreview> preview(const std::filesystem::path& file, const std::string& sheet, int maxRows,
+                                    int maxCols);
 
 }  // namespace excelapp
 

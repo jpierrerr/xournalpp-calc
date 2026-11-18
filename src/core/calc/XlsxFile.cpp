@@ -622,6 +622,94 @@ void write(const fs::path& file, const CellRef& ref, double value) {
     books().erase(pathToUtf8(file));
 }
 
+std::vector<std::string> sheetNames(const fs::path& file) {
+    ZipPtr z(openZip(file, ZIP_RDONLY));
+    auto wbData = readEntry(z.get(), "xl/workbook.xml");
+    if (!wbData) {
+        throw CalcError(fileName(file) + " no es un libro de Excel válido");
+    }
+    auto wb = parseXml(*wbData, "workbook.xml");
+    std::vector<std::string> names;
+    xmlNode* sheets = child(xmlDocGetRootElement(wb.get()), "sheets");
+    for (xmlNode* s = sheets ? sheets->children : nullptr; s; s = s->next) {
+        if (is(s, "sheet")) {
+            names.push_back(attr(s, "name").value_or(""));
+        }
+    }
+    return names;
+}
+
+SheetPreview preview(const fs::path& file, const std::string& sheet, int maxRows, int maxCols) {
+    ZipPtr z(openZip(file, ZIP_RDONLY));
+    std::string entry = sheetEntry(z.get(), file, sheet);
+    auto data = readEntry(z.get(), entry);
+    if (!data) {
+        throw CalcError(fileName(file) + " está dañado (falta " + entry + ")");
+    }
+    auto doc = parseXml(*data, entry);
+    std::optional<std::vector<std::string>> shared;
+
+    SheetPreview out;
+    xmlNode* sheetData = child(xmlDocGetRootElement(doc.get()), "sheetData");
+    int rowNum = 0;
+    for (xmlNode* r = sheetData ? sheetData->children : nullptr; r; r = r->next) {
+        if (!is(r, "row")) {
+            continue;
+        }
+        auto rAttr = attr(r, "r");
+        rowNum = rAttr ? std::atoi(rAttr->c_str()) : rowNum + 1;
+        if (rowNum > maxRows) {
+            break;
+        }
+        int colNum = 0;
+        for (xmlNode* c = r->children; c; c = c->next) {
+            if (!is(c, "c")) {
+                continue;
+            }
+            auto cAttr = attr(c, "r");
+            int rr = 0, cc = 0;
+            colNum = cAttr && splitCellName(*cAttr, rr, cc) ? cc : colNum + 1;
+            if (colNum > maxCols) {
+                break;
+            }
+            std::string type = attr(c, "t").value_or("n");
+            std::string text;
+            if (type == "inlineStr") {
+                xmlNode* inl = child(c, "is");
+                text = inl ? content(inl) : "";
+            } else if (xmlNode* v = child(c, "v")) {
+                std::string raw = content(v);
+                if (type == "s") {
+                    if (!shared) {
+                        shared = readSharedStrings(z.get());
+                    }
+                    size_t idx = static_cast<size_t>(std::atol(raw.c_str()));
+                    text = idx < shared->size() ? (*shared)[idx] : "";
+                } else if (type == "b") {
+                    text = raw == "1" ? "VERDADERO" : "FALSO";
+                } else if (type == "n" || type.empty()) {
+                    if (auto num = parseNumber(raw)) {
+                        char buf[40];
+                        std::snprintf(buf, sizeof(buf), "%.10g", *num);
+                        text = buf;
+                    } else {
+                        text = raw;
+                    }
+                } else {
+                    text = raw;  // "str" (text formula), "e" (error)
+                }
+            }
+            if (text.empty()) {
+                continue;
+            }
+            out.cells[{rowNum, colNum}] = text;
+            out.rows = std::max(out.rows, rowNum);
+            out.cols = std::max(out.cols, colNum);
+        }
+    }
+    return out;
+}
+
 }  // namespace xlsx
 
 }  // namespace xoj::calc

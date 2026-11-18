@@ -1186,6 +1186,21 @@ void Control::setCalcMode(bool enabled) {
     }
 }
 
+void Control::setCalcGrid(bool enabled) {
+    this->calcGrid = enabled;
+    if (!this->win) {
+        return;
+    }
+    this->doc->lock_shared();
+    size_t n = this->doc->getPageCount();
+    this->doc->unlock_shared();
+    for (size_t i = 0; i < n; i++) {
+        if (auto* v = this->win->getXournal()->getViewFor(i); v) {
+            v->repaintPage();
+        }
+    }
+}
+
 void Control::showGreekPalette() {
     if (!this->greekPalette) {
         this->greekPalette = xoj::popup::createGreekPalette(this, getGtkWindow());

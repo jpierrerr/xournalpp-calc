@@ -43,3 +43,13 @@ Los resultados sin unidad pedida se muestran en SI con prefijo: N, Pa, N·m, W y
 ## Archivo
 
 Las regiones se guardan en el `.xopp` como textos con el atributo `calc="true"`. Xournal++ original los abre como texto normal (sin resultados). Los resultados se recalculan al abrir y al exportar a PDF o PNG.
+
+## Malla de alineación
+
+**Herramientas → Malla de alineación** (Ctrl+Alt+M, o el botón de cuadrícula) muestra una malla de puntos como la de Mathcad. Sigue el fondo de la página:
+
+- Cuadriculado o puntos: un punto en cada esquina de los cuadros.
+- Renglones: una fila de puntos sobre cada renglón (y columnas cada media distancia entre renglones, empezando en el margen).
+- Otros fondos: puntos cada 5 mm.
+
+Con la malla activa, cada cuadro de texto o región de cálculo nuevo empieza en el punto más cercano al clic, con la línea base sobre una fila de puntos, y la distancia entre sus líneas es la de la malla (o un múltiplo si la letra no cabe). Así cada línea queda sobre un renglón. Esta distancia se guarda en el archivo (`lineHeight`). La malla solo se ve en pantalla: no sale al imprimir ni al exportar.

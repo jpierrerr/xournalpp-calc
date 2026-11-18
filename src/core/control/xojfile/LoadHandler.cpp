@@ -374,6 +374,11 @@ void LoadHandler::setTextCalc(bool calc) {
     this->text->setCalc(calc);
 }
 
+void LoadHandler::setTextLineHeight(double h) {
+    xoj_assert(this->text);
+    this->text->setLineHeight(h);
+}
+
 void LoadHandler::setTextContents(std::string contents) {
     xoj_assert(this->text);
 

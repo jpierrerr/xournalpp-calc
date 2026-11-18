@@ -78,6 +78,15 @@ public:
     /// Put the content that is displayed (text, or the calculation results) into the layout
     void applyDisplayContent(PangoLayout* layout) const;
 
+    /// Fixed distance between the baselines of two lines, so that lines follow the alignment grid. 0: natural
+    void setLineHeight(double h);
+    inline double getLineHeight() const { return lineHeight; }
+    /// Apply the fixed line height (if any) to a layout whose content is already set
+    void applyLineHeight(PangoLayout* layout) const;
+    /// Natural height of one line, and distance from the top of the text to the first baseline (with line height)
+    double naturalLineHeight() const;
+    double firstBaseline() const;
+
     auto cloneText() const -> std::unique_ptr<Text>;
     auto clone() const -> ElementPtr override;
 
@@ -116,6 +125,7 @@ private:
     TextAlignment align = TextAlignment::LEFT;
     bool justify = false;  ///< Stretch whitespaces to make all complete lines have the same width
 
+    double lineHeight = 0;   ///< Fixed line pitch (alignment grid), 0 for natural
     bool calc = false;       ///< Calculation region
     std::string calcMarkup;  ///< Displayed content of a calculation region (with results)
 

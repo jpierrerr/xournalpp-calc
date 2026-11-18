@@ -1252,6 +1252,7 @@ function app.setFont(font) end
 ---| "text-justify"
 ---| "calc-mode"
 ---| "greek-palette"
+---| "calc-grid"
 ---| "plugin-manager"
 ---| "help"
 ---| "demo"

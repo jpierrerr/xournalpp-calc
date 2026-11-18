@@ -17,6 +17,7 @@
 #include <glib.h>            // for gint, g_free, g_g...
 #include <gtk/gtk.h>         // for GtkWidget, gtk_co...
 
+#include "calc/CalcGrid.h"                          // for drawAlignmentGrid
 #include "control/AudioController.h"                // for AudioController
 #include "control/Control.h"                        // for Control
 #include "control/LatexController.h"                // for LatexController
@@ -1121,6 +1122,12 @@ auto XojPageView::paintPage(cairo_t* cr, GdkRectangle* rect) -> bool {
      *
      * To anyone adding another painter here: please keep this assumption true
      */
+    if (xournal->getControl()->isCalcGrid()) {
+        xoj::calc::drawAlignmentGrid(
+                cr, xoj::calc::alignmentGrid(page->getBackgroundType(), page->getWidth(), page->getHeight()),
+                page->getWidth(), page->getHeight(), zoom);
+    }
+
     for (const auto& v: this->overlayViews) {
         v->draw(cr);
     }

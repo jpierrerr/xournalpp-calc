@@ -858,6 +858,11 @@
       <attribute name="action">win.greek-palette</attribute>
       <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;g</attribute>
      </item>
+     <item>
+      <attribute name="label" translatable="yes">Alignment Grid</attribute>
+      <attribute name="action">win.calc-grid</attribute>
+      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;m</attribute>
+     </item>
     </section>
     <item>
      <attribute name="label" translatable="yes">Record / Stop</attribute>

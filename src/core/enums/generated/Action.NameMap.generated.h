@@ -100,6 +100,7 @@ constexpr const char* ACTION_NAMES[] = {  // Action to string conversion map
         "text-justify",
         "calc-mode",
         "greek-palette",
+        "calc-grid",
         "plugin-manager",
         "help",
         "demo",

@@ -4877,3 +4877,9 @@ msgstr "Matemáticas"
 
 msgid "Tip: in a text box, type a latin letter and press Ctrl+G (a→α, q→θ, W→Ω)"
 msgstr "Consejo: en un cuadro de texto, escribe una letra latina y pulsa Ctrl+G (a→α, q→θ, W→Ω)"
+
+msgid "Alignment Grid"
+msgstr "Malla de alineación"
+
+msgid "Alignment grid"
+msgstr "Malla de alineación"

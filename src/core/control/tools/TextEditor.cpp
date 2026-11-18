@@ -9,6 +9,7 @@
 #include <glib-object.h>     // for g_object_get, g_object_unref, G_CA...
 
 #include "calc/CalcEngine.h"  // for greekForLatin
+#include "calc/CalcGrid.h"    // for alignmentGrid
 #include "control/AudioController.h"
 #include "control/Control.h"  // for Control
 #include "control/actions/ActionDatabase.h"
@@ -1096,6 +1097,7 @@ void TextEditor::setTextToPangoLayout(PangoLayout* pl) const {
         setSelectionAttributesToPangoLayout(pl);
         pango_layout_set_text(pl, cloneToCString(this->buffer.get()).get(), -1);
     }
+    this->textElement->applyLineHeight(pl);
 }
 
 Color TextEditor::getSelectionColor() const { return this->control->getSettings()->getSelectionColor(); }
@@ -1281,6 +1283,16 @@ void TextEditor::initializeEditionAt(double x, double y) {
         this->textElement->setAlignment(h->getTextAlignment());
         this->textElement->setJustify(h->getTextJustify());
         this->textElement->setCalc(this->control->isCalcMode());
+        if (this->control->isCalcGrid()) {
+            // Mathcad-style alignment: start on a dot of the grid, with the baseline on a row of dots (a ruled line)
+            auto grid = xoj::calc::alignmentGrid(this->page->getBackgroundType(), this->page->getWidth(),
+                                                 this->page->getHeight());
+            double lineH = this->textElement->naturalLineHeight();
+            this->textElement->setLineHeight(grid.pitchFor(lineH));
+            double baseline = grid.snapY(y + 0.25 * lineH);
+            this->textElement->setTransformation(
+                    xoj::util::Matrix::TRANSLATION(grid.snapX(x), baseline - this->textElement->firstBaseline()));
+        }
 
 #ifdef ENABLE_AUDIO
         if (auto audioController = control->getAudioController(); audioController && audioController->isRecording()) {

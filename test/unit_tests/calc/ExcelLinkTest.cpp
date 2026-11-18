@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 
+#include "calc/CalcDocument.h"
 #include "calc/CalcEngine.h"
 #include "calc/ExcelLink.h"
 #include "calc/XlsxFile.h"
@@ -114,6 +115,33 @@ TEST(ExcelLink, engineErrors) {
     EXPECT_EQ(r.kind, Kind::Text);
     r = evaluateLine("excelente", env);
     EXPECT_EQ(r.kind, Kind::Text);
+}
+
+TEST(ExcelLink, shownInWords) {
+    FakeLink link;
+    link.cells["Hoja1!C3"] = 2;
+    link.cells["C5"] = 3;
+    Environment env;
+    env.cells = &link;
+    auto lines = evaluateText("excel(\"C:\\Obras\\Zapatas.xlsx\")\nq := xl(\"Hoja1!C3\")·kN =\nL := xl(C5) m\n"
+                              "M := q·L\nenviar(M, \"'Mi hoja'!D4\", kN·m)",
+                              env);
+    std::string m = buildMarkup(lines, &env);
+    // The workbook by its name only, and the cells by sheet and cell
+    EXPECT_NE(m.find("Libro ligado</b> → "), std::string::npos) << m;
+    EXPECT_NE(m.find("\"Zapatas.xlsx\""), std::string::npos) << m;
+    EXPECT_EQ(m.find("Obras"), std::string::npos) << m;
+    EXPECT_EQ(m.find("xl("), std::string::npos) << m;
+    EXPECT_NE(m.find("Hoja:&quot;Hoja1&quot; Celda:&quot;C3&quot;"), std::string::npos) << m;
+    EXPECT_NE(m.find(">Celda:&quot;C5&quot;<"), std::string::npos) << m;
+    EXPECT_NE(m.find("Enviar</b> M = "), std::string::npos) << m;
+    EXPECT_NE(m.find("6 kN·m"), std::string::npos) << m;
+    EXPECT_NE(m.find("Hoja:&quot;Mi hoja&quot; Celda:&quot;D4&quot;"), std::string::npos) << m;
+    // The source stays the command (it is what is edited)
+    EXPECT_EQ(lines[1].source, "q := xl(\"Hoja1!C3\")·kN =");
+    // Errors keep the command
+    lines = evaluateText("x := xl(\"Z9\") =", env);
+    EXPECT_NE(buildMarkup(lines, &env).find("vacía"), std::string::npos);
 }
 
 TEST(ExcelLink, references) {
@@ -233,6 +261,11 @@ TEST_F(XlsxFileTest, link) {
     EXPECT_DOUBLE_EQ(fresh["cargas.xlsx|Cargas!B2"], 350.5);
     r = evaluateLine("R := xl(\"Cargas!B3\") kN", env);
     EXPECT_EQ(r.kind, Kind::Error);
+
+    // A full path that no longer exists: the workbook with the same name next to the document
+    fs::copy_file(fs::path(GET_TESTFILE(u8"calc/cargas.xlsx")), file);
+    EXPECT_EQ(link.resolve("/no/existe/cargas.xlsx"), (dir / "cargas.xlsx").lexically_normal());
+    fs::remove(file);
 
     // Exports never write
     fs::copy_file(fs::path(GET_TESTFILE(u8"calc/cargas.xlsx")), file);

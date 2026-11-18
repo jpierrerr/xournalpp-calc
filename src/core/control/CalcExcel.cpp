@@ -39,38 +39,6 @@ namespace fs = std::filesystem;
 
 namespace {
 
-/// The workbook of excel("...") in a line, if the line is one. Written by hand: std::regex recurses once per
-/// character and overflows the stack on long lines
-std::optional<std::string> excelStatement(std::string_view line) {
-    auto skipSpaces = [&](size_t i) {
-        while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) {
-            i++;
-        }
-        return i;
-    };
-    size_t i = skipSpaces(0);
-    if (line.substr(i, 5) != "excel") {
-        return std::nullopt;
-    }
-    i = skipSpaces(i + 5);
-    if (i >= line.size() || line[i] != '(') {
-        return std::nullopt;
-    }
-    i = skipSpaces(i + 1);
-    if (i >= line.size() || line[i] != '"') {
-        return std::nullopt;
-    }
-    size_t close = line.find('"', i + 1);
-    if (close == std::string_view::npos || close == i + 1) {
-        return std::nullopt;
-    }
-    size_t end = skipSpaces(close + 1);
-    if (end >= line.size() || line[end] != ')') {
-        return std::nullopt;
-    }
-    return std::string(line.substr(i + 1, close - i - 1));
-}
-
 /// The workbook of the last excel("...") of the document, if any
 std::optional<fs::path> documentWorkbook(Document* doc) {
     fs::path baseDir;
@@ -80,7 +48,7 @@ std::optional<fs::path> documentWorkbook(Document* doc) {
         std::string_view rest(src);
         while (!rest.empty()) {
             size_t nl = rest.find('\n');
-            if (auto book = excelStatement(rest.substr(0, nl))) {
+            if (auto book = xoj::calc::excelStatement(rest.substr(0, nl))) {
                 last = std::move(book);
             }
             rest = nl == std::string_view::npos ? std::string_view() : rest.substr(nl + 1);
@@ -138,14 +106,9 @@ fs::path Control::chooseExcelWorkbook() {
         return {};
     }
 
-    // Relative to the document when the workbook is in its folder (or below), so that both can be moved together
+    // The full path: it is shown when the region is edited (the sheet shows only the name). If the folder is moved,
+    // the workbook with the same name next to the document is used
     std::string written = xoj::calc::pathToUtf8(chosen);
-    if (!docDir.empty()) {
-        fs::path rel = chosen.lexically_relative(docDir);
-        if (!rel.empty() && rel.begin()->u8string() != u8"..") {
-            written = xoj::calc::pathToUtf8(rel);
-        }
-    }
     insertCalcLine("excel(\"" + written + "\")");
     return chosen;
 }

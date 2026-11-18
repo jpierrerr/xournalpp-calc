@@ -99,6 +99,16 @@ fs::path ExcelLink::resolve(const std::string& path) const {
             throw CalcError("guarda primero la hoja (.xopp) o escribe la ruta completa del libro");
         }
         p = baseDir / p;
+    } else if (!baseDir.empty()) {
+        // A full path that no longer exists (the folder was moved or copied to another computer): the workbook with
+        // the same name next to the document
+        std::error_code ec;
+        if (!fs::exists(p, ec)) {
+            fs::path nextToDoc = baseDir / p.filename();
+            if (fs::exists(nextToDoc, ec)) {
+                p = nextToDoc;
+            }
+        }
     }
     return p.lexically_normal();
 }

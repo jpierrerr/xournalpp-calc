@@ -9,6 +9,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -22,6 +23,10 @@ namespace xoj::calc {
 /// Escape text for Pango markup and typeset it as math: x^2 → x², A_s → A with subscript s, * → ·
 /// A unit with a power written without "^" (m3) is shown as m³, unless it is a variable of env
 std::string prettifyMarkup(std::string_view source, const Environment* env = nullptr);
+
+/// The workbook of an excel("...") line, if the line is one (written by hand: std::regex overflows the stack on long
+/// lines)
+std::optional<std::string> excelStatement(std::string_view line);
 
 /// Pango markup for an evaluated block: sources are typeset, results in blue and errors in red
 std::string buildMarkup(const std::vector<LineResult>& lines, const Environment* env = nullptr);

@@ -145,6 +145,9 @@ void Letterhead::draw(cairo_t* cr, double left, double top, double right, double
     const double textLeft = left + pad + leftW + pad;
     const double textRight = right - pad - rightW - pad;
     PangoLayout* layout = pango_cairo_create_layout(cr);
+    // As TextView does: no matrix in the Pango context. With the page transform in it, some font backends (Windows)
+    // cache the fonts with that offset, and later texts are drawn displaced
+    pango_context_set_matrix(pango_layout_get_context(layout), nullptr);
     pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
     pango_layout_set_width(layout, static_cast<int>(std::max(10.0, textRight - textLeft) * PANGO_SCALE));
     std::string markup;
@@ -190,6 +193,7 @@ void Letterhead::draw(cairo_t* cr, double left, double top, double right, double
         }
     }
     g_object_unref(layout);
+    cairo_new_path(cr);  // leave no current point behind
     cairo_restore(cr);
 }
 

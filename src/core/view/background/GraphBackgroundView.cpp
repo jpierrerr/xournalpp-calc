@@ -258,6 +258,9 @@ void GraphBackgroundView::drawExamHeader(cairo_t* cr) const {
 
     // Labels
     PangoLayout* layout = pango_cairo_create_layout(cr);
+    // As TextView does: no matrix in the Pango context. With the page transform in it, some font backends (Windows)
+    // cache the fonts with that offset, and later texts are drawn displaced
+    pango_context_set_matrix(pango_layout_get_context(layout), nullptr);
     PangoFontDescription* font = pango_font_description_from_string("Sans 7");
     pango_layout_set_font_description(layout, font);
     pango_font_description_free(font);
@@ -275,5 +278,6 @@ void GraphBackgroundView::drawExamHeader(cairo_t* cr) const {
     cairo_move_to(cr, (gradeLeft + right) / 2 - 0.5 * w / PANGO_SCALE, top + 2);
     pango_cairo_show_layout(cr, layout);
     g_object_unref(layout);
+    cairo_new_path(cr);  // leave no current point behind
     cairo_restore(cr);
 }

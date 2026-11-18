@@ -54,12 +54,12 @@ void Control::convertSelectedInk(bool math) {
 
     std::vector<xoj::calc::ink::InkStroke> strokes;
     bool others = false;
-    for (Element* e: sel->getElementsView()) {
+    for (const Element* e: sel->getElementsView()) {
         if (e->getType() != ELEMENT_STROKE) {
             others = true;
             continue;
         }
-        auto* s = static_cast<Stroke*>(e);
+        const auto* s = static_cast<const Stroke*>(e);
         xoj::calc::ink::InkStroke is;
         for (const auto& p: s->getPointVector()) {
             is.points.push_back({p.x, p.y});

@@ -653,6 +653,27 @@ msgstr "Cuadriculado"
 msgid "Graph with vertical line"
 msgstr "Cuadriculado con línea vertical"
 
+msgid "Exam sheet"
+msgstr "Hoja de parcial"
+
+msgid "Subject"
+msgstr "Asignatura"
+
+msgid "Date"
+msgstr "Fecha"
+
+msgid "Student ID"
+msgstr "Código"
+
+msgid "Teacher"
+msgstr "Profesor"
+
+msgid "Group"
+msgstr "Grupo"
+
+msgid "Grade"
+msgstr "Nota"
+
 #: ../src/core/control/pagetype/PageTypeHandler.cpp:37
 msgid "Dotted"
 msgstr "Punteada"

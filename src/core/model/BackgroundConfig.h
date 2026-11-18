@@ -44,5 +44,8 @@ constexpr static char CFG_ROUND_MARGIN[] = "rm";
 constexpr static char CFG_RASTER[] = "r1";
 constexpr static char CFG_BOLD_LINE_INTERVAL[] = "bli";
 constexpr static char CFG_BOLD_LINE_WIDTH[] = "blw";
-constexpr static char CFG_V_LINE[] = "vm";  ///< graph paper: position of a vertical margin line (xournalpp-calc)
+constexpr static char CFG_V_LINE[] = "vm";
+constexpr static char CFG_EXAM_HEADER[] =
+        "ex";  ///< graph paper: exam sheet header with name, date, grade… (xournalpp-calc)  ///< graph paper: position
+               ///< of a vertical margin line (xournalpp-calc)
 }  // namespace background_config_strings

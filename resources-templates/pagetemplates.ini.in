@@ -30,6 +30,11 @@ name=Graph with vertical line
 format=graph
 config=vm=70.85
 
+[graphExam]
+name=Exam sheet
+format=graph
+config=vm=70.85,ex=1
+
 [predefinedDotted]
 name=Dotted
 format=dotted

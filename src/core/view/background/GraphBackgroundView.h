@@ -36,6 +36,11 @@ protected:
     double vLine =
             0.0;  ///< x of the vertical margin line, as on ruled paper ("vm"); 0 = none, negative = from the right
     Color vLineColor;
+    bool examHeader = false;  ///< exam sheet: a header box (subject, name, ID, teacher, date, group, grade) on top
+
+    /// Height of the exam header, a whole number of squares so that the grid below stays aligned
+    double headerHeight() const { return examHeader ? 8 * squareSize : 0.0; }
+    void drawExamHeader(cairo_t* cr) const;
 
     constexpr static Color DEFAULT_LINE_COLOR = Colors::xopp_silver;
     constexpr static Color ALT_DEFAULT_LINE_COLOR = Colors::xopp_darkslategray;

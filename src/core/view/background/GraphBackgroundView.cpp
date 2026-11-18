@@ -4,7 +4,10 @@
 #include <cmath>      // for floor
 #include <memory>     // for allocator
 
+#include <pango/pangocairo.h>
+
 #include "model/BackgroundConfig.h"                  // for BackgroundConfig
+#include "util/i18n.h"
 #include "view/background/BackgroundView.h"          // for view
 #include "view/background/OneColorBackgroundView.h"  // for OneColorBackgrou...
 #include "view/background/PlainBackgroundView.h"     // for PlainBackgroundView
@@ -23,6 +26,9 @@ GraphBackgroundView::GraphBackgroundView(double pageWidth, double pageHeight, Co
     config.loadValue(CFG_BOLD_LINE_WIDTH, boldLineWidth);
 
     config.loadValue(CFG_V_LINE, vLine);
+    if (int ex = 0; config.loadValue(CFG_EXAM_HEADER, ex) && ex) {
+        examHeader = true;
+    }
     if (vLine < 0) {
         vLine += pageWidth;
     }
@@ -47,6 +53,9 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
     double minY;
     double maxY;
     cairo_clip_extents(cr, &minX, &minY, &maxX, &maxY);
+
+    // No grid behind the exam header
+    minY = std::max(minY, headerHeight());
 
     if (margin > 0.0) {
         minX = std::max(minX, margin);
@@ -147,10 +156,66 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
         Util::cairo_set_source_rgbi(cr, vLineColor);
         cairo_set_line_width(cr, lineWidth);
         cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
-        cairo_move_to(cr, vLine, 0);
+        cairo_move_to(cr, vLine, headerHeight());
         cairo_line_to(cr, vLine, pageHeight);
         cairo_stroke(cr);
     }
 
+    cairo_restore(cr);
+
+    if (examHeader) {
+        drawExamHeader(cr);
+    }
+}
+
+void GraphBackgroundView::drawExamHeader(cairo_t* cr) const {
+    // Box from 1 to 7 squares down, 2 squares from each side; three rows of 2 squares with two fields each, and a
+    // box for the grade on the right
+    const double s = squareSize;
+    const double left = 2 * s;
+    const double right = pageWidth - 2 * s;
+    const double top = s;
+    const double bottom = 7 * s;
+    const double gradeLeft = right - 5 * s;
+    const double split = left + std::round((gradeLeft - left) * 0.68 / s) * s;  // between the long and short fields
+
+    cairo_save(cr);
+    Util::cairo_set_source_rgbi(cr, vLine > 0 ? vLineColor : foregroundColor);
+    cairo_set_line_width(cr, 1.0);
+    cairo_rectangle(cr, left, top, right - left, bottom - top);
+    cairo_move_to(cr, gradeLeft, top);
+    cairo_line_to(cr, gradeLeft, bottom);
+    cairo_stroke(cr);
+
+    // Field lines
+    cairo_set_line_width(cr, 0.5);
+    for (int r = 1; r <= 2; r++) {
+        double y = top + 2 * s * r;
+        cairo_move_to(cr, left, y);
+        cairo_line_to(cr, gradeLeft, y);
+    }
+    cairo_move_to(cr, split, top);
+    cairo_line_to(cr, split, bottom);
+    cairo_stroke(cr);
+
+    // Labels
+    PangoLayout* layout = pango_cairo_create_layout(cr);
+    PangoFontDescription* font = pango_font_description_from_string("Sans 7");
+    pango_layout_set_font_description(layout, font);
+    pango_font_description_free(font);
+    const char* labels[3][2] = {{_("Subject"), _("Date")}, {_("Name"), _("Student ID")}, {_("Teacher"), _("Group")}};
+    for (int r = 0; r < 3; r++) {
+        for (int c = 0; c < 2; c++) {
+            pango_layout_set_text(layout, labels[r][c], -1);
+            cairo_move_to(cr, (c == 0 ? left : split) + 3, top + 2 * s * r + 2);
+            pango_cairo_show_layout(cr, layout);
+        }
+    }
+    pango_layout_set_text(layout, _("Grade"), -1);
+    int w = 0, h = 0;
+    pango_layout_get_size(layout, &w, &h);
+    cairo_move_to(cr, (gradeLeft + right) / 2 - 0.5 * w / PANGO_SCALE, top + 2);
+    pango_cairo_show_layout(cr, layout);
+    g_object_unref(layout);
     cairo_restore(cr);
 }

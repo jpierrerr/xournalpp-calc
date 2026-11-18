@@ -27,6 +27,50 @@ InkBox boundingBox(const std::vector<InkStroke>& strokes) {
     return b;
 }
 
+std::vector<InkStroke> smoothStrokes(const std::vector<InkStroke>& strokes, double step) {
+    std::vector<InkStroke> out;
+    out.reserve(strokes.size());
+    step = std::max(step, 1e-6);
+    for (const auto& s: strokes) {
+        if (s.points.size() < 3) {
+            out.push_back(s);
+            continue;
+        }
+        // Resample along the length
+        std::vector<InkPoint> r{s.points.front()};
+        double carry = 0;
+        for (size_t i = 1; i < s.points.size(); i++) {
+            InkPoint a = s.points[i - 1];
+            InkPoint b = s.points[i];
+            double len = std::hypot(b.x - a.x, b.y - a.y);
+            double t = step - carry;
+            while (t <= len) {
+                r.push_back({a.x + (b.x - a.x) * t / len, a.y + (b.y - a.y) * t / len});
+                t += step;
+            }
+            carry = len - (t - step);
+        }
+        if (std::hypot(r.back().x - s.points.back().x, r.back().y - s.points.back().y) > step * 0.25) {
+            r.push_back(s.points.back());
+        }
+        // Moving average (the ends stay in place)
+        const int w = 4;
+        InkStroke sm;
+        sm.points.reserve(r.size());
+        for (size_t i = 0; i < r.size(); i++) {
+            int k = static_cast<int>(std::min({static_cast<size_t>(w), i, r.size() - 1 - i}));
+            double sx = 0, sy = 0;
+            for (int j = -k; j <= k; j++) {
+                sx += r[i + j].x;
+                sy += r[i + j].y;
+            }
+            sm.points.push_back({sx / (2 * k + 1), sy / (2 * k + 1)});
+        }
+        out.push_back(std::move(sm));
+    }
+    return out;
+}
+
 namespace {
 
 /// Typical height of a character: median of the stroke heights, ignoring flat strokes (fraction bars, minus signs)

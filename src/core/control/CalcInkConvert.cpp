@@ -256,12 +256,19 @@ bool Control::convertInkStrokes(const PageRef& page, Layer* layer, const std::ve
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Live conversion: the pen strokes are converted into a calculation region after a short pause in the writing
+// Live conversion: the pen strokes are converted into a calculation region (or text) after a short pause in the
+// writing
 
-void Control::setInkLive(bool enabled) {
+void Control::setInkLive(bool enabled, bool math) {
+    if (!enabled && this->inkLiveMath != math) {
+        return;  // the other mode is being switched off because this one was switched on
+    }
+    flushLiveInk();
     this->inkLive = enabled;
-    if (!enabled) {
-        flushLiveInk();
+    this->inkLiveMath = math;
+    if (enabled) {
+        // Only one live mode at a time
+        this->actionDB->setActionState(math ? Action::CALC_INK_LIVE_TEXT : Action::CALC_INK_LIVE, false);
     }
 }
 
@@ -320,6 +327,6 @@ void Control::flushLiveInk() {
     }
     this->doc->unlock_shared();
     if (!strokes.empty()) {
-        convertInkStrokes(page, layer, strokes, true, false);
+        convertInkStrokes(page, layer, strokes, this->inkLiveMath, false);
     }
 }

@@ -32,6 +32,10 @@ struct InkBox {
 
 InkBox boundingBox(const std::vector<InkStroke>& strokes);
 
+/// Smooth the strokes: writing with a touchpad or a mouse gives few points in steps (horizontal and vertical
+/// segments); the strokes are resampled every step units and averaged with their neighbours
+std::vector<InkStroke> smoothStrokes(const std::vector<InkStroke>& strokes, double step);
+
 /// Split strokes into lines of writing, from top to bottom (fractions and powers stay in their line)
 std::vector<std::vector<InkStroke>> splitLines(const std::vector<InkStroke>& strokes);
 

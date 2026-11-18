@@ -862,19 +862,25 @@ struct ActionProperties<Action::CALC_INK_TO_TEXT> {
     static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->convertSelectedInk(false); }
 };
 
-template <>
-struct ActionProperties<Action::CALC_INK_LIVE> {
+template <bool math>
+struct InkLiveActionProperties {
     using state_type = bool;
-    static state_type initialState(Control* ctrl) { return ctrl->isInkLive(); }
+    static state_type initialState(Control* ctrl) { return ctrl->isInkLive(math); }
     static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
         g_simple_action_set_state(ga, p);
         bool enabled = g_variant_get_boolean(p);
-        ctrl->setInkLive(enabled);
+        ctrl->setInkLive(enabled, math);
         if (enabled && ctrl->getToolHandler()->getToolType() != TOOL_PEN) {
             ctrl->selectTool(TOOL_PEN);
         }
     }
 };
+
+template <>
+struct ActionProperties<Action::CALC_INK_LIVE>: InkLiveActionProperties<true> {};
+
+template <>
+struct ActionProperties<Action::CALC_INK_LIVE_TEXT>: InkLiveActionProperties<false> {};
 
 template <>
 struct ActionProperties<Action::TEXT_JUSTIFY> {

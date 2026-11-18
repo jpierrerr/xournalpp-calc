@@ -33,6 +33,7 @@ TEST(LatexToCalc, structures) {
     EXPECT_EQ(latexToCalc("\\left( a + b \\right) ^ { 2 }"), "(a + b)^2");
     EXPECT_EQ(latexToCalc("\\max ( a , b )"), "max(a, b)");
     EXPECT_EQ(latexToCalc("2 . 5 \\times 1 0 ^ { 3 }"), "2.5·10^3");
+    EXPECT_EQ(latexToCalc("\\frac { a } { \\varGamma }"), "a/Γ");
 }
 
 TEST(LatexToCalc, equalsAndLines) {

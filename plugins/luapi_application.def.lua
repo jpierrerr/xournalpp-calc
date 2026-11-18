@@ -1257,6 +1257,7 @@ function app.setFont(font) end
 ---| "calc-ink-to-math"
 ---| "calc-ink-to-text"
 ---| "calc-ink-live"
+---| "calc-ink-live-text"
 ---| "plugin-manager"
 ---| "help"
 ---| "demo"

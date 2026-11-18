@@ -175,7 +175,7 @@ std::optional<std::string> recognizeText(const std::vector<InkStroke>& strokes, 
         return std::nullopt;
     }
     InkBox box = boundingBox(strokes);
-    for (const auto& s: strokes) {
+    for (const auto& s: smoothStrokes(strokes, std::max(box.height(), 1.0) / 50.0)) {
         if (s.points.empty()) {
             continue;
         }

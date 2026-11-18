@@ -883,6 +883,11 @@
       <attribute name="action">win.calc-ink-live</attribute>
       <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;w</attribute>
      </item>
+     <item>
+      <attribute name="label" translatable="yes">Convert to Text While Writing</attribute>
+      <attribute name="action">win.calc-ink-live-text</attribute>
+      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;x</attribute>
+     </item>
     </section>
     <item>
      <attribute name="label" translatable="yes">Record / Stop</attribute>

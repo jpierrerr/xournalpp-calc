@@ -316,9 +316,10 @@ public:
     /// interactive)
     bool convertInkStrokes(const PageRef& page, Layer* layer, const std::vector<Stroke*>& strokes, bool math,
                            bool interactive);
-    /// xournalpp-calc: convert the pen strokes into calculation regions while writing, after a short pause
-    void setInkLive(bool enabled);
-    bool isInkLive() const { return inkLive; }
+    /// xournalpp-calc: convert the pen strokes while writing, after a short pause, into calculation regions (math)
+    /// or into text. Only one of the two modes is on at a time
+    void setInkLive(bool enabled, bool math);
+    bool isInkLive(bool math) const { return inkLive && inkLiveMath == math; }
     /// xournalpp-calc: called by the pen when a stroke starts and when it is finished
     void inkStrokeStarted();
     void inkStrokeFinished(const PageRef& page, Stroke* stroke);
@@ -436,6 +437,7 @@ private:
     bool calcGridVisible = false;
     static constexpr guint INK_LIVE_DELAY_MS = 1500;
     bool inkLive = false;
+    bool inkLiveMath = true;
     guint inkLiveSource = 0;
     PageRef inkLivePage;
     std::vector<Stroke*> inkLiveStrokes;

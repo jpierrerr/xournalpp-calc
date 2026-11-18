@@ -602,7 +602,7 @@ public:
                     (fs::temp_directory_path() / ("jackmath-ink-" + std::to_string(debugCounter++) + ".png")).u8string()));
         }
         auto gray = renderStrokes(strokes, size, size, envDouble("JACKMATH_INK_HEIGHT", 64),
-                                  envDouble("JACKMATH_INK_PEN", 3.0), debugPng);
+                                  envDouble("JACKMATH_INK_PEN", 1.6), debugPng);
         std::vector<float> pixels(3 * static_cast<size_t>(size) * size);
         const size_t plane = static_cast<size_t>(size) * size;
         for (size_t i = 0; i < plane; i++) {
@@ -730,8 +730,10 @@ std::optional<std::string> recognizeMath(const std::vector<InkStroke>& strokes, 
     if (!model) {
         return std::nullopt;
     }
+    // Writing with a touchpad gives steps: smooth at about 1/25 of the height of a character
+    std::vector<InkStroke> smooth = smoothStrokes(strokes, std::max(boundingBox(strokes).height(), 1.0) / 50.0);
     std::string result;
-    for (const auto& line: splitLines(strokes)) {
+    for (const auto& line: splitLines(smooth)) {
         auto latex = model->recognizeLine(line, error);
         if (!latex) {
             return std::nullopt;

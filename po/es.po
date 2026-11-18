@@ -4931,3 +4931,9 @@ msgstr "Convertir a ecuación mientras escribo"
 
 msgid "Convert to equation while writing"
 msgstr "Convertir a ecuación mientras escribo"
+
+msgid "Convert to Text While Writing"
+msgstr "Convertir a texto mientras escribo"
+
+msgid "Convert to text while writing"
+msgstr "Convertir a texto mientras escribo"

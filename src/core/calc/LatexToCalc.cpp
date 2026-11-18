@@ -582,6 +582,12 @@ private:
             }
             return;
         }
+        if (cmd.size() > 3 && cmd.compare(0, 3, "var") == 0 && greekMap().count(cmd.substr(3)) &&
+            !greekMap().count(cmd)) {
+            // \varGamma, \varDelta... are the italic capitals
+            parseCommand(out, cmd.substr(3));
+            return;
+        }
         if (auto it = greekMap().find(cmd); it != greekMap().end()) {
             if (it->second == "°" || it->second == "'") {
                 if (!out.empty() && out.back().kind == K::Operand) {

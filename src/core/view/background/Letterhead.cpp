@@ -117,10 +117,10 @@ const Letterhead* Letterhead::get() {
             lh->name = "Membrete";
         }
         if (auto f = str("logo_izquierdo"); !f.empty()) {
-            lh->leftLogo = loadLogo(folder / fs::u8path(f));
+            lh->leftLogo = loadLogo(folder / fs::path(std::u8string(f.begin(), f.end())));
         }
         if (auto f = str("logo_derecho"); !f.empty()) {
-            lh->rightLogo = loadLogo(folder / fs::u8path(f));
+            lh->rightLogo = loadLogo(folder / fs::path(std::u8string(f.begin(), f.end())));
         }
         lh->title = split(str("titulo").c_str());
         lh->fields = split(str("campos").c_str());
@@ -174,8 +174,8 @@ void Letterhead::draw(cairo_t* cr, double left, double top, double right, double
         cairo_line_to(cr, right, fieldsTop);
         const double cellW = std::round((right - left) / static_cast<double>(fields.size()) / s) * s;
         for (size_t i = 1; i < fields.size(); i++) {
-            cairo_move_to(cr, left + i * cellW, fieldsTop);
-            cairo_line_to(cr, left + i * cellW, bottom);
+            cairo_move_to(cr, left + static_cast<double>(i) * cellW, fieldsTop);
+            cairo_line_to(cr, left + static_cast<double>(i) * cellW, bottom);
         }
         cairo_stroke(cr);
 
@@ -188,7 +188,7 @@ void Letterhead::draw(cairo_t* cr, double left, double top, double right, double
         for (size_t i = 0; i < fields.size(); i++) {
             pango_layout_set_text(layout, (fields[i] + ":").c_str(), -1);
             pango_layout_get_size(layout, &tw, &th);
-            cairo_move_to(cr, left + i * cellW + pad, fieldsTop + s - 0.5 * th / PANGO_SCALE);
+            cairo_move_to(cr, left + static_cast<double>(i) * cellW + pad, fieldsTop + s - 0.5 * th / PANGO_SCALE);
             pango_cairo_show_layout(cr, layout);
         }
     }

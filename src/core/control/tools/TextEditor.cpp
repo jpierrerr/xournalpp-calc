@@ -1457,7 +1457,7 @@ void TextEditor::initializeEditionAt(double x, double y) {
                 const double first = t->getOrigin().y + t->firstBaseline() + xoj::calc::BASELINE_LIFT;
                 const double pitch = t->getLineHeight() > 0 ? t->getLineHeight() : t->naturalLineHeight();
                 const auto lines = std::count(t->getText().begin(), t->getText().end(), '\n');
-                if (*exactLine < first - grid.dy / 2 || *exactLine > first + lines * pitch + grid.dy / 2) {
+                if (*exactLine < first - grid.dy / 2 || *exactLine > first + static_cast<double>(lines) * pitch + grid.dy / 2) {
                     continue;
                 }
             }

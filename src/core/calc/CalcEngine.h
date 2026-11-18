@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace xoj::calc {
@@ -53,6 +54,10 @@ public:
 
 /// Look up a unit or physical constant by name (e.g. "kN", "MPa", "deg", "g")
 std::optional<Quantity> findUnit(std::string_view name);
+
+/// A unit followed by a power written without "^", e.g. "m3" → ("m", 3), "cm2" → ("cm", 2). Nullopt if the name
+/// is not of that form
+std::optional<std::pair<std::string, int>> splitUnitPower(std::string_view name);
 
 /// Format a number the way it is shown in results (e.g. "750", "0.75", "1.234·10⁻⁵")
 std::string formatNumber(double v);

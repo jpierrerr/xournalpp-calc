@@ -14,6 +14,7 @@ Extensión de Xournal++ para hacer memorias de cálculo al estilo Mathcad sobre 
 | `M := w*L^2/8 =` | define y muestra el valor | `M := w·L²/8 = 112.5 kN·m` |
 | `M = ? kN*m` | muestra en las unidades pedidas | `M = 112.5 kN·m` |
 | `A_s := 5 cm^2` | subíndice con `_` | A<sub>s</sub> := 5 cm² |
+| `V := 2 m3` | potencia de una unidad sin `^` (m3, cm2, mm4, s2…) | V := 2 m³ |
 | `Cálculo de la viga` | línea sin `=` ni `:=`: texto normal | igual |
 | `# nota` | comentario | igual |
 

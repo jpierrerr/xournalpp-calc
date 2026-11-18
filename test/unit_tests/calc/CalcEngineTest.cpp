@@ -137,3 +137,15 @@ TEST(CalcEngine, greekMapping) {
     EXPECT_EQ(greekForLatin('W'), "Ω");
     EXPECT_EQ(greekForLatin('1'), "");
 }
+
+TEST(CalcEngine, unitPowersWithoutCaret) {
+    Environment env;
+    auto lines = evaluateText("V := 2 m3\nV = ? L\nA := 5 cm2\nA = ? mm2\nx2 := 3\ny := x2 + 1 =", env);
+    EXPECT_EQ(lines[1].display, "V = 2000 L");
+    EXPECT_EQ(lines[3].display, "A = 500 mm2");  // shown as mm² by the markup
+    EXPECT_EQ(lines[5].display, "y := x2 + 1 = 4");
+    // A variable of the user named like the unit takes priority
+    Environment env2;
+    auto l2 = evaluateText("m := 2\nz := m3 =", env2);
+    EXPECT_EQ(l2[1].kind, LineResult::Kind::Error);
+}

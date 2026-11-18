@@ -19,10 +19,11 @@ class Document;
 namespace xoj::calc {
 
 /// Escape text for Pango markup and typeset it as math: x^2 → x², A_s → A with subscript s, * → ·
-std::string prettifyMarkup(std::string_view source);
+/// A unit with a power written without "^" (m3) is shown as m³, unless it is a variable of env
+std::string prettifyMarkup(std::string_view source, const Environment* env = nullptr);
 
 /// Pango markup for an evaluated block: sources are typeset, results in blue and errors in red
-std::string buildMarkup(const std::vector<LineResult>& lines);
+std::string buildMarkup(const std::vector<LineResult>& lines, const Environment* env = nullptr);
 
 /**
  * Evaluate every calculation region of the document in reading order: page by page, and on each page from top to

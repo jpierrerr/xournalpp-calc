@@ -220,6 +220,21 @@ std::optional<Quantity> findUnit(std::string_view name) {
     return std::nullopt;
 }
 
+std::optional<std::pair<std::string, int>> splitUnitPower(std::string_view name) {
+    size_t d = name.size();
+    while (d > 0 && std::isdigit(static_cast<unsigned char>(name[d - 1]))) {
+        d--;
+    }
+    if (d == 0 || d == name.size() || name.size() - d > 2 || name[d] == '0') {
+        return std::nullopt;
+    }
+    std::string base(name.substr(0, d));
+    if (!findUnit(base)) {
+        return std::nullopt;
+    }
+    return std::make_pair(base, std::stoi(std::string(name.substr(d))));
+}
+
 std::string formatNumber(double v) {
     if (std::isnan(v)) {
         return "NaN";
@@ -669,6 +684,11 @@ private:
         }
         if (auto u = findUnit(name)) {
             return *u;
+        }
+        // "m3" means m³ (unless "m" is a variable of the user)
+        if (auto up = splitUnitPower(name); up && !(env && env->vars.count(up->first))) {
+            Quantity u = *findUnit(up->first);
+            return Quantity{std::pow(u.value, up->second), u.dim.pow(up->second)};
         }
         throw CalcError(env ? "variable no definida: " + name : "unidad desconocida: " + name);
     }

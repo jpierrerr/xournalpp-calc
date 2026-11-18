@@ -47,7 +47,7 @@ bool isIdentByte(std::string_view s, size_t i) {
 
 }  // namespace
 
-std::string prettifyMarkup(std::string_view s) {
+std::string prettifyMarkup(std::string_view s, const Environment* env) {
     std::string out;
     size_t i = 0;
     while (i < s.size()) {
@@ -68,7 +68,7 @@ std::string prettifyMarkup(std::string_view s) {
                     }
                 }
                 size_t end = std::min(j, s.size());
-                out += "<sup>" + prettifyMarkup(s.substr(i + 1, end - i - 1)) + "</sup>";
+                out += "<sup>" + prettifyMarkup(s.substr(i + 1, end - i - 1), env) + "</sup>";
                 i = end < s.size() ? end + 1 : end;
             } else {
                 size_t j = i;
@@ -87,8 +87,12 @@ std::string prettifyMarkup(std::string_view s) {
                 j++;
             }
             std::string_view ident = s.substr(i, j - i);
+            auto unitPower = splitUnitPower(ident);
             if (ident == "sqrt") {
                 out += "√";
+            } else if (unitPower &&
+                       !(env && (env->vars.count(std::string(ident)) || env->vars.count(unitPower->first)))) {
+                out += escape(unitPower->first) + "<sup>" + std::to_string(unitPower->second) + "</sup>";
             } else if (size_t u = ident.find('_'); u != std::string_view::npos && u > 0 && u + 1 < ident.size()) {
                 out += escape(ident.substr(0, u)) + "<sub>" + escape(ident.substr(u + 1)) + "</sub>";
             } else {
@@ -108,7 +112,7 @@ std::string prettifyMarkup(std::string_view s) {
     return out;
 }
 
-std::string buildMarkup(const std::vector<LineResult>& lines) {
+std::string buildMarkup(const std::vector<LineResult>& lines, const Environment* env) {
     std::string out;
     bool first = true;
     for (const auto& l: lines) {
@@ -121,17 +125,18 @@ std::string buildMarkup(const std::vector<LineResult>& lines) {
                 out += escape(l.source);
                 break;
             case LineResult::Kind::Definition:
-                out += prettifyMarkup(l.source);
+                out += prettifyMarkup(l.source, env);
                 break;
             case LineResult::Kind::Evaluation: {
                 std::string_view prefix(l.display);
                 prefix.remove_suffix(std::min(prefix.size(), l.result.size()));
-                out += prettifyMarkup(prefix);
-                out += std::string("<span foreground=\"") + RESULT_COLOR + "\">" + prettifyMarkup(l.result) + "</span>";
+                out += prettifyMarkup(prefix, env);
+                out += std::string("<span foreground=\"") + RESULT_COLOR + "\">" + prettifyMarkup(l.result, env) +
+                       "</span>";
                 break;
             }
             case LineResult::Kind::Error:
-                out += prettifyMarkup(l.source);
+                out += prettifyMarkup(l.source, env);
                 out += std::string("   <span foreground=\"") + ERROR_COLOR + "\" size=\"smaller\">⚠ " +
                        escape(l.error) + "</span>";
                 break;
@@ -175,7 +180,7 @@ std::vector<size_t> recalculateDocument(Document* doc) {
         bool changed = false;
         for (Text* t: regions) {
             auto lines = evaluateText(t->getText(), env);
-            changed |= t->setCalcMarkup(buildMarkup(lines));
+            changed |= t->setCalcMarkup(buildMarkup(lines, &env));
         }
         if (changed) {
             changedPages.push_back(p);

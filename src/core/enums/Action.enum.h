@@ -148,6 +148,10 @@ enum class Action : size_t {
     GREEK_PALETTE,      ///< Show the palette of Greek letters
     CALC_GRID,          ///< Align new text boxes on the alignment grid
     CALC_GRID_VISIBLE,  ///< Show the alignment grid (dots)
+    CALC_INK_TO_MATH,   ///< Convert the selected handwriting into a calculation region
+    CALC_INK_TO_TEXT,   ///< Convert the selected handwriting into text
+    CALC_INK_LIVE,      ///< Convert the handwriting into calculation regions while writing
+    CALC_INK_LIVE_TEXT, ///< Convert the handwriting into text while writing
 
     // Plugin Menu
     PLUGIN_MANAGER,

@@ -58,6 +58,8 @@ class PluginController;
 class Document;
 class EditSelection;
 class Element;
+class Layer;
+class Stroke;
 class MainWindow;
 class ObjectInputStream;
 class ScrollHandler;
@@ -307,6 +309,22 @@ public:
     bool isCalcGridVisible() const { return calcGridVisible; }
     /// xournalpp-calc: show the palette of Greek letters and math symbols
     void showGreekPalette();
+    /// xournalpp-calc: replace the selected handwriting (or, without a selection, all the handwriting of the current
+    /// page) by what it says: calculation regions (math) or text boxes, one per block of writing
+    void convertSelectedInk(bool math);
+    /// xournalpp-calc: convert strokes of a layer. Returns false if nothing was recognized (shown to the user if
+    /// interactive)
+    bool convertInkStrokes(const PageRef& page, Layer* layer, const std::vector<Stroke*>& strokes, bool math,
+                           bool interactive);
+    /// xournalpp-calc: convert the pen strokes while writing, after a short pause, into calculation regions (math)
+    /// or into text. Only one of the two modes is on at a time
+    void setInkLive(bool enabled, bool math);
+    bool isInkLive(bool math) const { return inkLive && inkLiveMath == math; }
+    /// xournalpp-calc: called by the pen when a stroke starts and when it is finished
+    void inkStrokeStarted();
+    void inkStrokeFinished(const PageRef& page, Stroke* stroke);
+    /// xournalpp-calc: convert now the strokes waiting for the pause
+    void flushLiveInk();
 
     GladeSearchpath* getGladeSearchPath() const;
 
@@ -417,6 +435,12 @@ private:
     bool calcMode = false;
     bool calcGrid = false;
     bool calcGridVisible = false;
+    static constexpr guint INK_LIVE_DELAY_MS = 1500;
+    bool inkLive = false;
+    bool inkLiveMath = true;
+    guint inkLiveSource = 0;
+    PageRef inkLivePage;
+    std::vector<Stroke*> inkLiveStrokes;
     GtkWidget* greekPalette = nullptr;
 
     /**

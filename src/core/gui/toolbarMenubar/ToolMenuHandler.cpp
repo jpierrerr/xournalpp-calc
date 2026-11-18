@@ -450,6 +450,14 @@ void ToolMenuHandler::initToolItems() {
                         _("Grid visible"));
     emplaceStockItem("GREEK_PALETTE", Cat::TOOLS, Action::GREEK_PALETTE, "accessories-character-map",
                      _("Greek letters and symbols"));
+    emplaceStockItem("INK_TO_MATH", Cat::TOOLS, Action::CALC_INK_TO_MATH, "applications-science-symbolic",
+                     _("Convert handwriting to equation"));
+    emplaceStockItem("INK_TO_TEXT", Cat::TOOLS, Action::CALC_INK_TO_TEXT, "insert-text-symbolic",
+                     _("Convert handwriting to text"));
+    emplaceStockItemTgl("INK_LIVE", Cat::TOOLS, Action::CALC_INK_LIVE, "input-tablet-symbolic",
+                        _("Convert to equation while writing"));
+    emplaceStockItemTgl("INK_LIVE_TEXT", Cat::TOOLS, Action::CALC_INK_LIVE_TEXT, "format-text-italic-symbolic",
+                        _("Convert to text while writing"));
     emplaceStockItemWithTarget("FORMAT_ALIGN_LEFT", Cat::TOOLS, Action::TEXT_ALIGNMENT, TextAlignment::LEFT,
                                "format-justify-left", _("Align text to the left"));
     emplaceStockItemWithTarget("FORMAT_ALIGN_CENTER", Cat::TOOLS, Action::TEXT_ALIGNMENT, TextAlignment::CENTER,

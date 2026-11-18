@@ -64,8 +64,12 @@ void TextView::draw(const Context& ctx) const {
             i++;
         } while (pango_layout_iter_next_line(iter));
         pango_layout_iter_free(iter);
+        // cairo_restore() does not reset the current point: clear it, or the next text is drawn here
+        cairo_new_path(ctx.cr);
         return;
     }
 
+    cairo_move_to(ctx.cr, 0, 0);
     pango_cairo_show_layout(ctx.cr, layout.get());
+    cairo_new_path(ctx.cr);
 }

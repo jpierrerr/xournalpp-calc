@@ -81,6 +81,41 @@ std::string prettifyMarkup(std::string_view s, const Environment* env) {
                 out += "<sup>" + escape(s.substr(i, j - i)) + "</sup>";
                 i = j;
             }
+        } else if (c == ' ' || c == '\t') {
+            // Any run of blanks is shown as one space, so a unit stays at a fixed distance from its number
+            while (i < s.size() && (s[i] == ' ' || s[i] == '\t')) {
+                i++;
+            }
+            if (!out.empty()) {
+                out += ' ';
+            }
+        } else if (std::isdigit(c) ||
+                   (c == '.' && i + 1 < s.size() && std::isdigit(static_cast<unsigned char>(s[i + 1])))) {
+            // A number: digits, decimal point and exponent ("1.5e-3")
+            size_t j = i;
+            while (j < s.size() && (std::isdigit(static_cast<unsigned char>(s[j])) || s[j] == '.')) {
+                j++;
+            }
+            if (j + 1 < s.size() && (s[j] == 'e' || s[j] == 'E')) {
+                size_t k = j + 1;
+                if (k < s.size() && (s[k] == '+' || s[k] == '-')) {
+                    k++;
+                }
+                if (k < s.size() && std::isdigit(static_cast<unsigned char>(s[k]))) {
+                    while (k < s.size() && std::isdigit(static_cast<unsigned char>(s[k]))) {
+                        k++;
+                    }
+                    j = k;
+                }
+            }
+            out += escape(s.substr(i, j - i));
+            i = j;
+            // "2m" is shown as "2 m": a unit right after its number gets the same single space
+            if (i < s.size() &&
+                (std::isalpha(static_cast<unsigned char>(s[i])) || static_cast<unsigned char>(s[i]) >= 0x80) &&
+                !stopsIdentifier(s, i) && s.substr(i, std::strlen("°")) != "°") {
+                out += ' ';
+            }
         } else if ((std::isalpha(c) || c == '_' || c >= 0x80) && !stopsIdentifier(s, i)) {
             size_t j = i;
             while (j < s.size() && isIdentByte(s, j)) {
@@ -93,6 +128,9 @@ std::string prettifyMarkup(std::string_view s, const Environment* env) {
             } else if (unitPower &&
                        !(env && (env->vars.count(std::string(ident)) || env->vars.count(unitPower->first)))) {
                 out += escape(unitPower->first) + "<sup>" + std::to_string(unitPower->second) + "</sup>";
+            } else if (auto unit = canonicalUnitName(ident);
+                       unit && *unit != ident && !(env && env->vars.count(std::string(ident)))) {
+                out += escape(*unit);  // "kpa" is shown as kPa
             } else if (size_t u = ident.find('_'); u != std::string_view::npos && u > 0 && u + 1 < ident.size()) {
                 out += escape(ident.substr(0, u)) + "<sub>" + escape(ident.substr(u + 1)) + "</sub>";
             } else {

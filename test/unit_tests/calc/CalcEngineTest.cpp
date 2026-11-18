@@ -149,3 +149,17 @@ TEST(CalcEngine, unitPowersWithoutCaret) {
     auto l2 = evaluateText("m := 2\nz := m3 =", env2);
     EXPECT_EQ(l2[1].kind, LineResult::Kind::Error);
 }
+
+TEST(CalcEngine, unitsIgnoreCase) {
+    EXPECT_EQ(canonicalUnitName("kpa"), "kPa");
+    EXPECT_EQ(canonicalUnitName("kn"), "kN");
+    EXPECT_EQ(canonicalUnitName("MPA"), "MPa");
+    EXPECT_EQ(canonicalUnitName("mm"), "mm");         // exact names are never changed
+    EXPECT_EQ(canonicalUnitName("n"), std::nullopt);  // single letters stay case sensitive
+    EXPECT_EQ(canonicalUnitName("a"), std::nullopt);
+    Environment env;
+    auto lines = evaluateText("P := 3 kn\nq := 1.5 kpa\nP = ? N\nA := 2 cm2\nA = ? MM2", env);
+    EXPECT_EQ(lines[2].display, "P = 3000 N");
+    EXPECT_EQ(lines[4].display, "A = 200 MM2");
+    EXPECT_NEAR(env.vars.at("q").value, 1500, 1e-9);
+}

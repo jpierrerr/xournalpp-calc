@@ -212,12 +212,43 @@ std::string superscript(int n) {
 
 }  // namespace
 
+std::optional<std::string> canonicalUnitName(std::string_view name) {
+    const auto& map = unitMap();
+    if (map.count(name)) {
+        return std::string(name);
+    }
+    // Case-insensitive match ("kpa" → kPa, "kn" → kN) for names of two or more ASCII letters, only when exactly one
+    // unit matches. Single letters are left alone so that "a", "n" or "v" do not silently become A, N or V
+    if (name.size() < 2 || !std::all_of(name.begin(), name.end(),
+                                        [](char c) { return std::isalpha(static_cast<unsigned char>(c)) != 0; })) {
+        return std::nullopt;
+    }
+    auto lower = [](std::string_view v) {
+        std::string r(v);
+        std::transform(r.begin(), r.end(), r.begin(), [](unsigned char c) { return std::tolower(c); });
+        return r;
+    };
+    const std::string key = lower(name);
+    std::optional<std::string> found;
+    for (const auto& u: UNITS) {
+        if (lower(u.name) == key) {
+            if (found) {
+                return std::nullopt;  // ambiguous
+            }
+            found = u.name;
+        }
+    }
+    return found;
+}
+
 std::optional<Quantity> findUnit(std::string_view name) {
     const auto& map = unitMap();
-    if (auto it = map.find(name); it != map.end()) {
-        return Quantity{it->second->factor, it->second->dim};
+    auto canonical = canonicalUnitName(name);
+    if (!canonical) {
+        return std::nullopt;
     }
-    return std::nullopt;
+    const auto* u = map.at(*canonical);
+    return Quantity{u->factor, u->dim};
 }
 
 std::optional<std::pair<std::string, int>> splitUnitPower(std::string_view name) {
@@ -228,11 +259,11 @@ std::optional<std::pair<std::string, int>> splitUnitPower(std::string_view name)
     if (d == 0 || d == name.size() || name.size() - d > 2 || name[d] == '0') {
         return std::nullopt;
     }
-    std::string base(name.substr(0, d));
-    if (!findUnit(base)) {
+    auto base = canonicalUnitName(name.substr(0, d));
+    if (!base) {
         return std::nullopt;
     }
-    return std::make_pair(base, std::stoi(std::string(name.substr(d))));
+    return std::make_pair(*base, std::stoi(std::string(name.substr(d))));
 }
 
 std::string formatNumber(double v) {

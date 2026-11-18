@@ -52,7 +52,11 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-/// Look up a unit or physical constant by name (e.g. "kN", "MPa", "deg", "g")
+/// Spelling of a unit as it is defined: the name itself, or the only unit that matches it ignoring case for names of
+/// two or more letters ("kpa" → "kPa"). Nullopt if it is not a unit
+std::optional<std::string> canonicalUnitName(std::string_view name);
+
+/// Look up a unit or physical constant by name (e.g. "kN", "MPa", "deg", "g"; "kpa" and "kn" also work)
 std::optional<Quantity> findUnit(std::string_view name);
 
 /// A unit followed by a power written without "^", e.g. "m3" → ("m", 3), "cm2" → ("cm", 2). Nullopt if the name

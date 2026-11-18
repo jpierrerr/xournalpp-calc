@@ -1205,6 +1205,20 @@ void Control::setCalcGridVisible(bool visible) {
     }
 }
 
+void Control::calcLeaveTextBox() {
+    g_idle_add_full(
+            G_PRIORITY_DEFAULT_IDLE,
+            +[](gpointer data) -> gboolean {
+                auto* c = static_cast<Control*>(data);
+                if (c->win) {
+                    c->win->getXournal()->endTextAllPages();
+                    c->scheduleCalcUpdate();
+                }
+                return G_SOURCE_REMOVE;
+            },
+            this, nullptr);
+}
+
 void Control::calcGridGoTo(const PageRef& page, double x, double line, double boxX, double boxY) {
     struct Target {
         Control* ctrl;

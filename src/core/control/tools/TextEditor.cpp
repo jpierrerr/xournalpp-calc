@@ -644,11 +644,21 @@ auto TextEditor::onKeyPressEvent(const KeyEvent& event) -> bool {
 }
 
 bool TextEditor::handleGridNavigation(const KeyEvent& event) {
-    if (!this->control->isCalcGrid() || (this->preeditString && *this->preeditString.get())) {
+    if (this->preeditString && *this->preeditString.get()) {
         return false;
     }
     constexpr auto MODIFIERS = GDK_SHIFT_MASK | GDK_CONTROL_MASK | GDK_MOD1_MASK | GDK_SUPER_MASK;
     if ((event.state & MODIFIERS) != 0) {
+        return false;
+    }
+    if (!this->control->isCalcGrid()) {
+        // Without the grid, the right arrow at the end of the text still leaves the box (and shows its results)
+        const bool right = event.keyval == GDK_KEY_Right || event.keyval == GDK_KEY_KP_Right;
+        GtkTextIter cursor = getIteratorAtCursor(this->buffer.get());
+        if (right && gtk_text_iter_is_end(&cursor) && !gtk_text_buffer_get_has_selection(this->buffer.get())) {
+            this->control->calcLeaveTextBox();
+            return true;
+        }
         return false;
     }
     const guint key = event.keyval;

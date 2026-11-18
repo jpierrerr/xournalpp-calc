@@ -184,6 +184,9 @@ Control::~Control() {
     if (this->calcUpdateSource) {
         g_source_remove(this->calcUpdateSource);
     }
+    if (this->inkLiveSource) {
+        g_source_remove(this->inkLiveSource);
+    }
     if (this->greekPalette) {
         gtk_widget_destroy(this->greekPalette);
     }

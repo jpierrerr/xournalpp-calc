@@ -1256,6 +1256,7 @@ function app.setFont(font) end
 ---| "calc-grid-visible"
 ---| "calc-ink-to-math"
 ---| "calc-ink-to-text"
+---| "calc-ink-live"
 ---| "plugin-manager"
 ---| "help"
 ---| "demo"

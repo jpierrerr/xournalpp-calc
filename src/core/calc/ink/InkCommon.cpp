@@ -27,46 +27,100 @@ InkBox boundingBox(const std::vector<InkStroke>& strokes) {
     return b;
 }
 
-std::vector<std::vector<InkStroke>> splitLines(const std::vector<InkStroke>& strokes) {
-    struct Item {
-        InkBox box;
-        const InkStroke* stroke;
-    };
-    std::vector<Item> items;
+namespace {
+
+/// Typical height of a character: median of the stroke heights, ignoring flat strokes (fraction bars, minus signs)
+double characterHeight(const std::vector<InkBox>& boxes) {
     std::vector<double> heights;
-    for (const auto& s: strokes) {
-        if (s.points.empty()) {
-            continue;
-        }
-        InkBox b = boundingBox({s});
-        items.push_back({b, &s});
+    for (const auto& b: boxes) {
         heights.push_back(b.height());
     }
-    if (items.empty()) {
+    if (heights.empty()) {
+        return 1.0;
+    }
+    std::sort(heights.begin(), heights.end());
+    double h = heights[heights.size() / 2];
+    if (heights.size() > 2) {
+        h = std::max(h, heights[(heights.size() * 3) / 4] * 0.7);
+    }
+    return std::max(h, 1.0);
+}
+
+std::vector<InkBox> strokeBoxes(const std::vector<InkStroke>& strokes) {
+    std::vector<InkBox> boxes;
+    boxes.reserve(strokes.size());
+    for (const auto& s: strokes) {
+        boxes.push_back(boundingBox({s}));
+    }
+    return boxes;
+}
+
+}  // namespace
+
+std::vector<std::vector<size_t>> lineIndices(const std::vector<InkStroke>& strokes) {
+    std::vector<InkBox> boxes = strokeBoxes(strokes);
+    std::vector<size_t> order;
+    std::vector<InkBox> nonEmpty;
+    for (size_t i = 0; i < strokes.size(); i++) {
+        if (!strokes[i].points.empty()) {
+            order.push_back(i);
+            nonEmpty.push_back(boxes[i]);
+        }
+    }
+    if (order.empty()) {
         return {};
     }
-    // Typical height of a character: median of the strokes that are not flat (fraction bars, minus signs)
-    std::sort(heights.begin(), heights.end());
-    double charHeight = heights[heights.size() / 2];
-    if (heights.size() > 2) {
-        charHeight = std::max(charHeight, heights[(heights.size() * 3) / 4] * 0.7);
-    }
-    charHeight = std::max(charHeight, 1.0);
-    const double minGap = 0.45 * charHeight;
-
-    std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.box.y0 < b.box.y0; });
-    std::vector<std::vector<InkStroke>> lines;
+    const double minGap = 0.45 * characterHeight(nonEmpty);
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) { return boxes[a].y0 < boxes[b].y0; });
+    std::vector<std::vector<size_t>> lines;
     double lineBottom = 0;
-    for (const auto& it: items) {
-        if (lines.empty() || it.box.y0 > lineBottom + minGap) {
+    for (size_t i: order) {
+        if (lines.empty() || boxes[i].y0 > lineBottom + minGap) {
             lines.emplace_back();
-            lineBottom = it.box.y1;
+            lineBottom = boxes[i].y1;
         } else {
-            lineBottom = std::max(lineBottom, it.box.y1);
+            lineBottom = std::max(lineBottom, boxes[i].y1);
         }
-        lines.back().push_back(*it.stroke);
+        lines.back().push_back(i);
     }
     return lines;
+}
+
+std::vector<std::vector<InkStroke>> splitLines(const std::vector<InkStroke>& strokes) {
+    std::vector<std::vector<InkStroke>> out;
+    for (const auto& line: lineIndices(strokes)) {
+        out.emplace_back();
+        for (size_t i: line) {
+            out.back().push_back(strokes[i]);
+        }
+    }
+    return out;
+}
+
+std::vector<std::vector<size_t>> blockIndices(const std::vector<InkStroke>& strokes) {
+    std::vector<InkBox> boxes = strokeBoxes(strokes);
+    std::vector<std::vector<size_t>> blocks;
+    for (auto line: lineIndices(strokes)) {
+        std::vector<InkBox> lb;
+        for (size_t i: line) {
+            lb.push_back(boxes[i]);
+        }
+        const double maxGap = 2.5 * characterHeight(lb);
+        std::sort(line.begin(), line.end(), [&](size_t a, size_t b) { return boxes[a].x0 < boxes[b].x0; });
+        double right = 0;
+        bool first = true;
+        for (size_t i: line) {
+            if (first || boxes[i].x0 > right + maxGap) {
+                blocks.emplace_back();
+                right = boxes[i].x1;
+                first = false;
+            } else {
+                right = std::max(right, boxes[i].x1);
+            }
+            blocks.back().push_back(i);
+        }
+    }
+    return blocks;
 }
 
 std::vector<unsigned char> renderStrokes(const std::vector<InkStroke>& strokes, int w, int h, double lineHeight,

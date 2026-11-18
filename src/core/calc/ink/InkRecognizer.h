@@ -35,6 +35,13 @@ InkBox boundingBox(const std::vector<InkStroke>& strokes);
 /// Split strokes into lines of writing, from top to bottom (fractions and powers stay in their line)
 std::vector<std::vector<InkStroke>> splitLines(const std::vector<InkStroke>& strokes);
 
+/// Indices of the strokes of each line, from top to bottom
+std::vector<std::vector<size_t>> lineIndices(const std::vector<InkStroke>& strokes);
+
+/// Indices of the strokes of each block of writing: a line, cut where there is a wide horizontal gap (several
+/// formulas written side by side on the same line are separate blocks). In reading order
+std::vector<std::vector<size_t>> blockIndices(const std::vector<InkStroke>& strokes);
+
 /// Render strokes black on white into a grayscale image of w×h pixels (row-major, 0 = black, 255 = white).
 /// The writing is first laid out as a picture of lineHeight pixels per line with a pen of penWidth pixels (as a
 /// typeset formula would be), then that picture is stretched to w×h like the image processor of the model does.

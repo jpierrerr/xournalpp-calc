@@ -863,6 +863,20 @@ struct ActionProperties<Action::CALC_INK_TO_TEXT> {
 };
 
 template <>
+struct ActionProperties<Action::CALC_INK_LIVE> {
+    using state_type = bool;
+    static state_type initialState(Control* ctrl) { return ctrl->isInkLive(); }
+    static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
+        g_simple_action_set_state(ga, p);
+        bool enabled = g_variant_get_boolean(p);
+        ctrl->setInkLive(enabled);
+        if (enabled && ctrl->getToolHandler()->getToolType() != TOOL_PEN) {
+            ctrl->selectTool(TOOL_PEN);
+        }
+    }
+};
+
+template <>
 struct ActionProperties<Action::TEXT_JUSTIFY> {
     using state_type = bool;
     static state_type initialState(Control* ctrl) { return ctrl->getToolHandler()->getTextJustify(); }

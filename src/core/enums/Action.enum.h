@@ -150,6 +150,7 @@ enum class Action : size_t {
     CALC_GRID_VISIBLE,  ///< Show the alignment grid (dots)
     CALC_INK_TO_MATH,   ///< Convert the selected handwriting into a calculation region
     CALC_INK_TO_TEXT,   ///< Convert the selected handwriting into text
+    CALC_INK_LIVE,      ///< Convert the handwriting into calculation regions while writing
 
     // Plugin Menu
     PLUGIN_MANAGER,

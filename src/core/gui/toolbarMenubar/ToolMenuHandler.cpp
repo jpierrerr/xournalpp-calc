@@ -488,7 +488,7 @@ void ToolMenuHandler::initToolItems() {
                         _("Convert to text while writing"));
     this->excelPopover = std::make_unique<ExcelPopoverFactory>();
     {
-        auto&& tb = emplaceItem<ToolButton>("EXCEL", Cat::TOOLS, Action::CALC_EXCEL_LINK, "x-office-spreadsheet",
+        auto&& tb = emplaceItem<ToolButton>("EXCEL", Cat::TOOLS, Action::CALC_EXCEL_LINK, iconName("jackmath-excel"),
                                             std::string("Excel: ligar libro, valores de entrada y de salida"), false);
         tb.setPopoverFactory(this->excelPopover.get());
     }

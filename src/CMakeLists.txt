@@ -163,6 +163,9 @@ if (WIN32)
   enable_language(RC)
 
   configure_file(exe/win32/xpp.rc.in ${CMAKE_CURRENT_BINARY_DIR}/win32/xpp.rc)
+  # xournalpp-calc: embed the new icon in the executables when the logo changes
+  set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/win32/xpp.rc PROPERTIES
+                              OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/win32/xournalpp.ico)
   target_sources(xournalpp PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/win32/xpp.rc)
   target_sources(xournalpp-wrapper PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/win32/xpp.rc)
 endif ()

@@ -552,17 +552,18 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
     const double firstLine = grid.snapY(origin.y + t->firstBaseline() + xoj::calc::BASELINE_LIFT);
     const double lastLine = firstLine + (nLines - 1) * lh;
     const double x = grid.snapX(origin.x);
-    // The first dot after the box, leaving about one square
+    // Leave one empty square of the grid after the box
     auto ahead = [&]() {
         double maxX = empty ? origin.x : this->previousBoundingBox.maxX;
-        return grid.x0 + std::ceil((maxX + 0.5 * grid.dx - grid.x0) / grid.dx) * grid.dx;
+        return grid.x0 + (std::ceil((maxX - grid.x0) / grid.dx - 0.05) + 1) * grid.dx;
     };
 
     double nx = x, line = firstLine;
-    if (enter) {
+    if (tab) {
         line = lastLine + lh;
-    } else if (tab || right) {
-        nx = empty ? x + (tab ? 4 : 1) * grid.dx : ahead();
+    } else if (enter || right) {
+        // The next box starts one square to the right (past the right edge: on the next line)
+        nx = empty ? x + grid.dx : ahead();
         line = empty ? firstLine : lastLine;
     } else if (left) {
         nx = x - grid.dx;
@@ -571,7 +572,12 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
     } else {  // down
         line = lastLine + (empty ? grid.linePitch() : lh);
     }
-    this->control->calcGridGoTo(this->page, nx, line);
+    if ((enter || right) && !empty) {
+        // Start after the box as it will be displayed (with the results, for a calculation region)
+        this->control->calcGridGoTo(this->page, nx, line, origin.x + 1, firstLine - xoj::calc::BASELINE_LIFT - 2);
+    } else {
+        this->control->calcGridGoTo(this->page, nx, line);
+    }
     return true;
 }
 

@@ -67,9 +67,9 @@ Con **Alinear a la malla** activado, mientras escribes en un cuadro:
 
 | Tecla | Qué hace |
 | --- | --- |
-| Enter | Cierra el cuadro y abre otro en el renglón de abajo, a la misma altura horizontal |
+| Enter | Cierra el cuadro y abre otro inmediatamente delante (a la derecha), en el mismo renglón, dejando un cuadro vacío de la malla entre los dos |
 | Shift+Enter | Salto de línea dentro del mismo cuadro |
-| Tab | Cierra el cuadro y abre otro delante, en el mismo renglón (deja un cuadro de espacio) |
+| Tab | Cierra el cuadro y abre otro en el renglón de abajo, en la misma columna |
 | Flechas | Con el cuadro vacío, lo mueven un punto de la malla (arriba/abajo, un renglón). Con texto, mueven el cursor y, al llegar al borde del cuadro, saltan a un cuadro nuevo al lado |
 
 - Al llegar al borde derecho se sigue en el renglón de abajo; al llegar al final de la hoja se sigue en la página siguiente (si no existe, se crea una con el mismo fondo).

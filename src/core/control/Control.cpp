@@ -1202,12 +1202,14 @@ void Control::setCalcGridVisible(bool visible) {
     }
 }
 
-void Control::calcGridGoTo(const PageRef& page, double x, double line) {
+void Control::calcGridGoTo(const PageRef& page, double x, double line, double boxX, double boxY) {
     struct Target {
         Control* ctrl;
         PageRef page;
         double x;
         double line;
+        double boxX;
+        double boxY;
     };
     g_idle_add_full(
             G_PRIORITY_DEFAULT_IDLE,
@@ -1237,8 +1239,26 @@ void Control::calcGridGoTo(const PageRef& page, double x, double line) {
                 };
                 auto leftMargin = [](const xoj::calc::AlignGrid& g) { return g.x0 > 0 ? g.x0 : 2 * g.dx; };
 
+                XournalView* xournal = c->win->getXournal();
+                xournal->endTextAllPages();
+
                 double x = t->x;
                 double line = t->line;
+                if (t->boxX >= 0) {
+                    // Show the results of the box just closed, then start after it
+                    for (size_t p: xoj::calc::recalculateDocument(doc)) {
+                        c->firePageChanged(p);
+                    }
+                    doc->lock_shared();
+                    for (auto&& e: page->getSelectedLayer()->getElements()) {
+                        if (e->getType() == ELEMENT_TEXT && e->hasBoundingBoxContaining(t->boxX, t->boxY)) {
+                            const auto& box = e->getBoundingBox();
+                            x = grid.x0 + (std::ceil((box.x + box.width - grid.x0) / grid.dx - 0.05) + 1) * grid.dx;
+                            break;
+                        }
+                    }
+                    doc->unlock_shared();
+                }
                 if (x > page->getWidth() - 2 * grid.dx) {
                     // Past the right edge: continue on the next line
                     x = leftMargin(grid);
@@ -1279,12 +1299,10 @@ void Control::calcGridGoTo(const PageRef& page, double x, double line) {
                     }
                 }
 
-                XournalView* xournal = c->win->getXournal();
                 XojPageView* view = xournal->getViewFor(idx);
                 if (!page || !view) {
                     return G_SOURCE_REMOVE;
                 }
-                xournal->endTextAllPages();
                 // Scroll first: selecting another page closes the text being edited
                 xournal->scrollTo(idx, {x - 3 * grid.dx, line - 3 * grid.linePitch(), x + 8 * grid.dx,
                                         line + 2 * grid.linePitch()});
@@ -1292,7 +1310,7 @@ void Control::calcGridGoTo(const PageRef& page, double x, double line) {
                 view->startText(x, line - 3.0);
                 return G_SOURCE_REMOVE;
             },
-            new Target{this, page, x, line}, +[](gpointer data) { delete static_cast<Target*>(data); });
+            new Target{this, page, x, line, boxX, boxY}, +[](gpointer data) { delete static_cast<Target*>(data); });
 }
 
 void Control::showGreekPalette() {

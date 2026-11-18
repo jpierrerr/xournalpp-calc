@@ -39,7 +39,9 @@ protected:
     bool examHeader = false;  ///< exam sheet: a header box (subject, name, ID, teacher, date, group, grade) on top
 
     /// Height of the exam header, a whole number of squares so that the grid below stays aligned
-    double headerHeight() const { return examHeader ? 8 * squareSize : 0.0; }
+    double headerHeight() const { return hasHeader() ? 8 * squareSize : 0.0; }
+    bool letterhead = false;  ///< letterhead of the user (logos, title and fields, see Letterhead.h) on top
+    bool hasHeader() const { return examHeader || letterhead; }
     void drawExamHeader(cairo_t* cr) const;
 
     struct Frame {

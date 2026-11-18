@@ -80,3 +80,18 @@ Con **Alinear a la malla** activado, mientras escribes en un cuadro:
 - Al llegar al borde derecho se sigue en el renglón de abajo; al llegar al final de la hoja se sigue en la página siguiente (si no existe, se crea una con el mismo fondo).
 - Si el punto de destino cae sobre un texto que ya existe, se abre ese texto para editarlo.
 - Un cuadro que se deja vacío no se guarda.
+
+## Hoja con membrete propio
+
+Si existe la carpeta `membrete` dentro de la carpeta de configuración (en Windows `%LOCALAPPDATA%\xournalpp\membrete`), con un archivo `membrete.ini`, aparece un formato de página más con tus logos y textos: el mismo marco de la hoja de parcial, con el logo izquierdo, el título en el centro, el logo derecho y una fila de campos para llenar.
+
+```ini
+[membrete]
+nombre=Formato Unimag
+logo_izquierdo=escudo.png
+logo_derecho=sellos.png
+titulo=UNIVERSIDAD DEL MAGDALENA;Facultad de Ingeniería
+campos=Programa;Hoja de cálculo
+```
+
+Los logos (PNG o JPG) van en la misma carpeta; el programa recorta el fondo blanco o transparente. Los logos y textos son tuyos y no forman parte del programa. En otro equipo sin esa carpeta, la página se ve como hoja de parcial.

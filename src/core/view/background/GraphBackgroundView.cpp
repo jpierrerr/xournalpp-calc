@@ -6,9 +6,10 @@
 
 #include <pango/pangocairo.h>
 
-#include "model/BackgroundConfig.h"                  // for BackgroundConfig
+#include "model/BackgroundConfig.h"  // for BackgroundConfig
 #include "util/i18n.h"
-#include "view/background/BackgroundView.h"          // for view
+#include "view/background/BackgroundView.h"  // for view
+#include "view/background/Letterhead.h"
 #include "view/background/OneColorBackgroundView.h"  // for OneColorBackgrou...
 #include "view/background/PlainBackgroundView.h"     // for PlainBackgroundView
 
@@ -48,6 +49,10 @@ GraphBackgroundView::GraphBackgroundView(double pageWidth, double pageHeight, Co
     if (int ex = 0; config.loadValue(CFG_EXAM_HEADER, ex) && ex) {
         examHeader = true;
     }
+    if (int lh = 0; config.loadValue(CFG_LETTERHEAD, lh) && lh) {
+        letterhead = Letterhead::get() != nullptr;
+        examHeader = !letterhead;  // without a letterhead of the user, the exam header takes its place
+    }
     if (vLine < 0) {
         vLine += pageWidth;
     }
@@ -74,7 +79,7 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
     cairo_clip_extents(cr, &minX, &minY, &maxX, &maxY);
 
     // Exam sheet: the grid stays inside a frame with rounded corners, below the header
-    if (examHeader) {
+    if (hasHeader()) {
         Frame f = examFrame();
         minX = std::max(minX, f.left);
         maxX = std::min(maxX, f.right);
@@ -112,7 +117,7 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
     }
 
     cairo_save(cr);
-    if (examHeader) {
+    if (hasHeader()) {
         Frame f = examFrame();
         roundedRectangle(cr, f.left, f.top, f.right, f.bottom, EXAM_CORNER_RADIUS);
         cairo_clip(cr);
@@ -193,7 +198,7 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
 
     cairo_restore(cr);
 
-    if (examHeader) {
+    if (hasHeader()) {
         Frame f = examFrame();
         cairo_save(cr);
         Util::cairo_set_source_rgbi(cr, vLine > 0 ? vLineColor : foregroundColor);
@@ -205,6 +210,18 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
 
     if (examHeader) {
         drawExamHeader(cr);
+    } else if (letterhead) {
+        // Box from 1 to 7 squares down, as the exam header
+        const double s = squareSize;
+        const double right = examFrame().right;
+        const Color lineColor = vLine > 0 ? vLineColor : foregroundColor;
+        cairo_save(cr);
+        Util::cairo_set_source_rgbi(cr, lineColor);
+        cairo_set_line_width(cr, 1.0);
+        roundedRectangle(cr, 2 * s, s, right, 7 * s, EXAM_CORNER_RADIUS);
+        cairo_stroke(cr);
+        cairo_restore(cr);
+        Letterhead::get()->draw(cr, 2 * s, s, right, 7 * s, s, lineColor);
     }
 }
 

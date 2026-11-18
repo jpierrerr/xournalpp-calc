@@ -126,7 +126,7 @@ msgstr "La versión del archivo no coincide"
 
 #: ../src/core/control/Control.cpp:1666
 msgid "The file being loaded has a file format version newer than the one currently supported by this version of Xournal++, so it may not load properly. Open anyways?"
-msgstr "El archivo que se está cargando tiene una versión del formato más nueva que la que está soportada por esta versión de Xournal++, así que podría no cargarse correctamente. ¿Deseas abrirlo igualmente?"
+msgstr "El archivo que se está cargando tiene una versión del formato más nueva que la que está soportada por esta versión de Xournal JackMath, así que podría no cargarse correctamente. ¿Deseas abrirlo igualmente?"
 
 #: ../src/core/control/Control.cpp:1689
 msgid "Error reading PDF file \"{1}\"\n"
@@ -331,7 +331,7 @@ msgstr "Por favor, elimine el archivo manualmente"
 
 #: ../src/core/control/XournalMain.cpp:134
 msgid "Xournal++ crashed last time. Would you like to restore the last edited file?"
-msgstr "Xournal++ se cerró inesperadamente durante el último uso. ¿Quiere restaurar el último archivo editado?"
+msgstr "Xournal JackMath se cerró inesperadamente durante el último uso. ¿Quiere restaurar el último archivo editado?"
 
 #: ../src/core/control/XournalMain.cpp:137
 msgid "Recovery file detected"
@@ -389,7 +389,7 @@ msgstr "\n\n"
 #: ../src/core/control/XournalMain.cpp:459
 msgid "Sorry, Xournal++ can only open one file at once.\n"
 "Others are ignored."
-msgstr "Xournal++ solo puede abrir un archivo a la vez.\n"
+msgstr "Xournal JackMath solo puede abrir un archivo a la vez.\n"
 "El resto se ignora."
 
 #: ../src/core/control/XournalMain.cpp:409
@@ -401,7 +401,7 @@ msgid "Filesystem error: {1}\n"
 "Sorry, Xournal++ cannot open the file: {2}\n"
 "Consider copying the file to a local directory."
 msgstr "Error del sistema de archivos: {1}\n"
-"Lo sentimos, Xournal++ no puede abrir el archivo: {2}\n"
+"Lo sentimos, Xournal JackMath no puede abrir el archivo: {2}\n"
 "Considere copiar el archivo a un directorio local."
 
 #: ../src/core/control/XournalMain.cpp:616
@@ -649,6 +649,30 @@ msgstr "Pentagramas"
 #: ../src/core/control/pagetype/PageTypeHandler.cpp:36
 msgid "Graph"
 msgstr "Cuadriculado"
+
+msgid "Graph with vertical line"
+msgstr "Cuadriculado con línea vertical"
+
+msgid "Exam sheet"
+msgstr "Hoja de parcial"
+
+msgid "Subject"
+msgstr "Asignatura"
+
+msgid "Date"
+msgstr "Fecha"
+
+msgid "Student ID"
+msgstr "Código"
+
+msgid "Teacher"
+msgstr "Profesor"
+
+msgid "Group"
+msgstr "Grupo"
+
+msgid "Grade"
+msgstr "Nota"
 
 #: ../src/core/control/pagetype/PageTypeHandler.cpp:37
 msgid "Dotted"
@@ -1114,12 +1138,12 @@ msgstr "Archivos de Xournal"
 
 #: ../src/core/gui/dialog/FileChooserFiltersHelper.cpp:33
 msgid "Xournal++ files"
-msgstr "Archivos de Xournal++"
+msgstr "Archivos de Xournal JackMath"
 
 #: ../src/core/gui/dialog/FileChooserFiltersHelper.cpp:34
 #: ../src/core/gui/dialog/PageTemplateDialog.cpp:120
 msgid "Xournal++ template"
-msgstr "Plantilla de Xournal++"
+msgstr "Plantilla de Xournal JackMath"
 
 #: ../src/core/gui/dialog/FileChooserFiltersHelper.cpp:40
 msgid "Image files"
@@ -1144,7 +1168,7 @@ msgstr "Tema del editor LaTeX:"
 
 #: ../src/core/gui/dialog/LatexSettingsPanel.cpp:66
 msgid "GtkSourceView was disabled when building Xournal++! Some options will not be available."
-msgstr "¡GtkSourceView fue desactivado cuando se compiló Xournal++! Algunas opciones no estarán disponibles."
+msgstr "¡GtkSourceView fue desactivado cuando se compiló Xournal JackMath! Algunas opciones no estarán disponibles."
 
 #: ../src/core/gui/dialog/LatexSettingsPanel.cpp:158
 msgid "Unable to open global template file at {1}. Does it exist?"
@@ -1426,7 +1450,7 @@ msgstr "Vaciar lista"
 #: ../src/core/gui/menus/menubar/RecentDocumentsSubmenu.cpp:190
 msgctxt "In the submenu for removing recent documents, this will display on top of the list xournal++ files to separate them from PDF files"
 msgid "Xournal++ Files"
-msgstr "Archivos Xournal++"
+msgstr "Archivos Xournal JackMath"
 
 #: ../src/core/gui/menus/menubar/RecentDocumentsSubmenu.cpp:199
 msgctxt "In the submenu for removing recent documents, this will display on top of the list PDF files to separate them from xournal++ files"
@@ -2259,13 +2283,13 @@ msgid "xoj-preview-extractor: successfully extracted"
 msgstr "xoj-preview-extractor: extracción correcta"
 
 #: ../ui/about.glade:12
-msgid "About Xournal++"
-msgstr "Acerca de Xournal++"
+msgid "About Xournal JackMath"
+msgstr "Acerca de Xournal JackMath"
 
 #: ../ui/about.glade:93
-msgid "<span size=\"xx-large\" weight=\"bold\">Xournal++</span>\n"
+msgid "<span size=\"xx-large\" weight=\"bold\">Xournal JackMath</span>\n"
 "<i>The next generation</i>"
-msgstr "<span size=\"xx-large\" weight=\"bold\">Xournal++</span>\n"
+msgstr "<span size=\"xx-large\" weight=\"bold\">Xournal JackMath</span>\n"
 "<i>La siguiente generación</i>"
 
 #: ../ui/about.glade:133
@@ -2319,7 +2343,7 @@ msgstr "Informe de error"
 
 #: ../ui/crashDialog.glade:23
 msgid "Oops... Xournal++ encountered a fatal error"
-msgstr "Vaya... Xournal++ encontró un error fatal"
+msgstr "Vaya... Xournal JackMath encontró un error fatal"
 
 #: ../ui/crashDialog.glade:39
 msgid "Please consider filling a bug report (see button below). Attach the following log to your report."
@@ -2845,7 +2869,7 @@ msgstr "Extensiones"
 
 #: ../ui/plugin.glade:81
 msgid "Plugin changes are only applied after Xournal++ is restarted"
-msgstr "Los cambios en los complementos surtirán efecto tras reiniciar Xournal++"
+msgstr "Los cambios en los complementos surtirán efecto tras reiniciar Xournal JackMath"
 
 #: ../ui/pluginEntry.glade:59
 msgid "Author: "
@@ -2893,7 +2917,7 @@ msgstr "Inercia"
 
 #: ../ui/settings.glade:291
 msgid "Xournal++ Preferences"
-msgstr "Preferencias de Xournal++"
+msgstr "Preferencias de Xournal JackMath"
 
 #: ../ui/settings.glade:352
 msgid "<i>If the document already was saved you can find it in the same folder with the extension .autosave.xopp\n"
@@ -3058,7 +3082,7 @@ msgstr "Habilitar la carga automática del archivo más reciente al iniciar la a
 
 #: ../ui/settings.glade:834
 msgid "If enabled Xournal++ will open the most recent document automatically that you can continue editing your last saved document."
-msgstr "Si está activado, Xournal++ abrirá el documento más reciente automáticamente para que continúe editando el último documento guardado."
+msgstr "Si está activado, Xournal JackMath abrirá el documento más reciente automáticamente para que continúe editando el último documento guardado."
 
 #: ../ui/settings.glade:849
 msgid "Autoloading"
@@ -3312,7 +3336,7 @@ msgstr "<i>Puede configurar dispositivos que GTK no identifica como pantallas t�
 
 #: ../ui/settings.glade:2341
 msgid "<i>If your hardware does not support hand recognition, Xournal++ can disable your touchscreen when your pen is near the screen.</i>"
-msgstr "<i>Si su equipo no admite el reconocimiento de manos, Xournal++ puede desactivar su pantalla táctil cuando el lápiz se encuentre cerca de esta.</i>"
+msgstr "<i>Si su equipo no admite el reconocimiento de manos, Xournal JackMath puede desactivar su pantalla táctil cuando el lápiz se encuentre cerca de esta.</i>"
 
 #: ../ui/settings.glade:2355
 msgid "Enable internal Hand Recognition"
@@ -4678,7 +4702,7 @@ msgstr "Mínimo superior"
 
 #: ../resources-templates/toolbar.ini.in:70
 msgid "Xournal++"
-msgstr "Xournal++"
+msgstr "Xournal JackMath"
 
 #: ../resources-templates/toolbar.ini.in:78
 msgid "Tablet mode"
@@ -4718,11 +4742,11 @@ msgstr "Desarrolladores Xournalpp"
 
 #: ../resources-templates/com.github.xournalpp.xournalpp.appdata.xml.in:10
 msgid "Xournal++ is a hand note-taking software written in C++ with the target of flexibility, functionality and speed. Stroke recognizer and other parts are based on Xournal Code, which you can find at sourceforge. It supports GNU/Linux (e.g. Ubuntu, Debian, Arch, SUSE), macOS and Windows. Supports pen input from devices such as Wacom Tablets."
-msgstr "Xournal++ es un software de toma de notas escrito en C++ con el objetivo de flexibilidad, funcionalidad y velocidad. El Reconocimiento de trazo y otras partes se basan en el Código Xournal, que se puede encontrar en sourceforge. Soporta GNU/Linux (por ejemplo, Ubuntu, Debian, Arch, SUSE), macOS y Windows. Soporta entrada de entrada desde dispositivos como Tabletas Wacom."
+msgstr "Xournal JackMath es un software de toma de notas escrito en C++ con el objetivo de flexibilidad, funcionalidad y velocidad. El Reconocimiento de trazo y otras partes se basan en el Código Xournal, que se puede encontrar en sourceforge. Soporta GNU/Linux (por ejemplo, Ubuntu, Debian, Arch, SUSE), macOS y Windows. Soporta entrada de entrada desde dispositivos como Tabletas Wacom."
 
 #: ../resources-templates/com.github.xournalpp.xournalpp.appdata.xml.in:17
 msgid "Xournal++ features:"
-msgstr "Características de Xournal++:"
+msgstr "Características de Xournal JackMath:"
 
 #: ../resources-templates/com.github.xournalpp.xournalpp.appdata.xml.in:21
 msgid "Supports pressure-sensitive styluses and digital pen tables (e.g. Wacom, Huion, XP Pen, etc. tablets)"
@@ -4846,9 +4870,46 @@ msgstr "Archivo de notas Xournal"
 
 #: ../resources-templates/com.github.xournalpp.xournalpp.xml.in:8
 msgid "Xournal++ note file"
-msgstr "Archivo de notas Xournal++"
+msgstr "Archivo de notas Xournal JackMath"
 
 #: ../resources-templates/com.github.xournalpp.xournalpp.xml.in:12
 msgid "Xournal++ page template file"
-msgstr "Archivo de plantilla de Xournal++"
+msgstr "Archivo de plantilla de Xournal JackMath"
 
+
+# xournalpp-calc
+msgid "Calculation Region"
+msgstr "Región de cálculo"
+
+msgid "Greek Letters and Symbols..."
+msgstr "Letras griegas y símbolos..."
+
+msgid "Calculation region"
+msgstr "Región de cálculo"
+
+msgid "Greek letters and symbols"
+msgstr "Letras griegas y símbolos"
+
+msgid "Lowercase"
+msgstr "Minúsculas"
+
+msgid "Uppercase"
+msgstr "Mayúsculas"
+
+msgid "Math"
+msgstr "Matemáticas"
+
+msgid "Tip: in a text box, type a latin letter and press Ctrl+G (a→α, q→θ, W→Ω)"
+msgstr "Consejo: en un cuadro de texto, escribe una letra latina y pulsa Ctrl+G (a→α, q→θ, W→Ω)"
+
+msgid "Align to Grid"
+msgstr "Alinear a la malla"
+
+msgid "Align to grid"
+msgstr "Alinear a la malla"
+
+msgid "Grid Visible"
+msgstr "Malla visible"
+
+msgid "Grid visible"
+msgstr "Malla visible"

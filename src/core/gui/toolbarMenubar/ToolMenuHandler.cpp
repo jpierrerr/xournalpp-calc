@@ -444,6 +444,12 @@ void ToolMenuHandler::initToolItems() {
 
     emplaceItem<FontButton>("SELECT_FONT", *control->getActionDatabase());
     emplaceStockItemTgl("FORMAT_JUSTIFY", Cat::TOOLS, Action::TEXT_JUSTIFY, "format-justify-fill", _("Justify text"));
+    emplaceStockItemTgl("CALC_MODE", Cat::TOOLS, Action::CALC_MODE, "accessories-calculator", _("Calculation region"));
+    emplaceCustomItemTgl("CALC_GRID", Cat::TOOLS, Action::CALC_GRID, "snapping-grid", _("Align to grid"));
+    emplaceStockItemTgl("CALC_GRID_VISIBLE", Cat::TOOLS, Action::CALC_GRID_VISIBLE, "view-grid-symbolic",
+                        _("Grid visible"));
+    emplaceStockItem("GREEK_PALETTE", Cat::TOOLS, Action::GREEK_PALETTE, "accessories-character-map",
+                     _("Greek letters and symbols"));
     emplaceStockItemWithTarget("FORMAT_ALIGN_LEFT", Cat::TOOLS, Action::TEXT_ALIGNMENT, TextAlignment::LEFT,
                                "format-justify-left", _("Align text to the left"));
     emplaceStockItemWithTarget("FORMAT_ALIGN_CENTER", Cat::TOOLS, Action::TEXT_ALIGNMENT, TextAlignment::CENTER,

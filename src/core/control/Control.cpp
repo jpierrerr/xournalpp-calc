@@ -11,6 +11,8 @@
 #include <string>      // for string
 #include <utility>     // for move
 
+#include "calc/CalcDocument.h"                                   // for recalculateDocument
+#include "calc/CalcGrid.h"                                       // for alignmentGrid
 #include "control/AudioController.h"                             // for Audi...
 #include "control/ClipboardHandler.h"                            // for Clip...
 #include "control/CompassController.h"                           // for Comp...
@@ -51,6 +53,7 @@
 #include "gui/dialog/ExportDialog.h"                             // for ExportDialog
 #include "gui/dialog/FormatDialog.h"                             // for Form...
 #include "gui/dialog/GotoDialog.h"                               // for Goto...
+#include "gui/dialog/GreekPalette.h"                             // for GreekPalette
 #include "gui/dialog/PageTemplateDialog.h"                       // for Page...
 #include "gui/dialog/SelectBackgroundColorDialog.h"              // for Sele...
 #include "gui/dialog/SelectOpacityDialog.h"                      // for Opac...
@@ -178,6 +181,12 @@ Control::Control(GApplication* gtkApp, GladeSearchpath* gladeSearchPath): gtkApp
 
 Control::~Control() {
     g_source_remove(this->changeTimout);
+    if (this->calcUpdateSource) {
+        g_source_remove(this->calcUpdateSource);
+    }
+    if (this->greekPalette) {
+        gtk_widget_destroy(this->greekPalette);
+    }
     this->enableAutosave(false);
 
     deleteLastAutosaveFile();
@@ -1152,6 +1161,166 @@ void Control::undoRedoChanged() {
     win->setRedoDescription(undoRedo->redoDescription());
 
     updateWindowTitle();
+    scheduleCalcUpdate();
+}
+
+void Control::scheduleCalcUpdate() {
+    if (this->calcUpdateSource) {
+        return;
+    }
+    this->calcUpdateSource = g_idle_add(
+            +[](gpointer data) -> gboolean {
+                auto* self = static_cast<Control*>(data);
+                self->calcUpdateSource = 0;
+                for (size_t p: xoj::calc::recalculateDocument(self->doc)) {
+                    self->firePageChanged(p);
+                }
+                return G_SOURCE_REMOVE;
+            },
+            this);
+}
+
+void Control::setCalcMode(bool enabled) {
+    this->calcMode = enabled;
+    if (auto* te = getTextEditor(); te) {
+        te->setCalc(enabled);
+    }
+}
+
+void Control::setCalcGridVisible(bool visible) {
+    this->calcGridVisible = visible;
+    if (!this->win) {
+        return;
+    }
+    this->doc->lock_shared();
+    size_t n = this->doc->getPageCount();
+    this->doc->unlock_shared();
+    for (size_t i = 0; i < n; i++) {
+        if (auto* v = this->win->getXournal()->getViewFor(i); v) {
+            v->repaintPage();
+        }
+    }
+}
+
+void Control::calcGridGoTo(const PageRef& page, double x, double line, double boxX, double boxY) {
+    struct Target {
+        Control* ctrl;
+        PageRef page;
+        double x;
+        double line;
+        double boxX;
+        double boxY;
+    };
+    g_idle_add_full(
+            G_PRIORITY_DEFAULT_IDLE,
+            +[](gpointer data) -> gboolean {
+                auto* t = static_cast<Target*>(data);
+                Control* c = t->ctrl;
+                if (!c->win) {
+                    return G_SOURCE_REMOVE;
+                }
+                Document* doc = c->doc;
+                doc->lock_shared();
+                size_t idx = doc->indexOf(t->page);
+                size_t count = doc->getPageCount();
+                doc->unlock_shared();
+                if (idx == npos) {
+                    return G_SOURCE_REMOVE;
+                }
+                PageRef page = t->page;
+                auto gridOf = [](const PageRef& p) {
+                    return xoj::calc::alignmentGrid(p->getBackgroundType(), p->getWidth(), p->getHeight());
+                };
+                auto grid = gridOf(page);
+                // First and last writing lines of a page (below the header of ruled paper, 1 square from the bottom)
+                auto topLine = [](const xoj::calc::AlignGrid& g) { return g.y0 > 0 ? g.y0 : g.linePitch(); };
+                auto bottomLine = [](const xoj::calc::AlignGrid& g, double height) {
+                    return g.y0 + std::floor((height - g.dy - g.y0) / g.linePitch()) * g.linePitch();
+                };
+                auto leftMargin = [](const xoj::calc::AlignGrid& g) { return g.x0 > 0 ? g.x0 : 2 * g.dx; };
+
+                XournalView* xournal = c->win->getXournal();
+                xournal->endTextAllPages();
+
+                double x = t->x;
+                double line = t->line;
+                if (t->boxX >= 0) {
+                    // Show the results of the box just closed, then start after it
+                    for (size_t p: xoj::calc::recalculateDocument(doc)) {
+                        c->firePageChanged(p);
+                    }
+                    doc->lock_shared();
+                    for (auto&& e: page->getSelectedLayer()->getElements()) {
+                        if (e->getType() == ELEMENT_TEXT && e->hasBoundingBoxContaining(t->boxX, t->boxY)) {
+                            const auto& box = e->getBoundingBox();
+                            x = grid.x0 + (std::ceil((box.x + box.width - grid.x0) / grid.dx - 0.05) + 1) * grid.dx;
+                            break;
+                        }
+                    }
+                    doc->unlock_shared();
+                }
+                if (x > page->getWidth() - 2 * grid.dx) {
+                    // Past the right edge: continue on the next line
+                    x = leftMargin(grid);
+                    line += grid.linePitch();
+                } else if (x < 0) {
+                    x = grid.x0 - std::floor(grid.x0 / grid.dx) * grid.dx;
+                }
+
+                if (line > bottomLine(grid, page->getHeight()) + 1e-6) {
+                    // Past the bottom: continue on the next page (a new one, with the same background, at the end)
+                    if (idx + 1 >= count) {
+                        const auto& bg = page->getBackgroundType();
+                        if (bg.isPdfPage() || bg.isImagePage()) {
+                            return G_SOURCE_REMOVE;
+                        }
+                        auto newPage = std::make_shared<XojPage>(page->getWidth(), page->getHeight());
+                        newPage->setBackgroundType(bg);
+                        newPage->setBackgroundColor(page->getBackgroundColor());
+                        c->insertPage(newPage, idx + 1, false);
+                    }
+                    idx++;
+                    doc->lock_shared();
+                    page = doc->getPage(idx);
+                    doc->unlock_shared();
+                    grid = gridOf(page);
+                    line = topLine(grid);
+                    x = std::min(x, page->getWidth() - 2 * grid.dx);
+                } else if (line < grid.linePitch() - 1e-6) {
+                    if (idx == 0) {
+                        line = topLine(grid);
+                    } else {
+                        idx--;
+                        doc->lock_shared();
+                        page = doc->getPage(idx);
+                        doc->unlock_shared();
+                        grid = gridOf(page);
+                        line = bottomLine(grid, page->getHeight());
+                    }
+                }
+
+                XojPageView* view = xournal->getViewFor(idx);
+                if (!page || !view) {
+                    return G_SOURCE_REMOVE;
+                }
+                // Scroll first: selecting another page closes the text being edited
+                xournal->scrollTo(idx, {x - 3 * grid.dx, line - 3 * grid.linePitch(), x + 8 * grid.dx,
+                                        line + 2 * grid.linePitch()});
+                // The new box snaps its baseline to the writing line closest to this point
+                c->calcGridExactLine = line;
+                view->startText(x, line - 3.0);
+                c->calcGridExactLine.reset();
+                return G_SOURCE_REMOVE;
+            },
+            new Target{this, page, x, line, boxX, boxY}, +[](gpointer data) { delete static_cast<Target*>(data); });
+}
+
+void Control::showGreekPalette() {
+    if (!this->greekPalette) {
+        this->greekPalette = xoj::popup::createGreekPalette(this, getGtkWindow());
+    }
+    gtk_widget_show_all(this->greekPalette);
+    gtk_window_present(GTK_WINDOW(this->greekPalette));
 }
 
 void Control::undoRedoPageChanged(PageRef page) {
@@ -1576,6 +1745,7 @@ void Control::replaceDocument(std::unique_ptr<Document> doc, int scrollToPage) {
     }
 
     fileLoaded(scrollToPage);
+    scheduleCalcUpdate();
 }
 
 static auto formatErrorMessages(const std::vector<std::string>& errorMessages) -> std::string {
@@ -2103,7 +2273,7 @@ void Control::updateWindowTitle() {
     }
     this->doc->unlock_shared();
 
-    title += " - Xournal++";
+    title += " - Xournal JackMath";
 
     gtk_window_set_title(getGtkWindow(), title.c_str());
 }

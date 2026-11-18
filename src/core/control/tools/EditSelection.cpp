@@ -11,6 +11,7 @@
 
 #include <gdk/gdk.h>  // for gdk_cairo_set_sour...
 
+#include "calc/CalcGrid.h"                         // for alignmentGrid
 #include "control/Control.h"                       // for Control
 #include "control/settings/Settings.h"             // for Settings
 #include "control/tools/CursorSelectionType.h"     // for CURSOR_SELECTION_NONE
@@ -569,6 +570,17 @@ void EditSelection::mouseMove(double mouseX, double mouseY, bool alt) {
 
         // snap this corner
         p = snappingHandler.snapToGrid(p, alt);
+
+        // xournalpp-calc: with "Align to grid", put the anchor point (where the selection was started) on a dot of
+        // the alignment grid instead
+        if (Control* ctrl = this->view->getXournal()->getControl();
+            this->gridAnchor && this->rotation == 0 && ctrl->isCalcGrid() && !alt) {
+            const PageRef pg = this->view->getPage();
+            const auto grid = xoj::calc::alignmentGrid(pg->getBackgroundType(), pg->getWidth(), pg->getHeight());
+            const double ax = this->snappedBounds.x + this->gridAnchor->first;
+            const double ay = this->snappedBounds.y + this->gridAnchor->second;
+            p = Point(cx + grid.snapX(ax + dx) - ax, cy + grid.snapRow(ay + dy) - ay);
+        }
 
         // move
         if (!this->edgePanInhibitNext) {
@@ -1196,4 +1208,8 @@ void EditSelection::readSerialized(ObjectInputStream& in) {
     this->contents->readSerialized(in);
 
     in.endObject();
+}
+
+void EditSelection::setGridAnchor(double x, double y) {
+    this->gridAnchor = std::make_pair(x - this->snappedBounds.x, y - this->snappedBounds.y);
 }

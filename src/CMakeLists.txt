@@ -122,9 +122,16 @@ if (WIN32)
   set (ICON_SIZES 16 32 48 256)
   foreach (SIZE IN LISTS ICON_SIZES)
     set (RESIZED_ICON ${PROJECT_BINARY_DIR}/xournalpp-icon-${SIZE}.png)
+    # xournalpp-calc: the small sizes may use a simpler logo (xournalpp-icon-small.svg)
+    if (SIZE LESS 64)
+      set (ICON_SVG ${PROJECT_SOURCE_DIR}/ui/pixmaps/xournalpp-icon-small.svg)
+    else ()
+      set (ICON_SVG ${PROJECT_SOURCE_DIR}/ui/pixmaps/com.github.xournalpp.xournalpp.svg)
+    endif ()
     add_custom_command (
                 OUTPUT ${RESIZED_ICON}
-                COMMAND rsvg-convert ${PROJECT_SOURCE_DIR}/ui/pixmaps/com.github.xournalpp.xournalpp.svg --width=${SIZE} --height=${SIZE} -o ${RESIZED_ICON}
+                COMMAND rsvg-convert ${ICON_SVG} --width=${SIZE} --height=${SIZE} -o ${RESIZED_ICON}
+                DEPENDS ${ICON_SVG}
 	)
   set (ICON_DEPS ${ICON_DEPS} ${RESIZED_ICON})
   unset (RESIZED_ICON)
@@ -156,6 +163,9 @@ if (WIN32)
   enable_language(RC)
 
   configure_file(exe/win32/xpp.rc.in ${CMAKE_CURRENT_BINARY_DIR}/win32/xpp.rc)
+  # xournalpp-calc: embed the new icon in the executables when the logo changes
+  set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/win32/xpp.rc PROPERTIES
+                              OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/win32/xournalpp.ico)
   target_sources(xournalpp PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/win32/xpp.rc)
   target_sources(xournalpp-wrapper PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/win32/xpp.rc)
 endif ()

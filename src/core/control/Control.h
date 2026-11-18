@@ -287,6 +287,27 @@ public:
 
     TextEditor* getTextEditor();
 
+    /// xournalpp-calc: re-evaluate the calculation regions of the document (deferred to the main loop)
+    void scheduleCalcUpdate();
+    /// xournalpp-calc: when enabled, new text boxes are calculation regions
+    void setCalcMode(bool enabled);
+    bool isCalcMode() const { return calcMode; }
+    /// xournalpp-calc: align new text boxes on the alignment grid
+    void setCalcGrid(bool enabled) { calcGrid = enabled; }
+    bool isCalcGrid() const { return calcGrid; }
+    /// xournalpp-calc: close the text being edited and open a box at x with its baseline just above the writing
+    /// line `line` of `page` (continuing on the next or previous page past the edges). Deferred to the main loop.
+    /// If (boxX, boxY) is a point of the box being closed, x is instead the first dot one square after that box, as
+    /// displayed once recalculated (a calculation region grows with its results).
+    void calcGridGoTo(const PageRef& page, double x, double line, double boxX = -1, double boxY = -1);
+    /// xournalpp-calc: the writing line requested by calcGridGoTo while it opens the next text box
+    std::optional<double> getCalcGridExactLine() const { return calcGridExactLine; }
+    /// xournalpp-calc: show the dots of the alignment grid (independent of the alignment itself)
+    void setCalcGridVisible(bool visible);
+    bool isCalcGridVisible() const { return calcGridVisible; }
+    /// xournalpp-calc: show the palette of Greek letters and math symbols
+    void showGreekPalette();
+
     GladeSearchpath* getGladeSearchPath() const;
 
     void disableSidebarTmp(bool disabled);
@@ -391,6 +412,13 @@ protected:
     void saveImpl(bool saveAs, std::function<void(bool)> callback);
 
 private:
+    guint calcUpdateSource = 0;
+    std::optional<double> calcGridExactLine;
+    bool calcMode = false;
+    bool calcGrid = false;
+    bool calcGridVisible = false;
+    GtkWidget* greekPalette = nullptr;
+
     /**
      * @brief Creates the specified geometric tool if it's not on the current page yet. Deletes it if it already exists.
      * @return true if a geometric tool was created

@@ -47,8 +47,29 @@ void TextView::draw(const Context& ctx) const {
     text->getTransformation().transformCairo(ctx.cr);
 
     auto layout = initPango(ctx.cr, text);
-    const std::string& content = text->getText();
-    pango_layout_set_text(layout.get(), content.c_str(), static_cast<int>(content.length()));
+    text->applyDisplayContent(layout.get());
 
+    if (text->getLineHeight() > 0) {
+        // xournalpp-calc: fixed line pitch (alignment grid). Draw each line on its own baseline, so that a taller
+        // line (e.g. with an exponent) does not move down
+        const double firstBaseline = text->firstBaseline();
+        PangoLayoutIter* iter = pango_layout_get_iter(layout.get());
+        int i = 0;
+        do {
+            PangoRectangle logical;
+            pango_layout_iter_get_line_extents(iter, nullptr, &logical);
+            cairo_move_to(ctx.cr, static_cast<double>(logical.x) / PANGO_SCALE,
+                          firstBaseline + i * text->getLineHeight());
+            pango_cairo_show_layout_line(ctx.cr, pango_layout_iter_get_line_readonly(iter));
+            i++;
+        } while (pango_layout_iter_next_line(iter));
+        pango_layout_iter_free(iter);
+        // cairo_restore() does not reset the current point: clear it, or the next text is drawn here
+        cairo_new_path(ctx.cr);
+        return;
+    }
+
+    cairo_move_to(ctx.cr, 0, 0);
     pango_cairo_show_layout(ctx.cr, layout.get());
+    cairo_new_path(ctx.cr);
 }

@@ -33,10 +33,29 @@ protected:
     double squareSize = 14.17;  // 5mm
     int boldLineInterval = 0;   // 0 means no bold lines, otherwise every Nth line is bold
     double boldLineWidth = 1.5;
+    double vLine =
+            0.0;  ///< x of the vertical margin line, as on ruled paper ("vm"); 0 = none, negative = from the right
+    Color vLineColor;
+    bool examHeader = false;  ///< exam sheet: a header box (subject, name, ID, teacher, date, group, grade) on top
+
+    /// Height of the exam header, a whole number of squares so that the grid below stays aligned
+    double headerHeight() const { return hasHeader() ? 8 * squareSize : 0.0; }
+    bool letterhead = false;  ///< letterhead of the user (logos, title and fields, see Letterhead.h) on top
+    bool hasHeader() const { return examHeader || letterhead; }
+    void drawExamHeader(cairo_t* cr) const;
+
+    struct Frame {
+        double left, top, right, bottom;
+    };
+    /// Exam sheet: the area of the grid below the header
+    Frame examFrame() const;
+    constexpr static double EXAM_CORNER_RADIUS = 8.5;  // 3 mm
 
     constexpr static Color DEFAULT_LINE_COLOR = Colors::xopp_silver;
     constexpr static Color ALT_DEFAULT_LINE_COLOR = Colors::xopp_darkslategray;
     constexpr static double DEFAULT_LINE_WIDTH = 0.5;
     constexpr static double DEFAULT_BOLD_LINE_WIDTH = 1.5;
+    constexpr static Color DEFAULT_V_LINE_COLOR = Colors::xopp_deeppink;
+    constexpr static Color ALT_DEFAULT_V_LINE_COLOR = Colors::xopp_midnightblue;
 };
 };  // namespace xoj::view

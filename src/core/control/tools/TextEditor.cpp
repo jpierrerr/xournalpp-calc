@@ -1,13 +1,17 @@
 #include "TextEditor.h"
 
-#include <cstring>  // for strcmp, size_t
-#include <memory>   // for allocator, make_unique, __shared_p...
-#include <string>   // for std::string()
-#include <utility>  // for move
+#include <algorithm>  // for count
+#include <cmath>      // for ceil
+#include <cstring>    // for strcmp, size_t
+#include <memory>     // for allocator, make_unique, __shared_p...
+#include <string>     // for std::string()
+#include <utility>    // for move
 
 #include <gdk/gdkkeysyms.h>  // for GDK_KEY_B, GDK_KEY_ISO_Enter, GDK_...
 #include <glib-object.h>     // for g_object_get, g_object_unref, G_CA...
 
+#include "calc/CalcEngine.h"  // for greekForLatin
+#include "calc/CalcGrid.h"    // for alignmentGrid
 #include "control/AudioController.h"
 #include "control/Control.h"  // for Control
 #include "control/actions/ActionDatabase.h"
@@ -362,6 +366,39 @@ void TextEditor::afterFontChange() {
     this->repaintEditor();
 }
 
+namespace {
+/// Unicode superscript / subscript of a character, or nullptr if there is none
+const char* scriptChar(gunichar c, bool superscript) {
+    static const char* const SUP_DIGITS[] = {"⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"};
+    static const char* const SUB_DIGITS[] = {"₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"};
+    if (c >= '0' && c <= '9') {
+        return (superscript ? SUP_DIGITS : SUB_DIGITS)[c - '0'];
+    }
+    static const char* const SUP_LOWER[] = {"ᵃ", "ᵇ", "ᶜ", "ᵈ",     "ᵉ", "ᶠ", "ᵍ", "ʰ", "ⁱ", "ʲ", "ᵏ", "ˡ", "ᵐ",
+                                            "ⁿ", "ᵒ", "ᵖ", nullptr, "ʳ", "ˢ", "ᵗ", "ᵘ", "ᵛ", "ʷ", "ˣ", "ʸ", "ᶻ"};
+    static const char* const SUB_LOWER[] = {"ₐ", nullptr, nullptr, nullptr, "ₑ",     nullptr, nullptr, "ₕ",     "ᵢ",
+                                            "ⱼ", "ₖ",     "ₗ",     "ₘ",     "ₙ",     "ₒ",     "ₚ",     nullptr, "ᵣ",
+                                            "ₛ", "ₜ",     "ᵤ",     "ᵥ",     nullptr, "ₓ",     nullptr, nullptr};
+    if (c >= 'a' && c <= 'z') {
+        return (superscript ? SUP_LOWER : SUB_LOWER)[c - 'a'];
+    }
+    switch (c) {
+        case '+':
+            return superscript ? "⁺" : "₊";
+        case '-':
+            return superscript ? "⁻" : "₋";
+        case '=':
+            return superscript ? "⁼" : "₌";
+        case '(':
+            return superscript ? "⁽" : "₍";
+        case ')':
+            return superscript ? "⁾" : "₎";
+        default:
+            return nullptr;
+    }
+}
+}  // namespace
+
 void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextEditor* te) {
     gtk_text_buffer_begin_user_action(te->buffer.get());
 
@@ -385,6 +422,59 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
             }
         }
 
+        // xournalpp-calc: after Ctrl+PgUp / Ctrl+PgDown, the character typed goes up (exponent) or down (subscript)
+        std::string scripted;
+        if (te->pendingScript != 0 && !hadSelection && g_utf8_strlen(str, -1) == 1) {
+            const gunichar c = g_utf8_get_char(str);
+            const bool sup = te->pendingScript > 0;
+            if (te->textElement->isCalc()) {
+                // Calculations: "1 m" + Ctrl+PgUp + "2" → "1 m^2" (shown m²); "A" + Ctrl+PgDown + "s" → "A_s" (Aₛ).
+                // Following digits or letters stay in the exponent / subscript by themselves
+                te->pendingScript = 0;
+                if (g_unichar_isalnum(c) || (sup && (c == '-' || c == '('))) {
+                    scripted = std::string(sup ? "^" : "_") + str;
+                    str = scripted.c_str();
+                }
+            } else if (const char* sc = scriptChar(c, sup)) {
+                // Plain text: Unicode superscript / subscript characters, until one has none (e.g. a space)
+                str = sc;
+            } else {
+                te->pendingScript = 0;
+            }
+        }
+
+        // xournalpp-calc: two signs typed in a row become one symbol: +- or -+ → ±, -= or =- → ≤, += or =+ → ≥,
+        // ++ → >, -- → <, == → ≔  (not after ":", so that ":=-3" stays a definition of a negative value)
+        if (!hadSelection && (!strcmp(str, "+") || !strcmp(str, "-") || !strcmp(str, "="))) {
+            GtkTextIter end = getIteratorAtCursor(te->buffer.get());
+            GtkTextIter start = end;
+            if (gtk_text_iter_backward_char(&start)) {
+                const gunichar prev = gtk_text_iter_get_char(&start);
+                GtkTextIter before = start;
+                const bool afterColon = gtk_text_iter_backward_char(&before) && gtk_text_iter_get_char(&before) == ':';
+                const char now = str[0];
+                const char* symbol = nullptr;
+                auto pair = [&](char a, char b) { return (prev == static_cast<gunichar>(a) && now == b); };
+                if (pair('+', '-') || pair('-', '+')) {
+                    symbol = "±";
+                } else if (pair('-', '=') || (pair('=', '-') && !afterColon)) {
+                    symbol = "≤";
+                } else if (pair('+', '=') || (pair('=', '+') && !afterColon)) {
+                    symbol = "≥";
+                } else if (pair('=', '=')) {
+                    symbol = "≔";  // definition
+                } else if (pair('+', '+')) {
+                    symbol = ">";
+                } else if (pair('-', '-')) {
+                    symbol = "<";
+                }
+                if (symbol) {
+                    gtk_text_buffer_delete(te->buffer.get(), &start, &end);
+                    str = symbol;
+                }
+            }
+        }
+
         if (!gtk_text_buffer_insert_interactive_at_cursor(te->buffer.get(), str, -1, true)) {
             gtk_widget_error_bell(te->xournalWidget);
         }
@@ -393,6 +483,41 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
     gtk_text_buffer_end_user_action(te->buffer.get());
     te->contentsChanged();
     te->repaintEditor();
+}
+
+void TextEditor::setCalc(bool calc) {
+    this->textElement->setCalc(calc);
+    this->repaintEditor();
+}
+
+void TextEditor::insertText(const std::string& str) {
+    if (!str.empty()) {
+        iMCommitCallback(nullptr, str.c_str(), this);
+    }
+}
+
+
+void TextEditor::insertDefinition() { insertText("≔"); }
+
+void TextEditor::greekifyBeforeCursor() {
+    GtkTextIter end = getIteratorAtCursor(this->buffer.get());
+    GtkTextIter start = end;
+    if (!gtk_text_iter_backward_char(&start)) {
+        gtk_widget_error_bell(this->xournalWidget);
+        return;
+    }
+    gunichar c = gtk_text_iter_get_char(&start);
+    std::string greek = c < 128 ? xoj::calc::greekForLatin(static_cast<char>(c)) : "";
+    if (greek.empty()) {
+        gtk_widget_error_bell(this->xournalWidget);
+        return;
+    }
+    gtk_text_buffer_begin_user_action(this->buffer.get());
+    gtk_text_buffer_delete(this->buffer.get(), &start, &end);
+    gtk_text_buffer_insert_at_cursor(this->buffer.get(), greek.c_str(), -1);
+    gtk_text_buffer_end_user_action(this->buffer.get());
+    this->contentsChanged();
+    this->repaintEditor();
 }
 
 void TextEditor::iMPreeditChangedCallback(GtkIMContext* context, TextEditor* te) {
@@ -455,6 +580,24 @@ auto TextEditor::imDeleteSurroundingCallback(GtkIMContext* context, gint offset,
 }
 
 auto TextEditor::onKeyPressEvent(const KeyEvent& event) -> bool {
+    // xournalpp-calc: Ctrl+= inserts ≔. On Spanish keyboards "=" is Shift+0, and with Ctrl held some systems report
+    // the key as "0" or ")", so all of them are accepted (Ctrl+Shift+0)
+    if ((event.state & GDK_CONTROL_MASK) && !(event.state & GDK_MOD1_MASK)) {
+        const guint k = event.keyval;
+        if (k == GDK_KEY_equal || k == GDK_KEY_KP_Equal || k == GDK_KEY_0 || k == GDK_KEY_parenright) {
+            insertDefinition();
+            return true;
+        }
+    }
+    // Keys that are not text (arrows, Enter, Backspace…) cancel a pending exponent / subscript
+    if (this->pendingScript != 0 && gdk_keyval_to_unicode(event.keyval) == 0 &&
+        !(event.keyval >= GDK_KEY_Shift_L && event.keyval <= GDK_KEY_Hyper_R) &&
+        !(event.keyval == GDK_KEY_ISO_Level3_Shift) &&
+        !((event.state & GDK_CONTROL_MASK) &&
+          (event.keyval == GDK_KEY_Page_Up || event.keyval == GDK_KEY_Page_Down || event.keyval == GDK_KEY_KP_Page_Up ||
+           event.keyval == GDK_KEY_KP_Page_Down))) {
+        this->pendingScript = 0;
+    }
 
     // IME needs to handle the input first so the candidate window works correctly
     if (gtk_im_context_filter_keypress(this->imContext.get(), event.sourceEvent)) {
@@ -471,7 +614,79 @@ auto TextEditor::onKeyPressEvent(const KeyEvent& event) -> bool {
         return true;
     }
 
+    if (handleGridNavigation(event)) {
+        return true;
+    }
+
     return keyBindings.processEvent(this, event);
+}
+
+bool TextEditor::handleGridNavigation(const KeyEvent& event) {
+    if (!this->control->isCalcGrid() || (this->preeditString && *this->preeditString.get())) {
+        return false;
+    }
+    constexpr auto MODIFIERS = GDK_SHIFT_MASK | GDK_CONTROL_MASK | GDK_MOD1_MASK | GDK_SUPER_MASK;
+    if ((event.state & MODIFIERS) != 0) {
+        return false;
+    }
+    const guint key = event.keyval;
+    const bool enter = key == GDK_KEY_Return || key == GDK_KEY_ISO_Enter || key == GDK_KEY_KP_Enter;
+    const bool tab = key == GDK_KEY_Tab || key == GDK_KEY_KP_Tab;
+    const bool left = key == GDK_KEY_Left || key == GDK_KEY_KP_Left;
+    const bool right = key == GDK_KEY_Right || key == GDK_KEY_KP_Right;
+    const bool up = key == GDK_KEY_Up || key == GDK_KEY_KP_Up;
+    const bool down = key == GDK_KEY_Down || key == GDK_KEY_KP_Down;
+    if (!(enter || tab || left || right || up || down)) {
+        return false;
+    }
+
+    GtkTextBuffer* buf = this->buffer.get();
+    const bool empty = gtk_text_buffer_get_char_count(buf) == 0;
+    GtkTextIter cursor = getIteratorAtCursor(buf);
+    const int nLines = gtk_text_buffer_get_line_count(buf);
+    const int cursorLine = gtk_text_iter_get_line(&cursor);
+
+    // Arrows inside a box with text move the cursor; they leave the box only from its edges
+    if (!empty && ((left && !gtk_text_iter_is_start(&cursor)) || (right && !gtk_text_iter_is_end(&cursor)) ||
+                   (up && cursorLine > 0) || (down && cursorLine < nLines - 1))) {
+        return false;
+    }
+
+    auto grid =
+            xoj::calc::alignmentGrid(this->page->getBackgroundType(), this->page->getWidth(), this->page->getHeight());
+    Text* t = this->textElement.get();
+    const double lh = t->getLineHeight() > 0 ? t->getLineHeight() : grid.pitchFor(t->naturalLineHeight());
+    const auto& origin = t->getOrigin();
+    const double firstLine = grid.snapRow(origin.y + t->firstBaseline() + xoj::calc::BASELINE_LIFT);
+    const double lastLine = firstLine + (nLines - 1) * lh;
+    const double x = grid.snapX(origin.x);
+    // Leave one empty square of the grid after the box
+    auto ahead = [&]() {
+        double maxX = empty ? origin.x : this->previousBoundingBox.maxX;
+        return grid.x0 + (std::ceil((maxX - grid.x0) / grid.dx - 0.05) + 1) * grid.dx;
+    };
+
+    double nx = x, line = firstLine;
+    if (tab) {
+        line = lastLine + lh;
+    } else if (enter || right) {
+        // The next box starts one square to the right (past the right edge: on the next line)
+        nx = empty ? x + grid.dx : ahead();
+        line = empty ? firstLine : lastLine;
+    } else if (left) {
+        nx = x - grid.dx;
+    } else if (up) {  // the arrows move one row of dots
+        line = firstLine - grid.dy;
+    } else {  // down
+        line = lastLine + grid.dy;
+    }
+    if ((enter || right) && !empty) {
+        // Start after the box as it will be displayed (with the results, for a calculation region)
+        this->control->calcGridGoTo(this->page, nx, line, origin.x + 1, firstLine - xoj::calc::BASELINE_LIFT - 2);
+    } else {
+        this->control->calcGridGoTo(this->page, nx, line);
+    }
+    return true;
 }
 
 auto TextEditor::onKeyReleaseEvent(const KeyEvent& event) -> bool {
@@ -1063,6 +1278,7 @@ void TextEditor::setTextToPangoLayout(PangoLayout* pl) const {
         setSelectionAttributesToPangoLayout(pl);
         pango_layout_set_text(pl, cloneToCString(this->buffer.get()).get(), -1);
     }
+    this->textElement->applyLineHeight(pl);
 }
 
 Color TextEditor::getSelectionColor() const { return this->control->getSettings()->getSelectionColor(); }
@@ -1230,9 +1446,22 @@ void TextEditor::initializeEditionAt(double x, double y) {
     std::shared_lock lock(*this->control->getDocument());
 
     // Should we reverse this loop to select the most recent text rather than the oldest?
+    const auto exactLine = this->control->getCalcGridExactLine();
     for (auto&& e: this->page->getSelectedLayer()->getElements()) {
         if (e->getType() == ELEMENT_TEXT && e->hasBoundingBoxContaining(x, y)) {
-            text = dynamic_cast<Text*>(e.get());
+            auto* t = dynamic_cast<Text*>(e.get());
+            if (exactLine && t) {
+                // Grid navigation: only enter a text that has a line on the requested row of dots
+                auto grid = xoj::calc::alignmentGrid(this->page->getBackgroundType(), this->page->getWidth(),
+                                                     this->page->getHeight());
+                const double first = t->getOrigin().y + t->firstBaseline() + xoj::calc::BASELINE_LIFT;
+                const double pitch = t->getLineHeight() > 0 ? t->getLineHeight() : t->naturalLineHeight();
+                const auto lines = std::count(t->getText().begin(), t->getText().end(), '\n');
+                if (*exactLine < first - grid.dy / 2 || *exactLine > first + static_cast<double>(lines) * pitch + grid.dy / 2) {
+                    continue;
+                }
+            }
+            text = t;
             break;
         }
     }
@@ -1247,6 +1476,19 @@ void TextEditor::initializeEditionAt(double x, double y) {
                 xoj::util::Matrix::TRANSLATION(x, y - this->textElement->getBoundingBox().height / 2));
         this->textElement->setAlignment(h->getTextAlignment());
         this->textElement->setJustify(h->getTextJustify());
+        this->textElement->setCalc(this->control->isCalcMode());
+        if (this->control->isCalcGrid()) {
+            // Mathcad-style alignment: start on a dot of the grid, with the baseline on a row of dots (a ruled line)
+            auto grid = xoj::calc::alignmentGrid(this->page->getBackgroundType(), this->page->getWidth(),
+                                                 this->page->getHeight());
+            double lineH = this->textElement->naturalLineHeight();
+            this->textElement->setLineHeight(grid.pitchFor(lineH));
+            // The letters sit 1 mm above the line, so that the dots do not cut them
+            double baseline = this->control->getCalcGridExactLine().value_or(grid.snapY(y + 0.25 * lineH)) -
+                              xoj::calc::BASELINE_LIFT;
+            this->textElement->setTransformation(
+                    xoj::util::Matrix::TRANSLATION(grid.snapX(x), baseline - this->textElement->firstBaseline()));
+        }
 
 #ifdef ENABLE_AUDIO
         if (auto audioController = control->getAudioController(); audioController && audioController->isRecording()) {

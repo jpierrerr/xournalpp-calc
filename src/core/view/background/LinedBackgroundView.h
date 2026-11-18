@@ -28,7 +28,8 @@ public:
 
 protected:
     Color vLineColor;
-    double margin = 72.0;  // default = 1 inch. Negative values put the margin on the right hand side.
+    double margin = 70.85;  // default = 5 squares of the 5 mm graph paper (xournalpp-calc; was 1 inch). Negative values
+                            // put the margin on the right hand side.
 
     constexpr static Color DEFAULT_V_LINE_COLOR = Colors::xopp_deeppink;
     constexpr static Color ALT_DEFAULT_V_LINE_COLOR = Colors::xopp_midnightblue;

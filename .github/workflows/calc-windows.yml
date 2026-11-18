@@ -1,0 +1,26 @@
+# xournalpp-calc: build the Windows installer and portable version on every push,
+# so that each change can be downloaded and tried (Actions tab → run → Artifacts).
+
+name: Windows build (xournalpp-calc)
+
+on:
+  push:
+    branches:
+      - "master"
+      - "calc/**"
+  pull_request:
+    branches:
+      - "master"
+  workflow_dispatch:
+
+jobs:
+  windows:
+    uses: ./.github/workflows/make-installer-windows.yml
+    with:
+      runner: windows-2022
+      displayed_name: Windows x86_64
+      msystem: ucrt64
+      msys_package_env: ucrt-x86_64
+      publish_portable_version: true
+      build_type: RelWithDebInfo
+      artifact_version_suffix: "-calc"

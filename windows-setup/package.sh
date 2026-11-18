@@ -31,9 +31,9 @@ echo "copy installed files"
 (cd $build_dir && cmake --install . --prefix "$setup_dir")
 
 echo "copy libraries"
-ldd "$build_dir/xournalpp.exe" | grep "${prefix}.*\.dll" -o | sort -u | xargs -I{} cp "{}" "$setup_dir"/bin/
+ldd "$build_dir/xournalpp.exe" | grep "${prefix}.*\.dll" -o | awk '!seen[$0]++' | xargs -I{} cp "{}" "$setup_dir"/bin/
 # CI workaround: copy libcrypto and libssl in case they are not already copied.
-ldd "$build_dir/xournalpp.exe" | grep -E 'lib(ssl|crypto)[^\.]*\.dll' -o | sort -u | xargs -I{} cp "${prefix}/bin/{}" "$setup_dir"/bin/
+ldd "$build_dir/xournalpp.exe" | grep -E 'lib(ssl|crypto)[^\.]*\.dll' -o | awk '!seen[$0]++' | xargs -I{} cp "${prefix}/bin/{}" "$setup_dir"/bin/
 
 echo "Installing GTK/Glib translations"
 # Copy system locale files
@@ -73,11 +73,15 @@ for ((i = 0; i < ${#pixbuf_libraries[@]}; ++i)); do
             cp "$prefix/bin/$dependency" "$setup_dir/bin/" || exit 1
             pixbuf_libraries+=("$prefix/bin/$dependency")
         fi
-    done < <(strings -a "${pixbuf_libraries[$i]}" | grep -Ei '^[[:alnum:]_+.-]+\.dll$' | sort -u)
+    done < <(strings -a "${pixbuf_libraries[$i]}" | grep -Ei '^[[:alnum:]_+.-]+\.dll$' | awk '!seen[$0]++')
 done
 
 echo "copy icons"
 cp -r "$prefix"/share/icons "$setup_dir"/share/
+
+echo "copy fontconfig configuration"
+mkdir -p "$setup_dir"/etc
+cp -r "$prefix"/etc/fonts "$setup_dir"/etc/
 
 echo "copy glib shared"
 cp -r "$prefix"/share/glib-2.0 "$setup_dir"/share/
@@ -114,7 +118,13 @@ cp "$prefix"/lib/libqpdf* "$setup_dir"/lib
 
 echo "create installer"
 version=$(cat "$build_dir/VERSION" | sed '1!d')
-"/c/Program Files (x86)/NSIS/Bin/makensis.exe" -NOCD       \
+# xournalpp-calc: also accept NSIS installed with pacman (mingw-w64-*-nsis); sort.exe is avoided above because
+# Windows Smart App Control may block it
+makensis="/c/Program Files (x86)/NSIS/Bin/makensis.exe"
+if [ ! -x "$makensis" ] && command -v makensis >/dev/null; then
+    makensis=$(command -v makensis)
+fi
+"$makensis" -NOCD                                          \
     -DXOURNALPP_VERSION="$version"                         \
     -DSETUP_DIR="$setup_dir"                               \
     -DOUTPUT_INSTALLER_FILE="$build_dir/$installer_name"   \

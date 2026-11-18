@@ -21,6 +21,7 @@
 #include <glib.h>         // for GOptionEntry, gchar, G_O...
 #include <libintl.h>      // for bindtextdomain, textdomain
 
+#include "calc/CalcDocument.h"               // for recalculateDocument
 #include "control/RecentManager.h"           // for RecentManager
 #include "control/jobs/ExportParameters.h"   // for ExportBackgroundType
 #include "control/jobs/XournalScheduler.h"   // for XournalScheduler
@@ -87,8 +88,11 @@ void initCAndCoutLocales() {
 auto migrateSettings() -> MigrateResult {
     const fs::path newConfigPath = Util::getConfigFolder();
 
-    if (!fs::exists(newConfigPath)) {
+    // xournalpp-calc: decide by settings.xml, not by the folder: something may have created the folder first (e.g. the
+    // membrete subfolder, by a command line export)
+    if (!fs::exists(newConfigPath / "settings.xml")) {
         const std::array oldPaths = {
+                Util::getConfigFolder().parent_path() / "xournalpp",  // xournalpp-calc: before its own folder
                 Util::getConfigFolder().parent_path() / "com.github.xournalpp.xournalpp",
                 Util::getConfigFolder().parent_path() / "com.github.xournalpp.xournalpp.exe",
                 Util::GFilename(g_get_home_dir()).toPath().value_or(fs::path()) / ".xournalpp",
@@ -101,7 +105,11 @@ auto migrateSettings() -> MigrateResult {
                       newConfigPath.string().c_str());
             Util::ensureFolderExists(newConfigPath.parent_path());
             try {
-                fs::copy(oldPath, newConfigPath, fs::copy_options::recursive);
+                fs::copy(oldPath, newConfigPath, fs::copy_options::recursive | fs::copy_options::skip_existing);
+                if (oldPath.filename() == "xournalpp") {
+                    // xournalpp-calc: same settings, only a folder of its own; nothing to tell the user
+                    return {MigrateStatus::NotNeeded, ""};
+                }
                 constexpr auto msg = "Due to a recent update, Xournal++ has changed where its configuration files are "
                                      "stored.\nThey have been automatically copied from\n\t{1}\nto\n\t{2}";
                 return {MigrateStatus::Success, FS(_F(msg) % oldPath.u8string() % newConfigPath.u8string())};
@@ -172,6 +180,7 @@ auto loadDocumentOrExit(const fs::path& filename, ExportBackgroundType exportBac
         if (exportBackground != EXPORT_BACKGROUND_NONE) {
             throwIfMissingPdfFileName(loader);
         }
+        xoj::calc::recalculateDocument(doc.get());  // so that exported files show the results
         return doc;
     } catch (const std::exception& e) {
         std::cerr << FS(_F("Error loading document: {1}") % e.what()) << std::endl;
@@ -527,6 +536,12 @@ auto on_handle_local_options(GApplication*, GVariantDict*, XMPtr app_data) -> gi
     if (app_data->showVersion) {
         print_version();
         return (0);
+    }
+
+    // xournalpp-calc: command line exports draw translated texts too (e.g. the exam sheet header)
+    XournalMain::initLocalisation();
+    if (app_data->pdfFilename || app_data->imgFilename) {
+        migrateSettings();  // xournalpp-calc: the export may read the config folder (letterhead) before the GUI ever ran
     }
 
     if (app_data->pdfFilename && app_data->optFilename && *app_data->optFilename) {

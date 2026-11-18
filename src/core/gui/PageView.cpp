@@ -17,6 +17,7 @@
 #include <glib.h>            // for gint, g_free, g_g...
 #include <gtk/gtk.h>         // for GtkWidget, gtk_co...
 
+#include "calc/CalcGrid.h"                          // for drawAlignmentGrid
 #include "control/AudioController.h"                // for AudioController
 #include "control/Control.h"                        // for Control
 #include "control/LatexController.h"                // for LatexController
@@ -253,6 +254,15 @@ auto XojPageView::onButtonPressEvent(const PositionInputData& pos) -> bool {
     XournalppCursor* cursor = xournal->getCursor();
     cursor->setMouseDown(true);
 
+    if (this->selector && this->dcSelectionPending) {
+        // xournalpp-calc: the double click was released without dragging (e.g. on a touchpad): the rectangle followed
+        // the pointer; this click (or drag) closes it, on its release
+        this->dcSelectionPending = false;
+        this->selector->currentPos(x, y);
+        g_debug("xournalpp-calc: pending selection resumed at x=%.1f y=%.1f", x, y);
+        return true;
+    }
+
     if (((h->getToolType() == TOOL_PEN || h->getToolType() == TOOL_HIGHLIGHTER) &&
          h->getDrawingType() != DRAWING_TYPE_SPLINE) ||
         (h->getToolType() == TOOL_ERASER && h->getEraserType() == ERASER_TYPE_WHITEOUT)) {
@@ -413,7 +423,13 @@ auto XojPageView::onButtonPressEvent(const PositionInputData& pos) -> bool {
             }
         }
     } else if (h->getToolType() == TOOL_TEXT) {
-        startText(x, y);
+        if (this->isTextDoubleClick(pos) && !this->isTextAt(x, y)) {
+            // xournalpp-calc: double click on an empty spot (detected here, on the second press, so that it does not
+            // depend on when the system reports the double click)
+            this->startDoubleClickSelection(x, y);
+        } else {
+            startText(x, y);
+        }
     } else if (h->getToolType() == TOOL_LATEX) {
         /* The latex dialog will be opened only at the onButtonReleaseEvent. */
         this->inLatex = true;
@@ -463,6 +479,8 @@ auto XojPageView::onButtonDoublePressEvent(const PositionInputData& pos) -> bool
 
     EditSelection* selection = xournal->getSelection();
     bool hasNoModifiers = !pos.isShiftDown() && !pos.isControlDown();
+    g_debug("xournalpp-calc: double press t=%u tool=%d selection=%d selector=%d", pos.timestamp, toolType,
+            selection != nullptr, this->selector != nullptr);
 
     if (hasNoModifiers && selection != nullptr) {
         // Find a selected object under the cursor, if possible. The selection doesn't change the
@@ -494,6 +512,13 @@ auto XojPageView::onButtonDoublePressEvent(const PositionInputData& pos) -> bool
                 this->startEditingOnButtonRelease = true;
             }
         }
+    } else if (toolType == TOOL_TEXT && (this->selector || !this->isTextAt(x, y))) {
+        // xournalpp-calc: double click on an empty spot: the selection was started on the second press (see
+        // onButtonPressEvent); in case the system reports the double click differently, start it here
+        if (!this->selector) {
+            this->startDoubleClickSelection(x, y);
+        }
+        currentSequenceDeviceId = pos.deviceId;
     } else if (toolType == TOOL_TEXT) {
         this->startText(x, y);
         this->textEditor->selectAtCursor(TextEditor::SelectType::WORD);
@@ -514,6 +539,59 @@ auto XojPageView::onButtonDoublePressEvent(const PositionInputData& pos) -> bool
     }
 
     return true;
+}
+
+auto XojPageView::isTextDoubleClick(const PositionInputData& pos) -> bool {
+    GtkSettings* gs = gtk_settings_get_default();
+    gint time = 400, distance = 5;
+    if (gs) {
+        g_object_get(gs, "gtk-double-click-time", &time, "gtk-double-click-distance", &distance, nullptr);
+    }
+    const bool isDouble = this->lastTextPress && pos.timestamp >= this->lastTextPress->timestamp &&
+                          pos.timestamp - this->lastTextPress->timestamp <= static_cast<guint32>(time) &&
+                          std::abs(pos.x - this->lastTextPress->x) <= std::max(distance, 8) &&
+                          std::abs(pos.y - this->lastTextPress->y) <= std::max(distance, 8);
+    g_debug("xournalpp-calc: text press t=%u x=%.1f y=%.1f double=%d (limit %d ms, %d px)", pos.timestamp, pos.x, pos.y,
+            isDouble, time, std::max(distance, 8));
+    if (isDouble) {
+        this->lastTextPress.reset();  // a third click is not another double click
+    } else {
+        this->lastTextPress = LastPress{pos.timestamp, pos.x, pos.y};
+    }
+    return isDouble;
+}
+
+void XojPageView::startDoubleClickSelection(double x, double y) {
+    // Draw a selection rectangle from this point (to move or delete a group of elements). With "Align to grid", this
+    // point is then put on the grid when the group is moved
+    this->endText();
+    this->xournal->clearSelection();
+    this->selector = std::make_unique<RectangularSelector>(x, y);
+    this->overlayViews.emplace_back(std::make_unique<xoj::view::SelectorView>(this->selector.get(), this,
+                                                                             this->settings->getSelectionColor()));
+    this->selectionGridAnchor = std::make_pair(x, y);
+}
+
+auto XojPageView::isTextAt(double x, double y) const -> bool {
+    // xournalpp-calc: a text (or calculation) box of the active layer, other than an empty one being created, under
+    // the point
+    Layer* layer = this->page->getSelectedLayer();
+    if (!layer) {
+        return false;
+    }
+    for (const Element* e: layer->getElementsView()) {
+        if (e->getType() != ELEMENT_TEXT) {
+            continue;
+        }
+        if (static_cast<const Text*>(e)->getText().empty()) {
+            continue;
+        }
+        const auto& box = e->getBoundingBox();
+        if (x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height) {
+            return true;
+        }
+    }
+    return false;
 }
 
 auto XojPageView::onButtonTriplePressEvent(const PositionInputData& pos) -> bool {
@@ -756,7 +834,14 @@ auto XojPageView::onButtonReleaseEvent(const PositionInputData& pos) -> bool {
         }
     }
 
-    if (this->selector) {
+    if (const double zoom = xournal->getZoom(); this->selector && this->selectionGridAnchor &&
+                                                !this->dcSelectionPendingUsed && this->selector->userTapped(zoom)) {
+        // xournalpp-calc: double click released without dragging: keep the rectangle, it follows the pointer until the
+        // next click
+        this->dcSelectionPending = true;
+        this->dcSelectionPendingUsed = true;
+        g_debug("xournalpp-calc: double click released without drag, selection pending");
+    } else if (this->selector) {
         const bool aggregate = pos.isShiftDown() && xournal->getSelection();
         size_t layerOfFinalizedSel = this->selector->finalize(this->page, aggregate, control->getDocument());
 
@@ -774,6 +859,10 @@ auto XojPageView::onButtonReleaseEvent(const PositionInputData& pos) -> bool {
                 }
             }()
                                           .release());
+            if (this->selectionGridAnchor && xournal->getSelection()) {
+                xournal->getSelection()->setGridAnchor(this->selectionGridAnchor->first,
+                                                       this->selectionGridAnchor->second);
+            }
         } else if (const double zoom = xournal->getZoom(); selector->userTapped(zoom)) {
             if (aggregate) {
                 SelectObject(this).atAggregate(pos.x / zoom, pos.y / zoom);
@@ -782,6 +871,9 @@ auto XojPageView::onButtonReleaseEvent(const PositionInputData& pos) -> bool {
             }
         }
         this->selector.reset();
+        this->selectionGridAnchor.reset();
+        this->dcSelectionPending = false;
+        this->dcSelectionPendingUsed = false;
     } else if (this->textEditor) {
         this->textEditor->mouseReleased();
     }
@@ -1121,6 +1213,12 @@ auto XojPageView::paintPage(cairo_t* cr, GdkRectangle* rect) -> bool {
      *
      * To anyone adding another painter here: please keep this assumption true
      */
+    if (xournal->getControl()->isCalcGridVisible()) {
+        xoj::calc::drawAlignmentGrid(
+                cr, xoj::calc::alignmentGrid(page->getBackgroundType(), page->getWidth(), page->getHeight()),
+                page->getWidth(), page->getHeight(), zoom);
+    }
+
     for (const auto& v: this->overlayViews) {
         v->draw(cr);
     }

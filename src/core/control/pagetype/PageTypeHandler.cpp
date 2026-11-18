@@ -9,6 +9,7 @@
 #include "util/StringUtils.h"
 #include "util/XojMsgBox.h"
 #include "util/i18n.h"
+#include "view/background/Letterhead.h"
 
 static void addPageTypeInfo(const std::string& name, PageTypeFormat format, const std::string& config,
                             std::vector<std::unique_ptr<PageTypeInfo>>& types) {
@@ -37,6 +38,11 @@ PageTypeHandler::PageTypeHandler(GladeSearchpath* gladeSearchPath) {
         addPageTypeInfo(_("Dotted"), PageTypeFormat::Dotted, "", types);
         addPageTypeInfo(_("Isometric Dotted"), PageTypeFormat::IsoDotted, "", types);
         addPageTypeInfo(_("Isometric Graph"), PageTypeFormat::IsoGraph, "", types);
+    }
+
+    // Letterhead of the user (xournalpp-calc): exam-like sheet with their logos, see view/background/Letterhead.h
+    if (const auto* lh = xoj::view::Letterhead::get()) {
+        addPageTypeInfo(lh->name, PageTypeFormat::Graph, "vm=70.85,lh=1", types);
     }
 
     // Special types

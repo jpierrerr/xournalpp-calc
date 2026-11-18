@@ -60,6 +60,10 @@ public:
     virtual void addText(std::string font, double size, xoj::util::Matrix matrix, Color color,
                          std::optional<double> wrap, std::optional<TextAlignment> align, bool justify,
                          fs::path filename, size_t timestamp) = 0;
+    /// Marks the current text as a calculation region (xournalpp-calc extension)
+    virtual void setTextCalc(bool calc) {}
+    /// Fixed line pitch of the current text (xournalpp-calc extension)
+    virtual void setTextLineHeight(double h) {}
     virtual void setTextContents(std::string contents) = 0;
     virtual void finalizeText() = 0;
     virtual void addImageLegacy(double left, double top, double right, double bottom,

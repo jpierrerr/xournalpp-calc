@@ -19,6 +19,7 @@ namespace {
 
 constexpr const char* RESULT_COLOR = "#1a5fb4";
 constexpr const char* ERROR_COLOR = "#c01c28";
+constexpr const char* OK_COLOR = "#26a269";
 
 std::string escape(std::string_view s) {
     gchar* e = g_markup_escape_text(s.data(), static_cast<gssize>(s.size()));
@@ -169,8 +170,11 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
                 std::string_view prefix(l.display);
                 prefix.remove_suffix(std::min(prefix.size(), l.result.size()));
                 out += prettifyMarkup(prefix, env);
-                out += std::string("<span foreground=\"") + RESULT_COLOR + "\">" + prettifyMarkup(l.result, env) +
-                       "</span>";
+                // Comparisons: green when it holds, red when not
+                const bool holds = l.result.find("✓") != std::string::npos;
+                const bool fails = l.result.find("✗") != std::string::npos;
+                const char* color = holds && !fails ? OK_COLOR : fails && !holds ? ERROR_COLOR : RESULT_COLOR;
+                out += std::string("<span foreground=\"") + color + "\">" + prettifyMarkup(l.result, env) + "</span>";
                 break;
             }
             case LineResult::Kind::Error:

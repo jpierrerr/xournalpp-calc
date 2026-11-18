@@ -17,6 +17,8 @@ Extensión de Xournal++ para hacer memorias de cálculo al estilo Mathcad sobre 
 | `V := 2 m3` | potencia de una unidad sin `^` (m3, cm2, mm4, s2…) | V := 2 m³ |
 | `P := 3 kn`, `q := 2 kpa` | unidades de 2 o más letras sin importar mayúsculas, si no hay otra igual (kn = kN, kpa = kPa); una sola letra (n, a, v) sigue siendo variable | P := 3 kN |
 | `z := 1      m2`, `x := 2m` | la unidad queda siempre a un espacio del número | z := 1 m² |
+| `s ≤ fy =` | comparación (`<`, `>`, `≤`, `≥`, `≠`, también en cadena `0 < s ≤ fy`): ✓ cumple (verde) o ✗ no cumple (rojo) | s ≤ fy = ✓ cumple |
+| `x := (-b ± √(b²-4·a·c))/(2·a) =` | `±` da los dos resultados; `x` guarda el de +, y `x_1`, `x_2` los dos | x = 3 ; -2 |
 | `Cálculo de la viga` | línea sin `=` ni `:=`: texto normal | igual |
 | `# nota` | comentario | igual |
 

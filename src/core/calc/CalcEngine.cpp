@@ -398,8 +398,9 @@ struct Symbol {
     const char* op;
 };
 const Symbol SYMBOLS[] = {
-        {"·", Tok::Op, "*"}, {"×", Tok::Op, "*"}, {"⋅", Tok::Op, "*"},       {"∙", Tok::Op, "*"},
-        {"÷", Tok::Op, "/"}, {"−", Tok::Op, "-"}, {"√", Tok::Ident, "sqrt"}, {"≔", Tok::Assign, ":="},
+        {"·", Tok::Op, "*"}, {"×", Tok::Op, "*"},  {"⋅", Tok::Op, "*"},       {"∙", Tok::Op, "*"},
+        {"÷", Tok::Op, "/"}, {"−", Tok::Op, "-"},  {"√", Tok::Ident, "sqrt"}, {"≔", Tok::Assign, ":="},
+        {"±", Tok::Op, "±"}, {"≤", Tok::Op, "<="}, {"≥", Tok::Op, ">="},      {"≠", Tok::Op, "!="},
 };
 
 int superscriptValue(std::string_view s, size_t pos, size_t& len) {
@@ -517,6 +518,15 @@ std::vector<Token> tokenize(std::string_view s) {
             case '%':
                 out.push_back({Tok::Ident, "%"});
                 break;
+            case '<':
+            case '>':
+                if (i + 1 < s.size() && s[i + 1] == '=') {
+                    out.push_back({Tok::Op, std::string(1, static_cast<char>(c)) + "="});
+                    i++;
+                } else {
+                    out.push_back({Tok::Op, std::string(1, static_cast<char>(c))});
+                }
+                break;
             case '(':
             case '[':
                 out.push_back({Tok::LParen, "("});
@@ -553,10 +563,41 @@ public:
     /// unitsOnly: identifiers are resolved as units only (used for "= ? kN·m")
     Parser(const std::vector<Token>& toks, size_t pos, const Environment* env): toks(toks), pos(pos), env(env) {}
 
+    /// Comparisons (<, >, ≤, ≥, ≠), lowest precedence: the result is 1 (it holds) or 0. Chains like "0 < x ≤ 5" hold
+    /// when every comparison holds
+    Quantity parseComparison() {
+        Quantity q = parseExpression();
+        bool holds = true;
+        while (isComparison(peek())) {
+            std::string op = next().text;
+            Quantity r = parseExpression();
+            // A bare 0 can be compared with anything ("0 < s ≤ fy")
+            const bool zero = (q.value == 0 && q.dim == DIMLESS) || (r.value == 0 && r.dim == DIMLESS);
+            if (!(q.dim == r.dim) && !zero) {
+                throw CalcError("no se pueden comparar " + dimName(q.dim) + " y " + dimName(r.dim));
+            }
+            const double tol = 1e-12 * std::max({1.0, std::abs(q.value), std::abs(r.value)});
+            const double d = q.value - r.value;
+            bool ok = op == "<"  ? d < -tol :
+                      op == ">"  ? d > tol :
+                      op == "<=" ? d <= tol :
+                      op == ">=" ? d >= -tol :
+                                   std::abs(d) > tol;  // !=
+            holds = holds && ok;
+            comparison = true;
+            q = r;
+        }
+        return comparison ? Quantity{holds ? 1.0 : 0.0, DIMLESS} : q;
+    }
+
     Quantity parseExpression() {
         Quantity q = parseTerm();
-        while (peek().type == Tok::Op && (peek().text == "+" || peek().text == "-")) {
+        while (peek().type == Tok::Op && (peek().text == "+" || peek().text == "-" || peek().text == "±")) {
             std::string op = next().text;
+            if (op == "±") {
+                usedPlusMinus = true;
+                op = pmSign > 0 ? "+" : "-";
+            }
             Quantity r = parseTerm();
             if (!(q.dim == r.dim)) {
                 throw CalcError("unidades incompatibles: " + dimName(q.dim) + " " + op + " " + dimName(r.dim));
@@ -565,6 +606,15 @@ public:
         }
         return q;
     }
+
+    static bool isComparison(const Token& t) {
+        return t.type == Tok::Op &&
+               (t.text == "<" || t.text == ">" || t.text == "<=" || t.text == ">=" || t.text == "!=");
+    }
+
+    int pmSign = 1;              ///< ± is evaluated as + (1) or as - (-1)
+    bool usedPlusMinus = false;  ///< the expression has a ±, so it has two results
+    bool comparison = false;     ///< the expression is a comparison (result 1 or 0)
 
     const Token& peek() const { return toks[pos]; }
     const Token& next() { return toks[pos++]; }
@@ -598,8 +648,12 @@ private:
     }
 
     Quantity parseUnary() {
-        if (peek().type == Tok::Op && (peek().text == "-" || peek().text == "+")) {
-            bool neg = next().text == "-";
+        if (peek().type == Tok::Op && (peek().text == "-" || peek().text == "+" || peek().text == "±")) {
+            std::string op = next().text;
+            if (op == "±") {
+                usedPlusMinus = true;
+            }
+            bool neg = op == "-" || (op == "±" && pmSign < 0);
             Quantity q = parseUnary();
             if (neg) {
                 q.value = -q.value;
@@ -908,17 +962,52 @@ LineResult evaluateLine(std::string_view line, Environment& env) {
             }
             pos = 2;
         }
+        const size_t exprStart = pos;
         Parser p(toks, pos, &env);
-        Quantity q = p.parseExpression();
+        Quantity q = p.parseComparison();
         pos = p.position();
+
+        // "±": a second result with "-" ("x := (-b ± √(b²-4·a·c)) / (2·a)" gives both roots)
+        std::optional<Quantity> q2;
+        if (p.usedPlusMinus) {
+            Parser p2(toks, exprStart, &env);
+            p2.pmSign = -1;
+            q2 = p2.parseComparison();
+        }
 
         if (defName) {
             env.vars[*defName] = q;
+            if (q2) {
+                // x is the "+" result; x_1 and x_2 (written x1/x2 with Ctrl+PgDown) are both results
+                env.vars[*defName + "_1"] = q;
+                env.vars[*defName + "_2"] = *q2;
+            }
             res.kind = LineResult::Kind::Definition;
         }
         if (toks[pos].type == Tok::Eq) {
             pos++;
-            res.result = formatResult(q, toks, pos, t, res.display);
+            if (p.comparison) {
+                if (toks[pos].type != Tok::End) {
+                    throw CalcError("una comparación no lleva unidades después de '='");
+                }
+                auto verdict = [](const Quantity& v) { return v.value != 0 ? std::string("✓ cumple") : "✗ no cumple"; };
+                res.result = verdict(q);
+                if (q2 && q2->value != q.value) {
+                    res.result = "con +: " + verdict(q) + " ; con −: " + verdict(*q2);
+                }
+                res.display = trim(t) + " " + res.result;
+            } else if (q2) {
+                size_t pos2 = pos;
+                std::string display2;
+                std::string r1 = formatResult(q, toks, pos, t, res.display);
+                std::string r2 = formatResult(*q2, toks, pos2, t, display2);
+                res.result = r1 == r2 ? r1 : r1 + " ; " + r2;
+                if (r1 != r2) {
+                    res.display += " ; " + r2;
+                }
+            } else {
+                res.result = formatResult(q, toks, pos, t, res.display);
+            }
             res.kind = LineResult::Kind::Evaluation;
         } else if (toks[pos].type != Tok::End) {
             throw CalcError("símbolo inesperado: " + toks[pos].text);

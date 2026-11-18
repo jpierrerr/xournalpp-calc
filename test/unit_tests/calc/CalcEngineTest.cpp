@@ -169,3 +169,23 @@ TEST(CalcEngine, subscriptWithoutUnderscore) {
     auto lines = evaluateText("A_s := 5 cm2\nAs = ? mm2", env);
     EXPECT_EQ(lines[1].display, "As = 500 mm2");
 }
+
+TEST(CalcEngine, comparisons) {
+    Environment env;
+    auto lines = evaluateText("s := 180 MPa\nfy := 420 MPa\ns ≤ fy =\ns > fy =\n0 < s ≤ fy =\ns <= 0.4 fy =\ns ≠ fy =", env);
+    EXPECT_EQ(lines[2].result, "✓ cumple");
+    EXPECT_EQ(lines[3].result, "✗ no cumple");
+    EXPECT_EQ(lines[4].result, "✓ cumple");
+    EXPECT_EQ(lines[5].result, "✗ no cumple");
+    EXPECT_EQ(lines[6].result, "✓ cumple");
+    EXPECT_EQ(evaluateLine("s ≤ 2 m =", env).kind, Kind::Error);  // different units
+}
+
+TEST(CalcEngine, plusMinus) {
+    Environment env;
+    auto lines = evaluateText("a := 1\nb := -1\nc := -6\nx := (-b ± sqrt(b^2 - 4*a*c)) / (2*a) =\nx_2 =\nL := 2 m ± 3 cm = ? cm", env);
+    EXPECT_EQ(lines[3].result, "3 ; -2");
+    EXPECT_EQ(lines[3].display, "x := (-b ± sqrt(b^2 - 4*a*c)) / (2*a) = 3 ; -2");
+    EXPECT_EQ(lines[4].result, "-2");
+    EXPECT_EQ(lines[5].result, "203 cm ; 197 cm");
+}

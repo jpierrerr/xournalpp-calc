@@ -49,6 +49,7 @@ Las regiones se guardan en el `.xopp` como textos con el atributo `calc="true"`.
 Dos botones (también en el menú Herramientas):
 
 - **Alinear a la malla** (Ctrl+Alt+M): cada cuadro de texto o región de cálculo nuevo empieza en el punto de la malla más cercano al clic, con la línea base sobre un renglón, y sus líneas quedan separadas un renglón (o varios si la letra no cabe).
+  La letra queda 1 mm por encima del renglón, para que los puntos no la corten.
 - **Malla visible** (Ctrl+Alt+V): muestra u oculta los puntos. La alineación funciona aunque la malla esté oculta. Los puntos solo se ven en pantalla: no salen al imprimir ni al exportar.
 
 La malla es la misma en todos los formatos, para que los apuntes no se desordenen al cambiar el fondo de la hoja:
@@ -59,3 +60,18 @@ La malla es la misma en todos los formatos, para que los apuntes no se desordene
 - Los renglones de escritura están cada 2 filas de puntos en todos los formatos.
 
 La separación entre líneas de cada cuadro de texto se guarda en el archivo (`lineHeight`).
+
+### Moverse con el teclado
+
+Con **Alinear a la malla** activado, mientras escribes en un cuadro:
+
+| Tecla | Qué hace |
+| --- | --- |
+| Enter | Cierra el cuadro y abre otro en el renglón de abajo, a la misma altura horizontal |
+| Shift+Enter | Salto de línea dentro del mismo cuadro |
+| Tab | Cierra el cuadro y abre otro delante, en el mismo renglón (deja un cuadro de espacio) |
+| Flechas | Con el cuadro vacío, lo mueven un punto de la malla (arriba/abajo, un renglón). Con texto, mueven el cursor y, al llegar al borde del cuadro, saltan a un cuadro nuevo al lado |
+
+- Al llegar al borde derecho se sigue en el renglón de abajo; al llegar al final de la hoja se sigue en la página siguiente (si no existe, se crea una con el mismo fondo).
+- Si el punto de destino cae sobre un texto que ya existe, se abre ese texto para editarlo.
+- Un cuadro que se deja vacío no se guarda.

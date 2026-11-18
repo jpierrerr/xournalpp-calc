@@ -143,6 +143,10 @@ const TextEditor::KeyBindings TextEditor::keyBindings(
          {KeyBindings::hash(NONE, GDK_KEY_Return), wrap<&TextEditor::linebreak>},
          {KeyBindings::hash(NONE, GDK_KEY_ISO_Enter), wrap<&TextEditor::linebreak>},
          {KeyBindings::hash(NONE, GDK_KEY_KP_Enter), wrap<&TextEditor::linebreak>},
+         // xournalpp-calc: with the alignment grid, Enter opens a new box and Shift+Enter breaks the line
+         {KeyBindings::hash(SHIFT, GDK_KEY_Return), wrap<&TextEditor::linebreak>},
+         {KeyBindings::hash(SHIFT, GDK_KEY_ISO_Enter), wrap<&TextEditor::linebreak>},
+         {KeyBindings::hash(SHIFT, GDK_KEY_KP_Enter), wrap<&TextEditor::linebreak>},
 
          {KeyBindings::hash(NONE, GDK_KEY_Tab), wrap<&TextEditor::tabulation>},
          {KeyBindings::hash(NONE, GDK_KEY_KP_Tab), wrap<&TextEditor::tabulation>},

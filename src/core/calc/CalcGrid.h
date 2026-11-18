@@ -18,6 +18,9 @@ class PageType;
 
 namespace xoj::calc {
 
+/// The baseline of the text is 1 mm above the writing line
+constexpr double BASELINE_LIFT = 72.0 / 25.4;
+
 struct AlignGrid {
     double dx;  ///< horizontal distance between dots
     double dy;  ///< vertical distance between dots

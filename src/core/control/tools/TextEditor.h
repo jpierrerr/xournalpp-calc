@@ -106,6 +106,8 @@ private:
     void toggleOverwrite();
     void toggleBoldFace();
     void greekifyBeforeCursor();  ///< Mathcad-style Ctrl+G: replace the latin letter before the cursor by a Greek one
+    /// xournalpp-calc: Enter, Tab and the arrows move to another box on the alignment grid. True if handled
+    bool handleGridNavigation(const KeyEvent& event);
     void increaseFontSize();
     void decreaseFontSize();
     void moveCursor(GtkMovementStep step, int count, bool extendSelection);

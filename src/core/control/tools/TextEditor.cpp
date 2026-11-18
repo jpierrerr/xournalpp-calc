@@ -1,5 +1,6 @@
 #include "TextEditor.h"
 
+#include <cmath>    // for ceil
 #include <cstring>  // for strcmp, size_t
 #include <memory>   // for allocator, make_unique, __shared_p...
 #include <string>   // for std::string()
@@ -505,7 +506,73 @@ auto TextEditor::onKeyPressEvent(const KeyEvent& event) -> bool {
         return true;
     }
 
+    if (handleGridNavigation(event)) {
+        return true;
+    }
+
     return keyBindings.processEvent(this, event);
+}
+
+bool TextEditor::handleGridNavigation(const KeyEvent& event) {
+    if (!this->control->isCalcGrid() || (this->preeditString && *this->preeditString.get())) {
+        return false;
+    }
+    constexpr auto MODIFIERS = GDK_SHIFT_MASK | GDK_CONTROL_MASK | GDK_MOD1_MASK | GDK_SUPER_MASK;
+    if ((event.state & MODIFIERS) != 0) {
+        return false;
+    }
+    const guint key = event.keyval;
+    const bool enter = key == GDK_KEY_Return || key == GDK_KEY_ISO_Enter || key == GDK_KEY_KP_Enter;
+    const bool tab = key == GDK_KEY_Tab || key == GDK_KEY_KP_Tab;
+    const bool left = key == GDK_KEY_Left || key == GDK_KEY_KP_Left;
+    const bool right = key == GDK_KEY_Right || key == GDK_KEY_KP_Right;
+    const bool up = key == GDK_KEY_Up || key == GDK_KEY_KP_Up;
+    const bool down = key == GDK_KEY_Down || key == GDK_KEY_KP_Down;
+    if (!(enter || tab || left || right || up || down)) {
+        return false;
+    }
+
+    GtkTextBuffer* buf = this->buffer.get();
+    const bool empty = gtk_text_buffer_get_char_count(buf) == 0;
+    GtkTextIter cursor = getIteratorAtCursor(buf);
+    const int nLines = gtk_text_buffer_get_line_count(buf);
+    const int cursorLine = gtk_text_iter_get_line(&cursor);
+
+    // Arrows inside a box with text move the cursor; they leave the box only from its edges
+    if (!empty && ((left && !gtk_text_iter_is_start(&cursor)) || (right && !gtk_text_iter_is_end(&cursor)) ||
+                   (up && cursorLine > 0) || (down && cursorLine < nLines - 1))) {
+        return false;
+    }
+
+    auto grid =
+            xoj::calc::alignmentGrid(this->page->getBackgroundType(), this->page->getWidth(), this->page->getHeight());
+    Text* t = this->textElement.get();
+    const double lh = t->getLineHeight() > 0 ? t->getLineHeight() : grid.pitchFor(t->naturalLineHeight());
+    const auto& origin = t->getOrigin();
+    const double firstLine = grid.snapY(origin.y + t->firstBaseline() + xoj::calc::BASELINE_LIFT);
+    const double lastLine = firstLine + (nLines - 1) * lh;
+    const double x = grid.snapX(origin.x);
+    // The first dot after the box, leaving about one square
+    auto ahead = [&]() {
+        double maxX = empty ? origin.x : this->previousBoundingBox.maxX;
+        return grid.x0 + std::ceil((maxX + 0.5 * grid.dx - grid.x0) / grid.dx) * grid.dx;
+    };
+
+    double nx = x, line = firstLine;
+    if (enter) {
+        line = lastLine + lh;
+    } else if (tab || right) {
+        nx = empty ? x + (tab ? 4 : 1) * grid.dx : ahead();
+        line = empty ? firstLine : lastLine;
+    } else if (left) {
+        nx = x - grid.dx;
+    } else if (up) {
+        line = firstLine - (empty ? grid.linePitch() : lh);
+    } else {  // down
+        line = lastLine + (empty ? grid.linePitch() : lh);
+    }
+    this->control->calcGridGoTo(this->page, nx, line);
+    return true;
 }
 
 auto TextEditor::onKeyReleaseEvent(const KeyEvent& event) -> bool {
@@ -1289,7 +1356,8 @@ void TextEditor::initializeEditionAt(double x, double y) {
                                                  this->page->getHeight());
             double lineH = this->textElement->naturalLineHeight();
             this->textElement->setLineHeight(grid.pitchFor(lineH));
-            double baseline = grid.snapY(y + 0.25 * lineH);
+            // The letters sit 1 mm above the line, so that the dots do not cut them
+            double baseline = grid.snapY(y + 0.25 * lineH) - xoj::calc::BASELINE_LIFT;
             this->textElement->setTransformation(
                     xoj::util::Matrix::TRANSLATION(grid.snapX(x), baseline - this->textElement->firstBaseline()));
         }

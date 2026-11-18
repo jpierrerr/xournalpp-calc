@@ -295,6 +295,9 @@ public:
     /// xournalpp-calc: align new text boxes on the alignment grid
     void setCalcGrid(bool enabled) { calcGrid = enabled; }
     bool isCalcGrid() const { return calcGrid; }
+    /// xournalpp-calc: close the text being edited and open a box at x with its baseline just above the writing
+    /// line `line` of `page` (continuing on the next or previous page past the edges). Deferred to the main loop.
+    void calcGridGoTo(const PageRef& page, double x, double line);
     /// xournalpp-calc: show the dots of the alignment grid (independent of the alignment itself)
     void setCalcGridVisible(bool visible);
     bool isCalcGridVisible() const { return calcGridVisible; }

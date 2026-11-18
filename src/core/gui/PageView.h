@@ -189,9 +189,10 @@ public:  // listener
     void elementChanged(const Element* elem) override;
     void elementsChanged(const std::vector<const Element*>& elements, const Range& range) override;
 
-private:
+    /// Start editing a text at (x, y) in page coordinates (xournalpp-calc: also used by the grid navigation)
     void startText(double x, double y);
 
+private:
     void startLink();
 
     void drawLoadingPage(cairo_t* cr);

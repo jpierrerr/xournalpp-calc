@@ -307,6 +307,8 @@ public:
     bool isCalcGridVisible() const { return calcGridVisible; }
     /// xournalpp-calc: show the palette of Greek letters and math symbols
     void showGreekPalette();
+    /// xournalpp-calc: replace the selected handwriting by what it says: a calculation region (math) or a text box
+    void convertSelectedInk(bool math);
 
     GladeSearchpath* getGladeSearchPath() const;
 

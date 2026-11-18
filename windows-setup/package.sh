@@ -116,6 +116,19 @@ echo "copy qpdf"
 cp "$prefix"/bin/libqpdf*.dll "$setup_dir"/bin
 cp "$prefix"/lib/libqpdf* "$setup_dir"/lib
 
+echo "copy handwriting models"
+# xournalpp-calc: the ONNX model for handwritten formulas (pix2text-mfr, MIT license) is not in the repository;
+# it is taken from $JACKMATH_MODELS_DIR (default ~/hmr-models) if it was downloaded there
+models_dir="${JACKMATH_MODELS_DIR:-$HOME/hmr-models}"
+if [ -f "$models_dir/pix2text-mfr/encoder_model.onnx" ]; then
+    mkdir -p "$setup_dir"/share/xournalpp/models
+    cp -r "$models_dir/pix2text-mfr" "$setup_dir"/share/xournalpp/models/
+    # ONNX Runtime may load its shared provider library at run time
+    [ -f "$prefix/bin/onnxruntime_providers_shared.dll" ] && cp "$prefix/bin/onnxruntime_providers_shared.dll" "$setup_dir"/bin/
+else
+    echo "  (no model in $models_dir/pix2text-mfr: formula recognition will not be available)"
+fi
+
 echo "create installer"
 version=$(cat "$build_dir/VERSION" | sed '1!d')
 # xournalpp-calc: also accept NSIS installed with pacman (mingw-w64-*-nsis); sort.exe is avoided above because

@@ -184,6 +184,18 @@ if (ENABLE_QPDF)
     message(STATUS "Found qpdf: ${qpdf_VERSION}")
 endif ()
 
+# xournalpp-calc: handwritten formulas → LaTeX with a local ONNX model
+option(ENABLE_INK_MATH "Recognize handwritten formulas with ONNX Runtime (if found)" ON)
+if (ENABLE_INK_MATH)
+    pkg_check_modules(OnnxRuntime IMPORTED_TARGET libonnxruntime)
+    if (OnnxRuntime_FOUND)
+        message(STATUS "Enable handwritten formula recognition (ONNX Runtime ${OnnxRuntime_VERSION})")
+    else ()
+        message(STATUS "ONNX Runtime not found: handwritten formula recognition disabled")
+        set(ENABLE_INK_MATH OFF)
+    endif ()
+endif ()
+
 option(ENABLE_PLUGINS "Compile with plugin support" ON)
 if (ENABLE_PLUGINS)
     message(STATUS "Enable Xournal++ Plugins")
@@ -272,6 +284,10 @@ target_link_libraries(external_modules INTERFACE
         $<$<TARGET_EXISTS:X11::X11>:X11::X11>
         $<$<TARGET_EXISTS:cpptrace::cpptrace>:cpptrace::cpptrace>
         $<$<TARGET_EXISTS:qpdf::libqpdf>:qpdf::libqpdf>
+        $<$<TARGET_EXISTS:PkgConfig::OnnxRuntime>:PkgConfig::OnnxRuntime>
+        $<$<PLATFORM_ID:Windows>:ole32>
+        $<$<PLATFORM_ID:Windows>:oleaut32>
+        $<$<PLATFORM_ID:Windows>:uuid>
         ZLIB::ZLIB
         Threads::Threads
         )

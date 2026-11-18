@@ -853,6 +853,16 @@ struct ActionProperties<Action::GREEK_PALETTE> {
 };
 
 template <>
+struct ActionProperties<Action::CALC_INK_TO_MATH> {
+    static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->convertSelectedInk(true); }
+};
+
+template <>
+struct ActionProperties<Action::CALC_INK_TO_TEXT> {
+    static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->convertSelectedInk(false); }
+};
+
+template <>
 struct ActionProperties<Action::TEXT_JUSTIFY> {
     using state_type = bool;
     static state_type initialState(Control* ctrl) { return ctrl->getToolHandler()->getTextJustify(); }

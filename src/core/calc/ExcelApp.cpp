@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cwchar>
 #include <cwctype>
 
 #include <objbase.h>
@@ -104,7 +105,7 @@ std::string narrow(const wchar_t* w) {
 }
 
 bool comReady() {
-    static const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    thread_local const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     return SUCCEEDED(hr) || hr == RPC_E_CHANGED_MODE;
 }
 
@@ -176,10 +177,40 @@ std::wstring lower(std::wstring s) {
     return s;
 }
 
-/// The workbook open in Excel with that file, or nothing
+/// Whether a running Excel does not answer window messages ("Not responding"). A call to it would wait without a
+/// time limit, and Xournal would freeze with it. After a hang is seen, Excel is left alone for a few seconds
+bool excelNotResponding() {
+    static ULONGLONG quietUntil = 0;
+    if (GetTickCount64() < quietUntil) {
+        return true;
+    }
+    bool hung = false;
+    EnumWindows(
+            [](HWND h, LPARAM p) -> BOOL {
+                wchar_t cls[16] = {};
+                if (GetClassNameW(h, cls, 16) > 0 && std::wcscmp(cls, L"XLMAIN") == 0) {
+                    DWORD_PTR answer = 0;
+                    if (!SendMessageTimeoutW(h, WM_NULL, 0, 0, SMTO_ABORTIFHUNG | SMTO_BLOCK, 300, &answer)) {
+                        *reinterpret_cast<bool*>(p) = true;
+                        return FALSE;
+                    }
+                }
+                return TRUE;
+            },
+            reinterpret_cast<LPARAM>(&hung));
+    if (hung) {
+        quietUntil = GetTickCount64() + 5000;
+    }
+    return hung;
+}
+
+/// The workbook open in Excel with that file, or nothing. Throws ExcelBusy if Excel does not answer
 Disp findWorkbook(const fs::path& file) {
     if (!comReady()) {
         return {};
+    }
+    if (excelNotResponding()) {
+        throw ExcelBusy("Excel no responde");
     }
     const std::wstring path = file.wstring();
 
@@ -225,7 +256,9 @@ Disp findWorkbook(const fs::path& file) {
         Disp books = getObject(excel.get(), L"Workbooks");
         Var count;
         invoke(books.get(), L"Count", DISPATCH_PROPERTYGET, {}, &count.v);
-        VariantChangeType(&count.v, &count.v, 0, VT_I4);
+        if (FAILED(VariantChangeType(&count.v, &count.v, 0, VT_I4))) {
+            return {};
+        }
         const std::wstring wantedPath = lower(path);
         const std::wstring wantedName = lower(file.filename().wstring());
         Disp byName;
@@ -245,8 +278,10 @@ Disp findWorkbook(const fs::path& file) {
             }
         }
         return byName;
+    } catch (const ExcelBusy&) {
+        throw;  // the workbook may be open: its file must not be used (it may be older, or locked)
     } catch (const CalcError&) {
-        return {};  // Excel is busy: the file is used instead
+        return {};
     }
 }
 
@@ -380,11 +415,11 @@ std::string displayText(VARIANT& v) {
 }  // namespace
 
 std::optional<std::vector<std::string>> sheetNames(const fs::path& file) {
-    Disp wb = findWorkbook(file);
-    if (!wb) {
-        return std::nullopt;
-    }
     try {
+        Disp wb = findWorkbook(file);
+        if (!wb) {
+            return std::nullopt;
+        }
         Disp sheets = getObject(wb.get(), L"Worksheets");
         int n = intProperty(sheets.get(), L"Count");
         std::vector<std::string> names;
@@ -402,7 +437,12 @@ std::optional<std::vector<std::string>> sheetNames(const fs::path& file) {
 }
 
 std::optional<SheetPreview> preview(const fs::path& file, const std::string& sheet, int maxRows, int maxCols) {
-    Disp wb = findWorkbook(file);
+    Disp wb;
+    try {
+        wb = findWorkbook(file);
+    } catch (const ExcelBusy&) {
+        return std::nullopt;  // the preview shows the file instead
+    }
     if (!wb) {
         return std::nullopt;
     }

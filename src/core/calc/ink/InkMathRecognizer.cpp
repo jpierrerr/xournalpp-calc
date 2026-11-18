@@ -587,7 +587,7 @@ public:
             for (auto& n: decIn) {
                 g_debug("Ink: entrada del decoder: %s", n.c_str());
             }
-        } catch (const Ort::Exception& e) {
+        } catch (const std::exception& e) {  // Ort::Exception, and also out of memory or a damaged model
             error = std::string("Error al cargar el modelo: ") + e.what();
             return false;
         }
@@ -672,7 +672,7 @@ public:
             std::string latex = detok.decode(generated);
             g_message("Ink: fórmula reconocida: %s", latex.c_str());
             return latex;
-        } catch (const Ort::Exception& e) {
+        } catch (const std::exception& e) {  // Ort::Exception, and also out of memory or a damaged model
             error = std::string("Error del modelo: ") + e.what();
             return std::nullopt;
         }
@@ -703,7 +703,9 @@ private:
                 }
                 if (const Json* enc = root.get("encoder")) {
                     if (const Json* v = enc->get("image_size"); v && v->num()) {
-                        imageSize = static_cast<int>(*v->num());
+                        if (double d = *v->num(); d >= 32 && d <= 2048) {
+                            imageSize = static_cast<int>(d);
+                        }
                     }
                 }
             }

@@ -332,6 +332,7 @@ public:
     /// xournalpp-calc: choose an Excel workbook and insert excel("...") in a calculation region. Returns the
     /// workbook, or an empty path if cancelled
     fs::path excelLinkWorkbook();
+    fs::path chooseExcelWorkbook();
     /// xournalpp-calc: pick a cell of the linked workbook and insert a line that reads it into a variable (input)
     /// or sends a variable to it (output)
     void excelPickCell(bool input);

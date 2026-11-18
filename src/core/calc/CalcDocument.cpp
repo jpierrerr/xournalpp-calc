@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <mutex>
 #include <set>
 
 #include <glib.h>
@@ -298,7 +299,9 @@ bool documentUsesExcel(Document* doc) {
     return false;
 }
 
-std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites, bool keepIfExcelBusy) {
+namespace {
+
+std::vector<size_t> recalculate(Document* doc, bool excelWrites, bool keepIfExcelBusy) {
     // 1. Collect the regions in reading order. The evaluation itself happens without holding the document lock,
     //    because talking to Excel may dispatch window messages (e.g. a repaint that needs the lock)
     fs::path baseDir;
@@ -321,21 +324,24 @@ std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites, bool ke
         return {};  // try again later, instead of showing "Excel is busy" for a moment
     }
 
-    // 3. Show the results (in the regions that still exist)
+    // 3. Show the results in the regions that still exist (a region may have been deleted, and its memory reused by
+    //    another text, while Excel was answering: it must still be a calculation on the same page)
     std::vector<size_t> changedPages;
-    doc->lock();
-    std::set<const Text*> existing;
+    std::lock_guard<Document> lock(*doc);
+    std::vector<std::set<const Text*>> onPage(doc->getPageCount());
     for (size_t p = 0; p < doc->getPageCount(); p++) {
         if (PageRef page = doc->getPage(p)) {
             for (Layer* layer: page->getLayers()) {
                 for (auto& e: layer->getElements()) {
-                    existing.insert(dynamic_cast<const Text*>(e.get()));
+                    if (auto* t = dynamic_cast<const Text*>(e.get()); t && t->isCalc()) {
+                        onPage[p].insert(t);
+                    }
                 }
             }
         }
     }
     for (auto& r: regions) {
-        if (!existing.count(r.text)) {
+        if (r.page >= onPage.size() || !onPage[r.page].count(r.text) || r.text->getText() != r.source) {
             continue;
         }
         bool changed = r.text->setCalcMarkup(std::move(r.markup));
@@ -344,8 +350,26 @@ std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites, bool ke
             changedPages.push_back(r.page);
         }
     }
-    doc->unlock();
     return changedPages;
+}
+
+}  // namespace
+
+std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites, bool keepIfExcelBusy) {
+    // Talking to Excel may dispatch window messages, and with them another recalculation: one at a time
+    static bool running = false;
+    if (running || !doc) {
+        return {};
+    }
+    running = true;
+    std::vector<size_t> changed;
+    try {
+        changed = recalculate(doc, excelWrites, keepIfExcelBusy);
+    } catch (const std::exception& e) {
+        g_warning("xournalpp-calc: the calculations could not be updated: %s", e.what());
+    }
+    running = false;
+    return changed;
 }
 
 }  // namespace xoj::calc

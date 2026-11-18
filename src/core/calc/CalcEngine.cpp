@@ -644,6 +644,22 @@ public:
     size_t position() const { return pos; }
 
 private:
+    /// Limit of nested parentheses, signs and exponents: deeper expressions would overflow the stack
+    static constexpr int MAX_NESTING = 400;
+    int nesting = 0;
+    struct Nest {
+        explicit Nest(int& n): n(n) {
+            if (++n > MAX_NESTING) {
+                --n;
+                throw CalcError("expresión demasiado anidada");
+            }
+        }
+        ~Nest() { --n; }
+        Nest(const Nest&) = delete;
+        Nest& operator=(const Nest&) = delete;
+        int& n;
+    };
+
     bool startsPrimary() const {
         const auto& t = peek();
         return t.type == Tok::Num || t.type == Tok::Ident || t.type == Tok::LParen;
@@ -671,6 +687,7 @@ private:
     }
 
     Quantity parseUnary() {
+        Nest nest(nesting);
         if (peek().type == Tok::Op && (peek().text == "-" || peek().text == "+" || peek().text == "±")) {
             std::string op = next().text;
             if (op == "±") {
@@ -707,6 +724,7 @@ private:
 
     /// The exponent is a single (possibly signed) factor: "2^-1", "m^2 kN" = (m^2)·kN
     Quantity parseExponent() {
+        Nest nest(nesting);
         if (peek().type == Tok::Op && (peek().text == "-" || peek().text == "+")) {
             bool neg = next().text == "-";
             Quantity q = parseExponent();
@@ -743,6 +761,7 @@ private:
     }
 
     Quantity parsePrimary() {
+        Nest nest(nesting);
         const Token& t = next();
         switch (t.type) {
             case Tok::Num:
@@ -1082,7 +1101,30 @@ Quantity evaluateExpression(std::string_view expr, const Environment& env) {
     return q;
 }
 
+namespace {
+LineResult evaluateLineUnchecked(std::string_view line, Environment& env);
+}
+
 LineResult evaluateLine(std::string_view line, Environment& env) {
+    // Anything other than a CalcError (out of memory, a file system error while reading a workbook...) must not
+    // escape: this runs inside GTK callbacks, where an exception ends the program
+    try {
+        return evaluateLineUnchecked(line, env);
+    } catch (const std::exception& e) {
+        LineResult res;
+        res.source = std::string(line);
+        res.display = res.source;
+        res.kind = LineResult::Kind::Error;
+        res.error = std::string("error interno: ") + e.what();
+        if (env.cells) {
+            env.cells->takeNotes();
+        }
+        return res;
+    }
+}
+
+namespace {
+LineResult evaluateLineUnchecked(std::string_view line, Environment& env) {
     LineResult res;
     res.source = std::string(line);
     res.display = res.source;
@@ -1184,6 +1226,8 @@ LineResult evaluateLine(std::string_view line, Environment& env) {
     }
     return res;
 }
+
+}  // namespace
 
 std::vector<LineResult> evaluateText(std::string_view text, Environment& env) {
     std::vector<LineResult> out;

@@ -1,8 +1,8 @@
 #include "Control.h"
 
-#include <algorithm>  // for max
-#include <cstdlib>    // for size_t
-#include <exception>  // for exce...
+#include <algorithm>   // for max
+#include <cstdlib>     // for size_t
+#include <exception>   // for exce...
 #include <functional>  // for bind
 #include <iterator>    // for end
 #include <memory>      // for make...
@@ -1221,7 +1221,11 @@ void Control::refreshExcelValues() {
     if (!this->win || !this->doc || this->calcUpdateSource || this->isBlocking) {
         return;
     }
-    if (!xoj::calc::documentUsesExcel(this->doc)) {
+    try {
+        if (!xoj::calc::documentUsesExcel(this->doc)) {
+            return;
+        }
+    } catch (const std::exception&) {
         return;
     }
     for (size_t p: xoj::calc::recalculateDocument(this->doc, true, true)) {

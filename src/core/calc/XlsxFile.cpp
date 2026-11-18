@@ -192,6 +192,11 @@ std::optional<std::string> readEntry(zip_t* z, const std::string& name) {
     if (zip_stat(z, name.c_str(), 0, &st) != 0) {
         return std::nullopt;
     }
+    // A damaged (or malicious) workbook may claim gigabytes: refuse instead of running out of memory
+    constexpr zip_uint64_t MAX_ENTRY_SIZE = 256u * 1024u * 1024u;
+    if (!(st.valid & ZIP_STAT_SIZE) || st.size > MAX_ENTRY_SIZE) {
+        throw CalcError("el libro es demasiado grande o está dañado (" + name + ")");
+    }
     zip_file_t* f = zip_fopen(z, name.c_str(), 0);
     if (!f) {
         return std::nullopt;
@@ -209,6 +214,10 @@ XmlDocPtr parseXml(const std::string& data, const std::string& what) {
     xmlDoc* d = xmlReadMemory(data.data(), static_cast<int>(data.size()), what.c_str(), nullptr,
                               XML_PARSE_NONET | XML_PARSE_HUGE | XML_PARSE_NOERROR | XML_PARSE_NOWARNING);
     if (!d) {
+        throw CalcError("el libro está dañado (" + what + ")");
+    }
+    if (!xmlDocGetRootElement(d)) {
+        xmlFreeDoc(d);
         throw CalcError("el libro está dañado (" + what + ")");
     }
     return XmlDocPtr(d);
@@ -572,7 +581,15 @@ void write(const fs::path& file, const CellRef& ref, double value) {
         xmlChar* mem = nullptr;
         int len = 0;
         xmlDocDumpMemoryEnc(d, &mem, &len, "UTF-8");
+        if (!mem || len <= 0) {
+            xmlFree(mem);
+            throw CalcError("no se pudo modificar " + fileName(file));
+        }
         void* copy = std::malloc(static_cast<size_t>(len));
+        if (!copy) {
+            xmlFree(mem);
+            throw CalcError("no se pudo modificar " + fileName(file));
+        }
         std::memcpy(copy, mem, static_cast<size_t>(len));
         xmlFree(mem);
         zip_source_t* src = zip_source_buffer(z.get(), copy, static_cast<zip_uint64_t>(len), 1);

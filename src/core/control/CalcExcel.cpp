@@ -9,8 +9,8 @@
 
 #include <cmath>
 #include <memory>
-#include <regex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <gtk/gtk.h>
@@ -33,20 +33,57 @@
 #include "undo/InsertUndoAction.h"
 #include "undo/UndoRedoHandler.h"
 #include "util/Matrix.h"
+#include "util/XojMsgBox.h"
 
 namespace fs = std::filesystem;
 
 namespace {
 
+/// The workbook of excel("...") in a line, if the line is one. Written by hand: std::regex recurses once per
+/// character and overflows the stack on long lines
+std::optional<std::string> excelStatement(std::string_view line) {
+    auto skipSpaces = [&](size_t i) {
+        while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) {
+            i++;
+        }
+        return i;
+    };
+    size_t i = skipSpaces(0);
+    if (line.substr(i, 5) != "excel") {
+        return std::nullopt;
+    }
+    i = skipSpaces(i + 5);
+    if (i >= line.size() || line[i] != '(') {
+        return std::nullopt;
+    }
+    i = skipSpaces(i + 1);
+    if (i >= line.size() || line[i] != '"') {
+        return std::nullopt;
+    }
+    size_t close = line.find('"', i + 1);
+    if (close == std::string_view::npos || close == i + 1) {
+        return std::nullopt;
+    }
+    size_t end = skipSpaces(close + 1);
+    if (end >= line.size() || line[end] != ')') {
+        return std::nullopt;
+    }
+    return std::string(line.substr(i + 1, close - i - 1));
+}
+
 /// The workbook of the last excel("...") of the document, if any
 std::optional<fs::path> documentWorkbook(Document* doc) {
     fs::path baseDir;
     auto sources = xoj::calc::documentSources(doc, &baseDir);
-    static const std::regex EXCEL(R"re(\bexcel\s*\(\s*"([^"]+)"\s*\))re");
     std::optional<std::string> last;
     for (const auto& src: sources) {
-        for (auto it = std::sregex_iterator(src.begin(), src.end(), EXCEL); it != std::sregex_iterator(); ++it) {
-            last = (*it)[1].str();
+        std::string_view rest(src);
+        while (!rest.empty()) {
+            size_t nl = rest.find('\n');
+            if (auto book = excelStatement(rest.substr(0, nl))) {
+                last = std::move(book);
+            }
+            rest = nl == std::string_view::npos ? std::string_view() : rest.substr(nl + 1);
         }
     }
     if (!last) {
@@ -62,6 +99,15 @@ std::optional<fs::path> documentWorkbook(Document* doc) {
 }  // namespace
 
 fs::path Control::excelLinkWorkbook() {
+    try {
+        return chooseExcelWorkbook();
+    } catch (const std::exception& e) {
+        XojMsgBox::showErrorToUser(getGtkWindow(), std::string("No se pudo ligar el libro de Excel: ") + e.what());
+        return {};
+    }
+}
+
+fs::path Control::chooseExcelWorkbook() {
     GtkFileChooserNative* fc = gtk_file_chooser_native_new("Ligar libro de Excel", getGtkWindow(),
                                                            GTK_FILE_CHOOSER_ACTION_OPEN, "_Ligar", "_Cancelar");
     GtkFileFilter* filter = gtk_file_filter_new();
@@ -105,40 +151,46 @@ fs::path Control::excelLinkWorkbook() {
 }
 
 void Control::excelPickCell(bool input) {
-    auto workbook = documentWorkbook(this->doc);
-    if (!workbook) {
-        fs::path chosen = excelLinkWorkbook();
-        if (chosen.empty()) {
+    // An unexpected error (out of memory, a file system error) must not escape into GTK: it would end the program
+    try {
+        auto workbook = documentWorkbook(this->doc);
+        if (!workbook) {
+            fs::path chosen = excelLinkWorkbook();
+            if (chosen.empty()) {
+                return;
+            }
+            workbook = chosen;
+        }
+
+        std::vector<xoj::popup::ExcelVariable> variables;
+        if (!input) {
+            auto env = xoj::calc::documentVariables(this->doc);
+            for (const auto& [name, q]: env.vars) {
+                std::string shown = xoj::calc::formatQuantity(q);
+                size_t sp = shown.find(' ');
+                variables.push_back({name, sp == std::string::npos ? std::string() : shown.substr(sp + 1), q.dim});
+            }
+        }
+
+        auto choice = xoj::popup::pickExcelCell(getGtkWindow(), *workbook, input, variables);
+        if (!choice) {
             return;
         }
-        workbook = chosen;
-    }
-
-    std::vector<xoj::popup::ExcelVariable> variables;
-    if (!input) {
-        auto env = xoj::calc::documentVariables(this->doc);
-        for (const auto& [name, q]: env.vars) {
-            std::string shown = xoj::calc::formatQuantity(q);
-            size_t sp = shown.find(' ');
-            variables.push_back({name, sp == std::string::npos ? std::string() : shown.substr(sp + 1), q.dim});
+        std::string line;
+        if (input) {
+            line = choice->variable + " := xl(\"" + choice->ref + "\")" +
+                   (choice->unit.empty() ? "" : "·" + choice->unit);
+            if (choice->showValue) {
+                line += " =";
+            }
+        } else {
+            line = "enviar(" + choice->variable + ", \"" + choice->ref + "\"" +
+                   (choice->unit.empty() ? "" : ", " + choice->unit) + ")";
         }
+        insertCalcLine(line);
+    } catch (const std::exception& e) {
+        XojMsgBox::showErrorToUser(getGtkWindow(), std::string("No se pudo usar el libro de Excel: ") + e.what());
     }
-
-    auto choice = xoj::popup::pickExcelCell(getGtkWindow(), *workbook, input, variables);
-    if (!choice) {
-        return;
-    }
-    std::string line;
-    if (input) {
-        line = choice->variable + " := xl(\"" + choice->ref + "\")" + (choice->unit.empty() ? "" : "·" + choice->unit);
-        if (choice->showValue) {
-            line += " =";
-        }
-    } else {
-        line = "enviar(" + choice->variable + ", \"" + choice->ref + "\"" +
-               (choice->unit.empty() ? "" : ", " + choice->unit) + ")";
-    }
-    insertCalcLine(line);
 }
 
 void Control::insertCalcLine(const std::string& line) {

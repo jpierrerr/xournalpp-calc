@@ -118,7 +118,12 @@ std::string ExcelLink::useWorkbook(const std::string& path) {
     fs::path p = resolve(path);
     workbook = p;  // also if it does not exist: the values saved with the sheet are used
     const std::string name = "\"" + pathToUtf8(p.filename()) + "\"";
-    if (excelapp::isOpen(p)) {
+    try {
+        if (excelapp::isOpen(p)) {
+            return name + " abierto en Excel";
+        }
+    } catch (const ExcelBusy&) {
+        busy = true;
         return name + " abierto en Excel";
     }
     std::error_code ec;

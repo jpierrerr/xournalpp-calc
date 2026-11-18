@@ -30,7 +30,7 @@ AlignGrid alignmentGrid(const PageType& background, double pageWidth, double pag
         case PageTypeFormat::Dotted: {
             double step = DEFAULT_STEP;
             config.loadValue(background_config_strings::CFG_RASTER, step);
-            if (step <= 0) {
+            if (!(step >= 1)) {  // also NaN: a tiny step would make the line searches endless
                 step = DEFAULT_STEP;
             }
             return {step, step, 0, 0};
@@ -39,7 +39,7 @@ AlignGrid alignmentGrid(const PageType& background, double pageWidth, double pag
         case PageTypeFormat::Lined: {
             double spacing = RULED_DEFAULT_SPACING;
             config.loadValue(background_config_strings::CFG_RASTER, spacing);
-            if (spacing <= 0) {
+            if (!(spacing >= 1)) {
                 spacing = RULED_DEFAULT_SPACING;
             }
             double x0 = 0;

@@ -1,7 +1,9 @@
 #include "GreekPalette.h"
 
 #include <string>
+#include <string_view>
 
+#include "calc/CalcEngine.h"
 #include "control/Control.h"
 #include "control/tools/TextEditor.h"
 #include "util/i18n.h"
@@ -21,6 +23,97 @@ const char* const LOWER[] = {"α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι
 const char* const UPPER[] = {"Γ", "Δ", "Θ", "Λ", "Ξ", "Π", "Σ", "Υ", "Φ", "Ψ", "Ω", nullptr};
 const char* const MATH[] = {"·", "×", "÷", "±", "√", "²", "³", "⁻¹", "≤", "≥", "≠", "≈",    "∞",
                             "∂", "∑", "∫", "∇", "°", "′", "∠", "⊥",  "∥", "→", "≔", nullptr};
+
+struct SymbolName {
+    const char* symbol;
+    const char* name;
+};
+const SymbolName NAMES[] = {
+        {"α", "alfa"},
+        {"β", "beta"},
+        {"γ", "gamma"},
+        {"δ", "delta"},
+        {"ε", "épsilon"},
+        {"ζ", "dseta"},
+        {"η", "eta"},
+        {"θ", "theta"},
+        {"ι", "iota"},
+        {"κ", "kappa"},
+        {"λ", "lambda"},
+        {"μ", "mi (mu)"},
+        {"ν", "ni (nu)"},
+        {"ξ", "xi"},
+        {"ο", "ómicron"},
+        {"π", "pi"},
+        {"ρ", "rho"},
+        {"σ", "sigma"},
+        {"τ", "tau"},
+        {"υ", "ípsilon"},
+        {"φ", "fi (phi)"},
+        {"χ", "ji (chi)"},
+        {"ψ", "psi"},
+        {"ω", "omega"},
+        {"ϵ", "épsilon (variante)"},
+        {"ϑ", "theta (variante)"},
+        {"ϕ", "fi (variante)"},
+        {"ς", "sigma final"},
+        {"Γ", "Gamma mayúscula"},
+        {"Δ", "Delta mayúscula"},
+        {"Θ", "Theta mayúscula"},
+        {"Λ", "Lambda mayúscula"},
+        {"Ξ", "Xi mayúscula"},
+        {"Π", "Pi mayúscula"},
+        {"Σ", "Sigma mayúscula (sumatoria)"},
+        {"Υ", "Ípsilon mayúscula"},
+        {"Φ", "Fi mayúscula"},
+        {"Ψ", "Psi mayúscula"},
+        {"Ω", "Omega mayúscula (ohmio)"},
+        {"·", "multiplicación (punto)"},
+        {"×", "multiplicación (cruz)"},
+        {"÷", "división"},
+        {"±", "más o menos"},
+        {"√", "raíz cuadrada"},
+        {"²", "al cuadrado"},
+        {"³", "al cubo"},
+        {"⁻¹", "inverso (a la −1)"},
+        {"≤", "menor o igual"},
+        {"≥", "mayor o igual"},
+        {"≠", "distinto de"},
+        {"≈", "aproximadamente igual"},
+        {"∞", "infinito"},
+        {"∂", "derivada parcial"},
+        {"∑", "sumatoria"},
+        {"∫", "integral"},
+        {"∇", "nabla"},
+        {"°", "grados"},
+        {"′", "prima (minutos, pies)"},
+        {"∠", "ángulo"},
+        {"⊥", "perpendicular"},
+        {"∥", "paralelo"},
+        {"→", "flecha (tiende a)"},
+        {"≔", "definición (:=)"},
+};
+
+/// Tooltip: name of the symbol and, for Greek letters, the latin letter that gives it with Ctrl+G
+std::string tooltipFor(const char* symbol) {
+    std::string tip;
+    for (const auto& n: NAMES) {
+        if (std::string_view(n.symbol) == symbol) {
+            tip = std::string(n.name) + "  " + symbol;
+            break;
+        }
+    }
+    if (tip.empty()) {
+        tip = symbol;
+    }
+    for (char c: std::string_view("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")) {
+        if (xoj::calc::greekForLatin(c) == symbol) {
+            tip += std::string("\nLetra: ") + c + "  (escribe " + c + " y pulsa Ctrl+G)";
+            break;
+        }
+    }
+    return tip;
+}
 
 void onSymbolClicked(GtkButton* button, Control* control) {
     const char* symbol = static_cast<const char*>(g_object_get_data(G_OBJECT(button), "xoj-symbol"));
@@ -51,7 +144,7 @@ GtkWidget* makeSection(Control* control, const Section& s) {
         GtkWidget* b = gtk_button_new_with_label(*p);
         gtk_widget_set_can_focus(b, false);
         gtk_button_set_relief(GTK_BUTTON(b), GTK_RELIEF_NONE);
-        gtk_widget_set_tooltip_text(b, *p);
+        gtk_widget_set_tooltip_text(b, tooltipFor(*p).c_str());
         g_object_set_data(G_OBJECT(b), "xoj-symbol", const_cast<char*>(*p));
         g_signal_connect(b, "clicked", G_CALLBACK(onSymbolClicked), control);
         gtk_grid_attach(GTK_GRID(grid), b, i % s.columns, i / s.columns, 1, 1);

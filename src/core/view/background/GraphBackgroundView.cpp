@@ -15,6 +15,25 @@
 using namespace background_config_strings;
 using namespace xoj::view;
 
+namespace {
+void roundedRectangle(cairo_t* cr, double x0, double y0, double x1, double y1, double r) {
+    cairo_new_sub_path(cr);
+    cairo_arc(cr, x1 - r, y0 + r, r, -M_PI / 2, 0);
+    cairo_arc(cr, x1 - r, y1 - r, r, 0, M_PI / 2);
+    cairo_arc(cr, x0 + r, y1 - r, r, M_PI / 2, M_PI);
+    cairo_arc(cr, x0 + r, y0 + r, r, M_PI, 3 * M_PI / 2);
+    cairo_close_path(cr);
+}
+}  // namespace
+
+auto GraphBackgroundView::examFrame() const -> Frame {
+    // Grid-aligned: 2 squares from the sides, 1 square from the bottom, below the header
+    const double s = squareSize;
+    const double right = (std::floor(pageWidth / s + 0.05) - 2) * s;
+    const double bottom = (std::floor(pageHeight / s + 0.05) - 1) * s;
+    return {2 * s, headerHeight(), right, bottom};
+}
+
 GraphBackgroundView::GraphBackgroundView(double pageWidth, double pageHeight, Color backgroundColor,
                                          const BackgroundConfig& config):
         OneColorBackgroundView(pageWidth, pageHeight, backgroundColor, config, DEFAULT_LINE_WIDTH, DEFAULT_LINE_COLOR,
@@ -54,8 +73,14 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
     double maxY;
     cairo_clip_extents(cr, &minX, &minY, &maxX, &maxY);
 
-    // No grid behind the exam header
-    minY = std::max(minY, headerHeight());
+    // Exam sheet: the grid stays inside a frame with rounded corners, below the header
+    if (examHeader) {
+        Frame f = examFrame();
+        minX = std::max(minX, f.left);
+        maxX = std::min(maxX, f.right);
+        minY = std::max(minY, f.top);
+        maxY = std::min(maxY, f.bottom);
+    }
 
     if (margin > 0.0) {
         minX = std::max(minX, margin);
@@ -87,6 +112,11 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
     }
 
     cairo_save(cr);
+    if (examHeader) {
+        Frame f = examFrame();
+        roundedRectangle(cr, f.left, f.top, f.right, f.bottom, EXAM_CORNER_RADIUS);
+        cairo_clip(cr);
+    }
     Util::cairo_set_source_rgbi(cr, foregroundColor);
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_SQUARE);
 
@@ -164,6 +194,16 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
     cairo_restore(cr);
 
     if (examHeader) {
+        Frame f = examFrame();
+        cairo_save(cr);
+        Util::cairo_set_source_rgbi(cr, vLine > 0 ? vLineColor : foregroundColor);
+        cairo_set_line_width(cr, 1.0);
+        roundedRectangle(cr, f.left, f.top, f.right, f.bottom, EXAM_CORNER_RADIUS);
+        cairo_stroke(cr);
+        cairo_restore(cr);
+    }
+
+    if (examHeader) {
         drawExamHeader(cr);
     }
 }
@@ -173,7 +213,7 @@ void GraphBackgroundView::drawExamHeader(cairo_t* cr) const {
     // box for the grade on the right
     const double s = squareSize;
     const double left = 2 * s;
-    const double right = pageWidth - 2 * s;
+    const double right = examFrame().right;
     const double top = s;
     const double bottom = 7 * s;
     const double gradeLeft = right - 5 * s;
@@ -182,7 +222,8 @@ void GraphBackgroundView::drawExamHeader(cairo_t* cr) const {
     cairo_save(cr);
     Util::cairo_set_source_rgbi(cr, vLine > 0 ? vLineColor : foregroundColor);
     cairo_set_line_width(cr, 1.0);
-    cairo_rectangle(cr, left, top, right - left, bottom - top);
+    roundedRectangle(cr, left, top, right, bottom, EXAM_CORNER_RADIUS);
+    cairo_stroke(cr);
     cairo_move_to(cr, gradeLeft, top);
     cairo_line_to(cr, gradeLeft, bottom);
     cairo_stroke(cr);

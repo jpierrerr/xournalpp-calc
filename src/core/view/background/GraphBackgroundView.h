@@ -42,6 +42,13 @@ protected:
     double headerHeight() const { return examHeader ? 8 * squareSize : 0.0; }
     void drawExamHeader(cairo_t* cr) const;
 
+    struct Frame {
+        double left, top, right, bottom;
+    };
+    /// Exam sheet: the area of the grid below the header
+    Frame examFrame() const;
+    constexpr static double EXAM_CORNER_RADIUS = 8.5;  // 3 mm
+
     constexpr static Color DEFAULT_LINE_COLOR = Colors::xopp_silver;
     constexpr static Color ALT_DEFAULT_LINE_COLOR = Colors::xopp_darkslategray;
     constexpr static double DEFAULT_LINE_WIDTH = 0.5;

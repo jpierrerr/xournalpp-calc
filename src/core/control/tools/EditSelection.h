@@ -14,6 +14,7 @@
 
 #include <array>
 #include <memory>  // for unique_ptr
+#include <optional>
 #include <string>
 #include <utility>  // for pair
 #include <vector>   // for vector
@@ -286,6 +287,12 @@ public:
 public:
     XojPageView* getView();
 
+    /**
+     * xournalpp-calc: with "Align to grid" on, moving the selection puts this point (page coordinates, where the
+     * selection was started) on a dot of the alignment grid
+     */
+    void setGridAnchor(double x, double y);
+
 public:
     // Serialize interface
     void serialize(ObjectOutputStream& out) const override;
@@ -405,6 +412,9 @@ private:  // DATA
      * The contents of the selection
      */
     std::unique_ptr<EditSelectionContents> contents;
+
+    /// xournalpp-calc: grid anchor, relative to the top left corner of snappedBounds (see setGridAnchor)
+    std::optional<std::pair<double, double>> gridAnchor;
 
 private:  // HANDLER
     /**

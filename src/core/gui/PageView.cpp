@@ -495,6 +495,17 @@ auto XojPageView::onButtonDoublePressEvent(const PositionInputData& pos) -> bool
                 this->startEditingOnButtonRelease = true;
             }
         }
+    } else if (toolType == TOOL_TEXT && this->textEditor && this->textEditor->getTextElement() &&
+               this->textEditor->getTextElement()->getText().empty()) {
+        // xournalpp-calc: double click on an empty spot with the text tool: draw a selection rectangle from here (to
+        // move or delete a group of elements). With "Align to grid", this point is then put on the grid when moving
+        this->endText();
+        this->xournal->clearSelection();
+        this->selector = std::make_unique<RectangularSelector>(x, y);
+        this->overlayViews.emplace_back(std::make_unique<xoj::view::SelectorView>(
+                this->selector.get(), this, this->settings->getSelectionColor()));
+        this->selectionGridAnchor = std::make_pair(x, y);
+        currentSequenceDeviceId = pos.deviceId;
     } else if (toolType == TOOL_TEXT) {
         this->startText(x, y);
         this->textEditor->selectAtCursor(TextEditor::SelectType::WORD);
@@ -775,6 +786,10 @@ auto XojPageView::onButtonReleaseEvent(const PositionInputData& pos) -> bool {
                 }
             }()
                                           .release());
+            if (this->selectionGridAnchor && xournal->getSelection()) {
+                xournal->getSelection()->setGridAnchor(this->selectionGridAnchor->first,
+                                                       this->selectionGridAnchor->second);
+            }
         } else if (const double zoom = xournal->getZoom(); selector->userTapped(zoom)) {
             if (aggregate) {
                 SelectObject(this).atAggregate(pos.x / zoom, pos.y / zoom);
@@ -783,6 +798,7 @@ auto XojPageView::onButtonReleaseEvent(const PositionInputData& pos) -> bool {
             }
         }
         this->selector.reset();
+        this->selectionGridAnchor.reset();
     } else if (this->textEditor) {
         this->textEditor->mouseReleased();
     }

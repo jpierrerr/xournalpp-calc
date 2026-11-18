@@ -105,3 +105,7 @@ Los logos (PNG o JPG) van en la misma carpeta; el programa recorta el fondo blan
 ## Carpeta de configuración
 
 Xournal JackMath guarda sus ajustes, barras de herramientas y membrete en su propia carpeta (`xournal-jackmath`; en Windows `%LOCALAPPDATA%\xournal-jackmath`), para no compartirlos con un Xournal++ oficial instalado en el mismo equipo. La primera vez copia automáticamente la carpeta `xournalpp` si existe. El instalador tampoco toca las claves de registro del Xournal++ oficial.
+
+## Seleccionar con doble clic (herramienta de texto)
+
+Con la herramienta de texto (también en modo cálculo), haz doble clic en un sitio vacío y, sin soltar el segundo clic, arrastra: se dibuja un rectángulo de selección desde ese punto. Con la selección puedes mover el grupo (arrastrándolo) o borrarlo (Supr). Si "Alinear a la malla" está activo, al mover el grupo el punto donde hiciste el doble clic queda sobre un punto de la malla. El doble clic sobre un texto existente sigue seleccionando la palabra.

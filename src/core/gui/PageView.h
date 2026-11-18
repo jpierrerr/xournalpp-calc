@@ -13,6 +13,7 @@
 
 #include <cstddef>  // for size_t
 #include <memory>   // for unique_ptr, shared_ptr
+#include <optional>
 #include <mutex>    // for mutex
 #include <string>   // for string
 #include <vector>   // for vector
@@ -242,6 +243,8 @@ private:
      * The selected (while selection)
      */
     std::unique_ptr<Selector> selector;
+    /// xournalpp-calc: where a selection was started by a double click with the text tool (see EditSelection)
+    std::optional<std::pair<double, double>> selectionGridAnchor;
 
     /**
      * The text editor

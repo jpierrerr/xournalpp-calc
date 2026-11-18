@@ -251,6 +251,9 @@ private:
     std::unique_ptr<Selector> selector;
     /// xournalpp-calc: where a selection was started by a double click with the text tool (see EditSelection)
     std::optional<std::pair<double, double>> selectionGridAnchor;
+    /// xournalpp-calc: the double click was released without dragging; the rectangle follows the pointer until a click
+    bool dcSelectionPending = false;
+    bool dcSelectionPendingUsed = false;
     struct LastPress {
         guint32 timestamp;
         double x, y;

@@ -108,4 +108,4 @@ Xournal JackMath guarda sus ajustes, barras de herramientas y membrete en su pro
 
 ## Seleccionar con doble clic (herramienta de texto)
 
-Con la herramienta de texto (también en modo cálculo), haz doble clic en un sitio vacío y, sin soltar el segundo clic, arrastra: se dibuja un rectángulo de selección desde ese punto. Con la selección puedes mover el grupo (arrastrándolo) o borrarlo (Supr). Si "Alinear a la malla" está activo, al mover el grupo el punto donde hiciste el doble clic queda sobre un punto de la malla. El doble clic sobre un texto existente sigue seleccionando la palabra.
+Con la herramienta de texto (también en modo cálculo), haz doble clic en un sitio vacío: desde ese punto se dibuja un rectángulo de selección. Puedes arrastrar sin soltar el segundo clic, o soltar y mover el puntero (por ejemplo con el touchpad): el rectángulo lo sigue hasta el siguiente clic. Con la selección puedes mover el grupo (arrastrándolo) o borrarlo (Supr). Si "Alinear a la malla" está activo, al mover el grupo el punto donde hiciste el doble clic queda sobre un punto de la malla. El doble clic sobre un texto existente sigue seleccionando la palabra.

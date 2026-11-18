@@ -254,6 +254,15 @@ auto XojPageView::onButtonPressEvent(const PositionInputData& pos) -> bool {
     XournalppCursor* cursor = xournal->getCursor();
     cursor->setMouseDown(true);
 
+    if (this->selector && this->dcSelectionPending) {
+        // xournalpp-calc: the double click was released without dragging (e.g. on a touchpad): the rectangle followed
+        // the pointer; this click (or drag) closes it, on its release
+        this->dcSelectionPending = false;
+        this->selector->currentPos(x, y);
+        g_debug("xournalpp-calc: pending selection resumed at x=%.1f y=%.1f", x, y);
+        return true;
+    }
+
     if (((h->getToolType() == TOOL_PEN || h->getToolType() == TOOL_HIGHLIGHTER) &&
          h->getDrawingType() != DRAWING_TYPE_SPLINE) ||
         (h->getToolType() == TOOL_ERASER && h->getEraserType() == ERASER_TYPE_WHITEOUT)) {
@@ -825,7 +834,14 @@ auto XojPageView::onButtonReleaseEvent(const PositionInputData& pos) -> bool {
         }
     }
 
-    if (this->selector) {
+    if (const double zoom = xournal->getZoom(); this->selector && this->selectionGridAnchor &&
+                                                !this->dcSelectionPendingUsed && this->selector->userTapped(zoom)) {
+        // xournalpp-calc: double click released without dragging: keep the rectangle, it follows the pointer until the
+        // next click
+        this->dcSelectionPending = true;
+        this->dcSelectionPendingUsed = true;
+        g_debug("xournalpp-calc: double click released without drag, selection pending");
+    } else if (this->selector) {
         const bool aggregate = pos.isShiftDown() && xournal->getSelection();
         size_t layerOfFinalizedSel = this->selector->finalize(this->page, aggregate, control->getDocument());
 
@@ -856,6 +872,8 @@ auto XojPageView::onButtonReleaseEvent(const PositionInputData& pos) -> bool {
         }
         this->selector.reset();
         this->selectionGridAnchor.reset();
+        this->dcSelectionPending = false;
+        this->dcSelectionPendingUsed = false;
     } else if (this->textEditor) {
         this->textEditor->mouseReleased();
     }

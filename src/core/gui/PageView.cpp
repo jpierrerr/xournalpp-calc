@@ -414,7 +414,13 @@ auto XojPageView::onButtonPressEvent(const PositionInputData& pos) -> bool {
             }
         }
     } else if (h->getToolType() == TOOL_TEXT) {
-        startText(x, y);
+        if (this->isTextDoubleClick(pos) && !this->isTextAt(x, y)) {
+            // xournalpp-calc: double click on an empty spot (detected here, on the second press, so that it does not
+            // depend on when the system reports the double click)
+            this->startDoubleClickSelection(x, y);
+        } else {
+            startText(x, y);
+        }
     } else if (h->getToolType() == TOOL_LATEX) {
         /* The latex dialog will be opened only at the onButtonReleaseEvent. */
         this->inLatex = true;
@@ -464,6 +470,8 @@ auto XojPageView::onButtonDoublePressEvent(const PositionInputData& pos) -> bool
 
     EditSelection* selection = xournal->getSelection();
     bool hasNoModifiers = !pos.isShiftDown() && !pos.isControlDown();
+    g_debug("xournalpp-calc: double press t=%u tool=%d selection=%d selector=%d", pos.timestamp, toolType,
+            selection != nullptr, this->selector != nullptr);
 
     if (hasNoModifiers && selection != nullptr) {
         // Find a selected object under the cursor, if possible. The selection doesn't change the
@@ -495,15 +503,12 @@ auto XojPageView::onButtonDoublePressEvent(const PositionInputData& pos) -> bool
                 this->startEditingOnButtonRelease = true;
             }
         }
-    } else if (toolType == TOOL_TEXT && !this->isTextAt(x, y)) {
-        // xournalpp-calc: double click on an empty spot with the text tool: draw a selection rectangle from here (to
-        // move or delete a group of elements). With "Align to grid", this point is then put on the grid when moving
-        this->endText();
-        this->xournal->clearSelection();
-        this->selector = std::make_unique<RectangularSelector>(x, y);
-        this->overlayViews.emplace_back(std::make_unique<xoj::view::SelectorView>(
-                this->selector.get(), this, this->settings->getSelectionColor()));
-        this->selectionGridAnchor = std::make_pair(x, y);
+    } else if (toolType == TOOL_TEXT && (this->selector || !this->isTextAt(x, y))) {
+        // xournalpp-calc: double click on an empty spot: the selection was started on the second press (see
+        // onButtonPressEvent); in case the system reports the double click differently, start it here
+        if (!this->selector) {
+            this->startDoubleClickSelection(x, y);
+        }
         currentSequenceDeviceId = pos.deviceId;
     } else if (toolType == TOOL_TEXT) {
         this->startText(x, y);
@@ -525,6 +530,37 @@ auto XojPageView::onButtonDoublePressEvent(const PositionInputData& pos) -> bool
     }
 
     return true;
+}
+
+auto XojPageView::isTextDoubleClick(const PositionInputData& pos) -> bool {
+    GtkSettings* gs = gtk_settings_get_default();
+    gint time = 400, distance = 5;
+    if (gs) {
+        g_object_get(gs, "gtk-double-click-time", &time, "gtk-double-click-distance", &distance, nullptr);
+    }
+    const bool isDouble = this->lastTextPress && pos.timestamp >= this->lastTextPress->timestamp &&
+                          pos.timestamp - this->lastTextPress->timestamp <= static_cast<guint32>(time) &&
+                          std::abs(pos.x - this->lastTextPress->x) <= std::max(distance, 8) &&
+                          std::abs(pos.y - this->lastTextPress->y) <= std::max(distance, 8);
+    g_debug("xournalpp-calc: text press t=%u x=%.1f y=%.1f double=%d (limit %d ms, %d px)", pos.timestamp, pos.x, pos.y,
+            isDouble, time, std::max(distance, 8));
+    if (isDouble) {
+        this->lastTextPress.reset();  // a third click is not another double click
+    } else {
+        this->lastTextPress = LastPress{pos.timestamp, pos.x, pos.y};
+    }
+    return isDouble;
+}
+
+void XojPageView::startDoubleClickSelection(double x, double y) {
+    // Draw a selection rectangle from this point (to move or delete a group of elements). With "Align to grid", this
+    // point is then put on the grid when the group is moved
+    this->endText();
+    this->xournal->clearSelection();
+    this->selector = std::make_unique<RectangularSelector>(x, y);
+    this->overlayViews.emplace_back(std::make_unique<xoj::view::SelectorView>(this->selector.get(), this,
+                                                                             this->settings->getSelectionColor()));
+    this->selectionGridAnchor = std::make_pair(x, y);
 }
 
 auto XojPageView::isTextAt(double x, double y) const -> bool {

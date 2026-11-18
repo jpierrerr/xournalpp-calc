@@ -106,6 +106,10 @@ public:
     void endText();
     /// xournalpp-calc: whether a non-empty text box of the active layer is under the point
     bool isTextAt(double x, double y) const;
+    /// xournalpp-calc: whether this press of the text tool is the second one of a double click
+    bool isTextDoubleClick(const PositionInputData& pos);
+    /// xournalpp-calc: start a selection rectangle at the point of a double click
+    void startDoubleClickSelection(double x, double y);
 
     void endLink();
 
@@ -247,6 +251,12 @@ private:
     std::unique_ptr<Selector> selector;
     /// xournalpp-calc: where a selection was started by a double click with the text tool (see EditSelection)
     std::optional<std::pair<double, double>> selectionGridAnchor;
+    struct LastPress {
+        guint32 timestamp;
+        double x, y;
+    };
+    /// xournalpp-calc: last press of the text tool, to detect double clicks
+    std::optional<LastPress> lastTextPress;
 
     /**
      * The text editor

@@ -304,6 +304,8 @@ public:
     void calcGridGoTo(const PageRef& page, double x, double line, double boxX = -1, double boxY = -1);
     /// xournalpp-calc: finish editing the text box (after the key event that asks for it)
     void calcLeaveTextBox();
+    /// xournalpp-calc: recalculate if the document uses Excel, so that changes made in Excel show up at once
+    void refreshExcelValues();
     /// xournalpp-calc: the writing line requested by calcGridGoTo while it opens the next text box
     std::optional<double> getCalcGridExactLine() const { return calcGridExactLine; }
     /// xournalpp-calc: show the dots of the alignment grid (independent of the alignment itself)
@@ -442,6 +444,7 @@ protected:
 
 private:
     guint calcUpdateSource = 0;
+    guint calcExcelWatchSource = 0;  ///< refreshes the values read from Excel every second
     std::optional<double> calcGridExactLine;
     bool calcMode = false;
     bool calcGrid = false;

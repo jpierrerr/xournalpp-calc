@@ -289,7 +289,16 @@ Environment documentVariables(Document* doc) {
     return env;
 }
 
-std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites) {
+bool documentUsesExcel(Document* doc) {
+    for (const auto& src: documentSources(doc)) {
+        if (src.find("xl(") != std::string::npos || src.find("enviar(") != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites, bool keepIfExcelBusy) {
     // 1. Collect the regions in reading order. The evaluation itself happens without holding the document lock,
     //    because talking to Excel may dispatch window messages (e.g. a repaint that needs the lock)
     fs::path baseDir;
@@ -308,6 +317,9 @@ std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites) {
         r.newCells = serializeCellCache(fresh);
     }
     link.setRegionCache(nullptr, nullptr);
+    if (keepIfExcelBusy && link.wasBusy()) {
+        return {};  // try again later, instead of showing "Excel is busy" for a moment
+    }
 
     // 3. Show the results (in the regions that still exist)
     std::vector<size_t> changedPages;

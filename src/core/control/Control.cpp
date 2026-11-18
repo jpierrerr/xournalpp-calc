@@ -170,6 +170,15 @@ Control::Control(GApplication* gtkApp, GladeSearchpath* gladeSearchPath): gtkApp
      */
     this->changeTimout = g_timeout_add_seconds(5, xoj::util::wrap_v<checkChangedDocument>, this);
 
+    // xournalpp-calc: changes made in a linked Excel workbook show up without touching the document
+    this->calcExcelWatchSource = g_timeout_add(
+            1000,
+            +[](gpointer data) -> gboolean {
+                static_cast<Control*>(data)->refreshExcelValues();
+                return G_SOURCE_CONTINUE;
+            },
+            this);
+
     this->pageBackgroundChangeController = std::make_unique<PageBackgroundChangeController>(this);
 
     this->layerController = new LayerController(this);
@@ -183,6 +192,9 @@ Control::~Control() {
     g_source_remove(this->changeTimout);
     if (this->calcUpdateSource) {
         g_source_remove(this->calcUpdateSource);
+    }
+    if (this->calcExcelWatchSource) {
+        g_source_remove(this->calcExcelWatchSource);
     }
     if (this->inkLiveSource) {
         g_source_remove(this->inkLiveSource);
@@ -1202,6 +1214,18 @@ void Control::setCalcGridVisible(bool visible) {
         if (auto* v = this->win->getXournal()->getViewFor(i); v) {
             v->repaintPage();
         }
+    }
+}
+
+void Control::refreshExcelValues() {
+    if (!this->win || !this->doc || this->calcUpdateSource || this->isBlocking) {
+        return;
+    }
+    if (!xoj::calc::documentUsesExcel(this->doc)) {
+        return;
+    }
+    for (size_t p: xoj::calc::recalculateDocument(this->doc, true, true)) {
+        firePageChanged(p);
     }
 }
 

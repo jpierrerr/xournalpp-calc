@@ -37,7 +37,10 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
  *
  * @return the indices of the pages whose display changed
  */
-std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites = true);
+std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites = true, bool keepIfExcelBusy = false);
+
+/// Whether some calculation region of the document uses Excel (xl() or enviar())
+bool documentUsesExcel(Document* doc);
 
 /// The variables defined in the calculation regions of the document (evaluated without writing to Excel)
 Environment documentVariables(Document* doc);

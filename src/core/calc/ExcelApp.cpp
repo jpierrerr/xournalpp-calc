@@ -151,6 +151,9 @@ void invoke(IDispatch* obj, const wchar_t* name, WORD flags, std::vector<VARIANT
     SysFreeString(ex.bstrDescription);
     SysFreeString(ex.bstrSource);
     SysFreeString(ex.bstrHelpFile);
+    if (hr == RPC_E_CALL_REJECTED || hr == RPC_E_SERVERCALL_RETRYLATER) {
+        throw ExcelBusy(msg);
+    }
     if (FAILED(hr)) {
         throw CalcError(msg);
     }

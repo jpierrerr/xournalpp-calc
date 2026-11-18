@@ -26,6 +26,12 @@
 
 namespace xoj::calc {
 
+/// Excel did not answer because it is busy (a cell being edited, a dialog open)
+class ExcelBusy: public CalcError {
+public:
+    using CalcError::CalcError;
+};
+
 /// Values read from cells: "libro.xlsx|Hoja1!C5" → value
 using CellCache = std::map<std::string, double>;
 
@@ -51,7 +57,11 @@ public:
     /// extension. Throws CalcError
     std::filesystem::path resolve(const std::string& path) const;
 
+    /// Whether Excel was busy during some read or write
+    bool wasBusy() const { return busy; }
+
 private:
+    bool busy = false;
     std::filesystem::path workbookFor(const CellRef& r) const;
 
     std::filesystem::path baseDir;

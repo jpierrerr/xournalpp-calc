@@ -146,6 +146,9 @@ double ExcelLink::read(const std::string& text) {
         }
         return v;
     } catch (const CalcError& e) {
+        if (dynamic_cast<const ExcelBusy*>(&e)) {
+            busy = true;
+        }
         if (key.empty() && !r.book.empty()) {
             key = pathToUtf8(pathFromUtf8(r.book).filename()) + "|" + r.toString();
         }
@@ -169,8 +172,13 @@ std::string ExcelLink::write(const std::string& text, double value) {
     if (!allowWrites) {
         return where + " (no enviado)";
     }
-    if (excelapp::write(file, r, value)) {
-        return where + " en Excel";
+    try {
+        if (excelapp::write(file, r, value)) {
+            return where + " en Excel";
+        }
+    } catch (const ExcelBusy&) {
+        busy = true;
+        throw;
     }
     xlsx::write(file, r, value);
     return where;

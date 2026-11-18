@@ -15,8 +15,8 @@ Unicode true
 !include nsDialogs.nsh
 
 ; Options for MultiUser plugin
-!define MULTIUSER_INSTALLMODE_INSTDIR "Xournal++"
-!define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_KEY "Software\Xournal++"
+!define MULTIUSER_INSTALLMODE_INSTDIR "Xournal JackMath"
+!define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_KEY "Software\Xournal JackMath"
 
 !define MULTIUSER_EXECUTIONLEVEL Highest ; Mixed-mode installer that can both be per-machine or per-user
 !define MULTIUSER_MUI
@@ -34,7 +34,7 @@ Function .onInit
 		SetRegView 64
 	${Else}
 		# 32 bit code
-		MessageBox MB_OK "Xournal++ requires 64-bit Windows. Sorry!"
+		MessageBox MB_OK "Xournal JackMath requires 64-bit Windows. Sorry!"
 		Abort
 	${EndIf}
 
@@ -47,7 +47,7 @@ Function un.onInit
 		SetRegView 64
 	${Else}
 		# 32 bit code
-		MessageBox MB_OK "Xournal++ requires 64-bit Windows. Sorry!"
+		MessageBox MB_OK "Xournal JackMath requires 64-bit Windows. Sorry!"
 		Abort
 	${EndIf}
 
@@ -55,7 +55,7 @@ Function un.onInit
 FunctionEnd
 
 ; Name and file
-Name "Xournal++ ${XOURNALPP_VERSION}"
+Name "Xournal JackMath ${XOURNALPP_VERSION}"
 OutFile "${OUTPUT_INSTALLER_FILE}"
 
 ;--------------------------------
@@ -79,9 +79,9 @@ Var StartMenuFolder
 
 ;Start Menu Folder Page Configuration
 !define MUI_STARTMENUPAGE_REGISTRY_ROOT "SHCTX"
-!define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\Xournal++"
+!define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\Xournal JackMath"
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "StartMenuEntry"
-!define MUI_STARTMENUPAGE_DEFAULTFOLDER "Xournal++"
+!define MUI_STARTMENUPAGE_DEFAULTFOLDER "Xournal JackMath"
 
 !insertmacro MUI_PAGE_STARTMENU Application $StartMenuFolder
 
@@ -100,7 +100,7 @@ Var StartMenuFolder
 
 Var IsLegacyInstall
 Section "" SecUninstallPrevious
-	ReadRegStr $R0 SHCTX "Software\Xournal++" ""
+	ReadRegStr $R0 SHCTX "Software\Xournal JackMath" ""
 	${If} $R0 == ""
 		; check for legacy installation
 		ReadRegStr $R0 HKCU "Software\Xournalpp" ""
@@ -157,7 +157,7 @@ SectionEnd
 	WriteRegStr SHCTX "Software\Classes\${PROGID}\DefaultIcon" "" '"${CMD}",0'
 	WriteRegStr SHCTX "Software\Classes\${PROGID}\shell" "" "open"
 	WriteRegStr SHCTX "Software\Classes\${PROGID}\shell\open\command" "" '"${CMD}" "%1"'
-	WriteRegStr SHCTX "Software\Classes\${PROGID}\shell\edit" "" "Edit with Xournal++"
+	WriteRegStr SHCTX "Software\Classes\${PROGID}\shell\edit" "" "Edit with Xournal JackMath"
 	WriteRegStr SHCTX "Software\Classes\${PROGID}\shell\edit\command" "" '"${CMD}" "%1"'
 !macroend
 
@@ -187,16 +187,16 @@ SectionEnd
 ;-------------------------------
 ; Installer Sections
 
-Section "Associate .xopp files with Xournal++" SecFileXopp
-	!insertmacro SetDefaultExt ".xopp" "Xournal++.File"
+Section "Associate .xopp files with Xournal JackMath" SecFileXopp
+	!insertmacro SetDefaultExt ".xopp" "XournalJackMath.File"
 SectionEnd
 
-Section "Associate .xopt files with Xournal++" SecFileXopt
-	!insertmacro SetDefaultExt ".xopt" "Xournal++.Template"
+Section "Associate .xopt files with Xournal JackMath" SecFileXopt
+	!insertmacro SetDefaultExt ".xopt" "XournalJackMath.Template"
 SectionEnd
 
-Section "Associate .xoj files with Xournal++" SecFileXoj
-	!insertmacro SetDefaultExt ".xoj" "Xournal++.Xournal"
+Section "Associate .xoj files with Xournal JackMath" SecFileXoj
+	!insertmacro SetDefaultExt ".xoj" "XournalJackMath.Xournal"
 SectionEnd
 
 Function OnDirectoryLeave
@@ -244,12 +244,12 @@ Function .onVerifyInstDir
     ; Get last component of path
     ${GetFileName} $INSTDIR $0
     
-    ${If} $0 != "Xournal++"
-        StrCpy $INSTDIR "$INSTDIR\Xournal++"
+    ${If} $0 != "Xournal JackMath"
+        StrCpy $INSTDIR "$INSTDIR\Xournal JackMath"
     ${EndIf}
 FunctionEnd
 
-Section "Xournal++" SecXournalpp
+Section "Xournal JackMath" SecXournalpp
 	; Required
 	SectionIn RO
 
@@ -259,47 +259,47 @@ Section "Xournal++" SecXournalpp
 	File /r ${SETUP_DIR}\*
 
 	; Set install information
-	WriteRegStr SHCTX "Software\Xournal++" "" '"$INSTDIR"'
+	WriteRegStr SHCTX "Software\Xournal JackMath" "" '"$INSTDIR"'
 
 	; Set program information
 	WriteRegStr SHCTX "Software\Classes\Applications\xournalpp.exe" "" '"$INSTDIR\bin\xournalpp-wrapper.exe"'
-	WriteRegStr SHCTX "Software\Classes\Applications\xournalpp.exe" "FriendlyAppName" "Xournal++"
+	WriteRegStr SHCTX "Software\Classes\Applications\xournalpp.exe" "FriendlyAppName" "Xournal JackMath"
 	WriteRegExpandStr SHCTX "Software\Classes\Applications\xournalpp.exe" "DefaultIcon" '"$INSTDIR\bin\xournalpp-wrapper.exe",0'
 	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\App Paths\xournalpp.exe" "" '"$INSTDIR\bin\xournalpp-wrapper.exe"'
 
 	; Add file type information
-	!insertmacro RegisterExt ".xopp" "Xournal++.File"
-	!insertmacro RegisterExt ".xopt" "Xournal++.Template"
-	!insertmacro RegisterExt ".xoj" "Xournal++.Xournal"
-	!insertmacro RegisterExt ".pdf" "Xournal++.AnnotatePdf"
+	!insertmacro RegisterExt ".xopp" "XournalJackMath.File"
+	!insertmacro RegisterExt ".xopt" "XournalJackMath.Template"
+	!insertmacro RegisterExt ".xoj" "XournalJackMath.Xournal"
+	!insertmacro RegisterExt ".pdf" "XournalJackMath.AnnotatePdf"
 	push $R0
 	StrCpy $R0 "$INSTDIR\bin\xournalpp-wrapper.exe"
-	!insertmacro AddProgId "Xournal++.File" "$R0" "Xournal++ file"
-	!insertmacro AddProgId "Xournal++.Template" "$R0" "Xournal++ template file"
-	!insertmacro AddProgId "Xournal++.Xournal" "$R0" "Xournal file"
-	!insertmacro AddProgId "Xournal++.AnnotatePdf" "$R0" "PDF file"
+	!insertmacro AddProgId "XournalJackMath.File" "$R0" "Xournal JackMath file"
+	!insertmacro AddProgId "XournalJackMath.Template" "$R0" "Xournal JackMath template file"
+	!insertmacro AddProgId "XournalJackMath.Xournal" "$R0" "Xournal file"
+	!insertmacro AddProgId "XournalJackMath.AnnotatePdf" "$R0" "PDF file"
 	pop $R0
 
 	; Create uninstaller
 	WriteUninstaller "$INSTDIR\Uninstall.exe"
 	; Add uninstall entry. See https://docs.microsoft.com/en-us/windows/win32/msi/uninstall-registry-key
-	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++" "DisplayIcon" '"$INSTDIR\bin\xournalpp-wrapper.exe"'
-	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++" "DisplayName" "Xournal++"
-	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++" "DisplayVersion" "${XOURNALPP_VERSION}"
-	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++" "Publisher" "The Xournal++ Team"
-	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++" "URLInfoAbout" "https://xournalpp.github.io"
-	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++" "InstallLocation" '"$INSTDIR"'
-	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++" "UninstallString" '"$INSTDIR\Uninstall.exe"'
-	WriteRegDWORD SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++" "NoModify" 1
-	WriteRegDWORD SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++" "NoRepair" 1
+	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath" "DisplayIcon" '"$INSTDIR\bin\xournalpp-wrapper.exe"'
+	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath" "DisplayName" "Xournal JackMath"
+	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath" "DisplayVersion" "${XOURNALPP_VERSION}"
+	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath" "Publisher" "Xournal JackMath (based on Xournal++)"
+	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath" "URLInfoAbout" "https://github.com/jpierrerr/xournalpp-calc"
+	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath" "InstallLocation" '"$INSTDIR"'
+	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+	WriteRegDWORD SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath" "NoModify" 1
+	WriteRegDWORD SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath" "NoRepair" 1
 
 	!insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 		;Create shortcuts
 		CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
-		CreateShortcut "$SMPROGRAMS\$StartMenuFolder\Xournal++.lnk" '"$INSTDIR\bin\xournalpp-wrapper.exe"'
+		CreateShortcut "$SMPROGRAMS\$StartMenuFolder\Xournal JackMath.lnk" '"$INSTDIR\bin\xournalpp-wrapper.exe"'
 		CreateShortcut "$SMPROGRAMS\$StartMenuFolder\Uninstall.lnk" '"$INSTDIR\Uninstall.exe"'
 		
-		!insertmacro RefreshShellIconCreate "$SMPROGRAMS\$StartMenuFolder\Xournal++.lnk"
+		!insertmacro RefreshShellIconCreate "$SMPROGRAMS\$StartMenuFolder\Xournal JackMath.lnk"
 	!insertmacro MUI_STARTMENU_WRITE_END
 
 	!insertmacro RefreshShellIcons
@@ -309,10 +309,10 @@ SectionEnd
 ; Descriptions
 
 ; Language strings
-LangString DESC_SecXournalpp ${LANG_ENGLISH} "Xournal++ executable"
-LangString DESC_SecFileXopp ${LANG_ENGLISH} "Open .xopp files with Xournal++"
-LangString DESC_SecFileXopt ${LANG_ENGLISH} "Open .xopt files with Xournal++"
-LangString DESC_SecFileXoj ${LANG_ENGLISH} "Open .xoj files with Xournal++"
+LangString DESC_SecXournalpp ${LANG_ENGLISH} "Xournal JackMath executable"
+LangString DESC_SecFileXopp ${LANG_ENGLISH} "Open .xopp files with Xournal JackMath"
+LangString DESC_SecFileXopt ${LANG_ENGLISH} "Open .xopt files with Xournal JackMath"
+LangString DESC_SecFileXoj ${LANG_ENGLISH} "Open .xoj files with Xournal JackMath"
 
 ; Assign language strings to sections
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
@@ -330,7 +330,7 @@ Section "Uninstall"
 	SetRegView 64
 
 	; FIXME: ask if the user wants to uninstall the user or system wide install
-	ReadRegStr $0 HKCU "Software\Xournal++" ""
+	ReadRegStr $0 HKCU "Software\Xournal JackMath" ""
 	${IF} $0 == ""
 		SetShellVarContext all
 	${ELSE}
@@ -338,19 +338,19 @@ Section "Uninstall"
 	${ENDIF}
 
 	; Remove registry keys
-	DeleteRegKey SHCTX "Software\Xournal++"
+	DeleteRegKey SHCTX "Software\Xournal JackMath"
 	DeleteRegKey SHCTX "Software\Classes\Applications\xournalpp.exe"
 	DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\App Paths\xournalpp.exe"
-	DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal++"
+	DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath"
 
-	!insertmacro DeleteProgId "Xournal++.File"
-	!insertmacro DeleteProgId "Xournal++.Template"
-	!insertmacro DeleteProgId "Xournal++.Xournal"
-	!insertmacro DeleteProgId "Xournal++.AnnotatePdf"
+	!insertmacro DeleteProgId "XournalJackMath.File"
+	!insertmacro DeleteProgId "XournalJackMath.Template"
+	!insertmacro DeleteProgId "XournalJackMath.Xournal"
+	!insertmacro DeleteProgId "XournalJackMath.AnnotatePdf"
 
 	; Clean up start menu
 	!insertmacro MUI_STARTMENU_GETFOLDER Application $StartMenuFolder
-	Delete "$SMPROGRAMS\$StartMenuFolder\Xournal++.lnk"
+	Delete "$SMPROGRAMS\$StartMenuFolder\Xournal JackMath.lnk"
 	Delete "$SMPROGRAMS\$StartMenuFolder\Uninstall.lnk"
 	RMDir "$SMPROGRAMS\$StartMenuFolder"
 
@@ -362,6 +362,6 @@ Section "Uninstall"
 	Delete "$INSTDIR\Uninstall.exe"
 	RMDir "$INSTDIR"
 
-	!insertmacro RefreshShellIconDelete "$SMPROGRAMS\$StartMenuFolder\Xournal++.lnk"
+	!insertmacro RefreshShellIconDelete "$SMPROGRAMS\$StartMenuFolder\Xournal JackMath.lnk"
 	!insertmacro RefreshShellIcons
 SectionEnd

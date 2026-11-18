@@ -79,6 +79,10 @@ done
 echo "copy icons"
 cp -r "$prefix"/share/icons "$setup_dir"/share/
 
+echo "copy fontconfig configuration"
+mkdir -p "$setup_dir"/etc
+cp -r "$prefix"/etc/fonts "$setup_dir"/etc/
+
 echo "copy glib shared"
 cp -r "$prefix"/share/glib-2.0 "$setup_dir"/share/
 

@@ -531,6 +531,9 @@ auto on_handle_local_options(GApplication*, GVariantDict*, XMPtr app_data) -> gi
         return (0);
     }
 
+    // xournalpp-calc: command line exports draw translated texts too (e.g. the exam sheet header)
+    XournalMain::initLocalisation();
+
     if (app_data->pdfFilename && app_data->optFilename && *app_data->optFilename) {
         return exec_guarded(
                 [&] {

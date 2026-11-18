@@ -88,7 +88,9 @@ void initCAndCoutLocales() {
 auto migrateSettings() -> MigrateResult {
     const fs::path newConfigPath = Util::getConfigFolder();
 
-    if (!fs::exists(newConfigPath)) {
+    // xournalpp-calc: decide by settings.xml, not by the folder: something may have created the folder first (e.g. the
+    // membrete subfolder, by a command line export)
+    if (!fs::exists(newConfigPath / "settings.xml")) {
         const std::array oldPaths = {
                 Util::getConfigFolder().parent_path() / "xournalpp",  // xournalpp-calc: before its own folder
                 Util::getConfigFolder().parent_path() / "com.github.xournalpp.xournalpp",
@@ -103,7 +105,7 @@ auto migrateSettings() -> MigrateResult {
                       newConfigPath.string().c_str());
             Util::ensureFolderExists(newConfigPath.parent_path());
             try {
-                fs::copy(oldPath, newConfigPath, fs::copy_options::recursive);
+                fs::copy(oldPath, newConfigPath, fs::copy_options::recursive | fs::copy_options::skip_existing);
                 if (oldPath.filename() == "xournalpp") {
                     // xournalpp-calc: same settings, only a folder of its own; nothing to tell the user
                     return {MigrateStatus::NotNeeded, ""};
@@ -538,6 +540,9 @@ auto on_handle_local_options(GApplication*, GVariantDict*, XMPtr app_data) -> gi
 
     // xournalpp-calc: command line exports draw translated texts too (e.g. the exam sheet header)
     XournalMain::initLocalisation();
+    if (app_data->pdfFilename || app_data->imgFilename) {
+        migrateSettings();  // xournalpp-calc: the export may read the config folder (letterhead) before the GUI ever ran
+    }
 
     if (app_data->pdfFilename && app_data->optFilename && *app_data->optFilename) {
         return exec_guarded(

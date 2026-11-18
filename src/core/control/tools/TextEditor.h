@@ -105,6 +105,10 @@ public:
 private:
     void toggleOverwrite();
     void toggleBoldFace();
+    void superscriptBeforeCursor() { scriptBeforeCursor(true); }  ///< Ctrl+PgUp: exponent / superscript
+    void subscriptBeforeCursor() { scriptBeforeCursor(false); }   ///< Ctrl+PgDown: subscript
+    void insertDefinition();                                      ///< Ctrl+= : definition symbol ≔
+    void scriptBeforeCursor(bool superscript);
     void greekifyBeforeCursor();  ///< Mathcad-style Ctrl+G: replace the latin letter before the cursor by a Greek one
     /// xournalpp-calc: Enter, Tab and the arrows move to another box on the alignment grid. True if handled
     bool handleGridNavigation(const KeyEvent& event);

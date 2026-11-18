@@ -21,8 +21,8 @@ struct Section {
 const char* const LOWER[] = {"α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ", "λ", "μ", "ν", "ξ",    "ο",
                              "π", "ρ", "σ", "τ", "υ", "φ", "χ", "ψ", "ω", "ϵ", "ϑ", "ϕ", "ς", nullptr};
 const char* const UPPER[] = {"Γ", "Δ", "Θ", "Λ", "Ξ", "Π", "Σ", "Υ", "Φ", "Ψ", "Ω", nullptr};
-const char* const MATH[] = {"·", "×", "÷", "±", "√", "²", "³", "⁻¹", "≤", "≥", "≠", "≈",    "∞",
-                            "∂", "∑", "∫", "∇", "°", "′", "∠", "⊥",  "∥", "→", "≔", nullptr};
+const char* const MATH[] = {"·", "×", "÷", "±", "√", "²", "³", "⁻¹", "≤", "≥", "<", ">", "≠",    "≈",
+                            "∞", "∂", "∑", "∫", "∇", "°", "′", "∠",  "⊥", "∥", "→", "≔", nullptr};
 
 struct SymbolName {
     const char* symbol;
@@ -77,6 +77,8 @@ const SymbolName NAMES[] = {
         {"³", "al cubo"},
         {"⁻¹", "inverso (a la −1)"},
         {"≤", "menor o igual"},
+        {"<", "menor que"},
+        {">", "mayor que"},
         {"≥", "mayor o igual"},
         {"≠", "distinto de"},
         {"≈", "aproximadamente igual"},
@@ -105,6 +107,23 @@ std::string tooltipFor(const char* symbol) {
     }
     if (tip.empty()) {
         tip = symbol;
+    }
+    // Keyboard shortcuts of the text boxes
+    static const SymbolName SHORTCUTS[] = {
+            {"²", "número y Ctrl+RePág (Page Up): exponente"},
+            {"³", "número y Ctrl+RePág (Page Up): exponente"},
+            {"⁻¹", "número y Ctrl+RePág (Page Up): exponente"},
+            {"±", "escribe +- o -+"},
+            {"≤", "escribe -= o =-"},
+            {"≥", "escribe += o =+"},
+            {"≔", "Ctrl+= (Ctrl+Shift+0)"},
+            {"<", "escribe --"},
+            {">", "escribe ++"},
+    };
+    for (const auto& sc: SHORTCUTS) {
+        if (std::string_view(sc.symbol) == symbol) {
+            tip += std::string("\nAtajo: ") + sc.name;
+        }
     }
     for (char c: std::string_view("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")) {
         if (xoj::calc::greekForLatin(c) == symbol) {
@@ -173,7 +192,9 @@ GtkWidget* createGreekPalette(Control* control, GtkWindow* parent) {
         gtk_box_pack_start(GTK_BOX(box), makeSection(control, s), false, false, 0);
     }
 
-    GtkWidget* hint = gtk_label_new(_("Tip: in a text box, type a latin letter and press Ctrl+G (a→α, q→θ, W→Ω)"));
+    GtkWidget* hint = gtk_label_new(
+            "En un cuadro de texto: letra + Ctrl+G = griega (a→α, q→θ, W→Ω). Número o letra + Ctrl+RePág = exponente / "
+            "superíndice; + Ctrl+AvPág = subíndice. Ctrl+= pone ≔. Seguidos: +- → ±, -= → ≤, += → ≥, ++ → >, -- → <");
     gtk_label_set_line_wrap(GTK_LABEL(hint), true);
     gtk_label_set_max_width_chars(GTK_LABEL(hint), 40);
     gtk_widget_set_sensitive(hint, false);

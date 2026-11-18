@@ -163,3 +163,9 @@ TEST(CalcEngine, unitsIgnoreCase) {
     EXPECT_EQ(lines[4].display, "A = 200 MM2");
     EXPECT_NEAR(env.vars.at("q").value, 1500, 1e-9);
 }
+
+TEST(CalcEngine, subscriptWithoutUnderscore) {
+    Environment env;
+    auto lines = evaluateText("A_s := 5 cm2\nAs = ? mm2", env);
+    EXPECT_EQ(lines[1].display, "As = 500 mm2");
+}

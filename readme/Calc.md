@@ -76,6 +76,10 @@ Con **Alinear a la malla** activado, mientras escribes en un cuadro:
 | Shift+Enter | Salto de línea dentro del mismo cuadro |
 | Tab | Cierra el cuadro y abre otro en el renglón de abajo, en la misma columna |
 | Flechas | Con el cuadro vacío, lo mueven un punto de la malla (arriba/abajo, un renglón). Con texto, mueven el cursor y, al llegar al borde del cuadro, saltan a un cuadro nuevo al lado |
+| Ctrl+RePág (Page Up) | El número o la letra antes del cursor pasa a exponente / superíndice (`x2` → x², `yn` → yⁿ). En cálculos escribe `^` |
+| Ctrl+AvPág (Page Down) | El número o la letra antes del cursor pasa a subíndice (`As` → A<sub>s</sub>). En cálculos escribe `_`; después `As` también encuentra a `A_s` |
+| Ctrl+= (Ctrl+Shift+0) | Símbolo de definición ≔ |
+| `+-` / `-+`, `-=` / `=-`, `+=` / `=+`, `++`, `--` | Se convierten en ±, ≤, ≥, >, < (`:=-` no se toca) |
 
 - Al llegar al borde derecho se sigue en el renglón de abajo; al llegar al final de la hoja se sigue en la página siguiente (si no existe, se crea una con el mismo fondo).
 - Si el punto de destino cae sobre un texto que ya existe, se abre ese texto para editarlo.

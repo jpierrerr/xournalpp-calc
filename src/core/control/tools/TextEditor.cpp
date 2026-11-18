@@ -389,6 +389,36 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
             }
         }
 
+        // xournalpp-calc: two signs typed in a row become one symbol: +- or -+ → ±, -= or =- → ≤, += or =+ → ≥,
+        // ++ → >, -- → <  (not after ":", so that ":=-3" stays a definition of a negative value)
+        if (!hadSelection && (!strcmp(str, "+") || !strcmp(str, "-") || !strcmp(str, "="))) {
+            GtkTextIter end = getIteratorAtCursor(te->buffer.get());
+            GtkTextIter start = end;
+            if (gtk_text_iter_backward_char(&start)) {
+                const gunichar prev = gtk_text_iter_get_char(&start);
+                GtkTextIter before = start;
+                const bool afterColon = gtk_text_iter_backward_char(&before) && gtk_text_iter_get_char(&before) == ':';
+                const char now = str[0];
+                const char* symbol = nullptr;
+                auto pair = [&](char a, char b) { return (prev == static_cast<gunichar>(a) && now == b); };
+                if (pair('+', '-') || pair('-', '+')) {
+                    symbol = "±";
+                } else if (pair('-', '=') || (pair('=', '-') && !afterColon)) {
+                    symbol = "≤";
+                } else if (pair('+', '=') || (pair('=', '+') && !afterColon)) {
+                    symbol = "≥";
+                } else if (pair('+', '+')) {
+                    symbol = ">";
+                } else if (pair('-', '-')) {
+                    symbol = "<";
+                }
+                if (symbol) {
+                    gtk_text_buffer_delete(te->buffer.get(), &start, &end);
+                    str = symbol;
+                }
+            }
+        }
+
         if (!gtk_text_buffer_insert_interactive_at_cursor(te->buffer.get(), str, -1, true)) {
             gtk_widget_error_bell(te->xournalWidget);
         }
@@ -409,6 +439,92 @@ void TextEditor::insertText(const std::string& str) {
         iMCommitCallback(nullptr, str.c_str(), this);
     }
 }
+
+namespace {
+/// Unicode superscript / subscript of a character, or nullptr if there is none
+const char* scriptChar(gunichar c, bool superscript) {
+    static const char* const SUP_DIGITS[] = {"⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"};
+    static const char* const SUB_DIGITS[] = {"₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"};
+    if (c >= '0' && c <= '9') {
+        return (superscript ? SUP_DIGITS : SUB_DIGITS)[c - '0'];
+    }
+    static const char* const SUP_LOWER[] = {"ᵃ", "ᵇ", "ᶜ", "ᵈ",     "ᵉ", "ᶠ", "ᵍ", "ʰ", "ⁱ", "ʲ", "ᵏ", "ˡ", "ᵐ",
+                                            "ⁿ", "ᵒ", "ᵖ", nullptr, "ʳ", "ˢ", "ᵗ", "ᵘ", "ᵛ", "ʷ", "ˣ", "ʸ", "ᶻ"};
+    static const char* const SUB_LOWER[] = {"ₐ", nullptr, nullptr, nullptr, "ₑ",     nullptr, nullptr, "ₕ",     "ᵢ",
+                                            "ⱼ", "ₖ",     "ₗ",     "ₘ",     "ₙ",     "ₒ",     "ₚ",     nullptr, "ᵣ",
+                                            "ₛ", "ₜ",     "ᵤ",     "ᵥ",     nullptr, "ₓ",     nullptr, nullptr};
+    if (c >= 'a' && c <= 'z') {
+        return (superscript ? SUP_LOWER : SUB_LOWER)[c - 'a'];
+    }
+    switch (c) {
+        case '+':
+            return superscript ? "⁺" : "₊";
+        case '-':
+            return superscript ? "⁻" : "₋";
+        case '=':
+            return superscript ? "⁼" : "₌";
+        case '(':
+            return superscript ? "⁽" : "₍";
+        case ')':
+            return superscript ? "⁾" : "₎";
+        default:
+            return nullptr;
+    }
+}
+}  // namespace
+
+void TextEditor::scriptBeforeCursor(bool superscript) {
+    // The number (or the letter) just before the cursor becomes an exponent / superscript or a subscript
+    GtkTextIter end = getIteratorAtCursor(this->buffer.get());
+    GtkTextIter start = end;
+    if (!gtk_text_iter_backward_char(&start)) {
+        gtk_widget_error_bell(this->xournalWidget);
+        return;
+    }
+    gunichar c = gtk_text_iter_get_char(&start);
+    if (g_unichar_isdigit(c)) {
+        GtkTextIter prev = start;
+        while (gtk_text_iter_backward_char(&prev)) {
+            gunichar p = gtk_text_iter_get_char(&prev);
+            if (!g_unichar_isdigit(p) && p != '.') {
+                break;
+            }
+            start = prev;
+        }
+    } else if (!g_unichar_isalpha(c)) {
+        gtk_widget_error_bell(this->xournalWidget);
+        return;
+    }
+
+    gtk_text_buffer_begin_user_action(this->buffer.get());
+    if (this->textElement->isCalc()) {
+        // Calculations: "x2" → "x^2" (exponent), "As" → "A_s" (subscript); shown raised or lowered
+        gtk_text_buffer_insert(this->buffer.get(), &start, superscript ? "^" : "_", 1);
+    } else {
+        // Plain text: Unicode superscript / subscript characters, where they exist
+        auto text = xoj::util::OwnedCString::assumeOwnership(gtk_text_iter_get_text(&start, &end));
+        std::string out;
+        for (const char* p = text.get(); *p; p = g_utf8_next_char(p)) {
+            const char* sc = scriptChar(g_utf8_get_char(p), superscript);
+            if (!sc) {
+                out.clear();
+                break;
+            }
+            out += sc;
+        }
+        if (out.empty()) {
+            gtk_widget_error_bell(this->xournalWidget);
+        } else {
+            gtk_text_buffer_delete(this->buffer.get(), &start, &end);
+            gtk_text_buffer_insert_at_cursor(this->buffer.get(), out.c_str(), -1);
+        }
+    }
+    gtk_text_buffer_end_user_action(this->buffer.get());
+    this->contentsChanged();
+    this->repaintEditor();
+}
+
+void TextEditor::insertDefinition() { insertText("≔"); }
 
 void TextEditor::greekifyBeforeCursor() {
     GtkTextIter end = getIteratorAtCursor(this->buffer.get());

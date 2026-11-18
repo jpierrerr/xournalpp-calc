@@ -721,6 +721,22 @@ private:
             Quantity u = *findUnit(up->first);
             return Quantity{std::pow(u.value, up->second), u.dim.pow(up->second)};
         }
+        // "As" finds "A_s" (a subscript written with Ctrl+PgDown) when only one variable matches
+        if (env && name.find('_') == std::string::npos) {
+            const Quantity* match = nullptr;
+            int count = 0;
+            for (const auto& [var, q]: env->vars) {
+                std::string plain = var;
+                plain.erase(std::remove(plain.begin(), plain.end(), '_'), plain.end());
+                if (plain == name && plain != var) {
+                    match = &q;
+                    count++;
+                }
+            }
+            if (count == 1) {
+                return *match;
+            }
+        }
         throw CalcError(env ? "variable no definida: " + name : "unidad desconocida: " + name);
     }
 

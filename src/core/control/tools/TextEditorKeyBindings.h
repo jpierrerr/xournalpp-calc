@@ -88,8 +88,7 @@ const TextEditor::KeyBindings TextEditor::keyBindings(
          move_binding(CTRL, End, GTK_MOVEMENT_BUFFER_ENDS, 1),
          move_binding(NONE, Page_Up, GTK_MOVEMENT_PAGES, -1),
          move_binding(NONE, Page_Down, GTK_MOVEMENT_PAGES, 1),
-         move_binding(CTRL, Page_Up, GTK_MOVEMENT_HORIZONTAL_PAGES, -1),
-         move_binding(CTRL, Page_Down, GTK_MOVEMENT_HORIZONTAL_PAGES, 1),
+         // xournalpp-calc: Ctrl+PgUp / Ctrl+PgDown are exponent and subscript (see below), not horizontal pages
 
 
          {KeyBindings::hash(CTRL, GDK_KEY_a), wrap<&TextEditor::selectAtCursor, TextEditor::SelectType::ALL>},
@@ -133,6 +132,15 @@ const TextEditor::KeyBindings TextEditor::keyBindings(
 
          {KeyBindings::hash(CTRL, GDK_KEY_g), wrap<&TextEditor::greekifyBeforeCursor>},
          {KeyBindings::hash(CTRL, GDK_KEY_G), wrap<&TextEditor::greekifyBeforeCursor>},
+
+         // xournalpp-calc: exponent / superscript, subscript and the definition symbol
+         {KeyBindings::hash(CTRL, GDK_KEY_Page_Up), wrap<&TextEditor::superscriptBeforeCursor>},
+         {KeyBindings::hash(CTRL, GDK_KEY_KP_Page_Up), wrap<&TextEditor::superscriptBeforeCursor>},
+         {KeyBindings::hash(CTRL, GDK_KEY_Page_Down), wrap<&TextEditor::subscriptBeforeCursor>},
+         {KeyBindings::hash(CTRL, GDK_KEY_KP_Page_Down), wrap<&TextEditor::subscriptBeforeCursor>},
+         {KeyBindings::hash(CTRL, GDK_KEY_equal), wrap<&TextEditor::insertDefinition>},
+         {KeyBindings::hash(CTRL & SHIFT, GDK_KEY_equal), wrap<&TextEditor::insertDefinition>},  // "=" is Shift+0 on
+         {KeyBindings::hash(CTRL & SHIFT, GDK_KEY_0), wrap<&TextEditor::insertDefinition>},      // Spanish keyboards
 
          {KeyBindings::hash(CTRL, GDK_KEY_plus), wrap<&TextEditor::increaseFontSize>},
          {KeyBindings::hash(CTRL, GDK_KEY_KP_Add), wrap<&TextEditor::increaseFontSize>},

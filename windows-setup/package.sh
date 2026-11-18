@@ -31,7 +31,23 @@ echo "copy installed files"
 (cd $build_dir && cmake --install . --prefix "$setup_dir")
 
 echo "copy libraries"
-ldd "$build_dir/xournalpp.exe" | grep "${prefix}.*\.dll" -o | awk '!seen[$0]++' | xargs -I{} cp "{}" "$setup_dir"/bin/
+# xournalpp-calc: follow the import tables with objdump (it only reads the files) instead of ldd, which runs the
+# program and fails when Windows Smart App Control blocks a freshly linked executable
+copy_dll_closure() {
+    local -a queue=("$@")
+    local -A seen
+    local i dep
+    for ((i = 0; i < ${#queue[@]}; ++i)); do
+        while IFS= read -r dep; do
+            if [[ -z ${seen[$dep]+x} && -f "$prefix/bin/$dep" ]]; then
+                seen[$dep]=1
+                cp "$prefix/bin/$dep" "$setup_dir"/bin/
+                queue+=("$prefix/bin/$dep")
+            fi
+        done < <(objdump -p "${queue[$i]}" | awk '/DLL Name:/ {print $3}')
+    done
+}
+copy_dll_closure "$build_dir/xournalpp.exe"
 # CI workaround: copy libcrypto and libssl in case they are not already copied.
 ldd "$build_dir/xournalpp.exe" | grep -E 'lib(ssl|crypto)[^\.]*\.dll' -o | awk '!seen[$0]++' | xargs -I{} cp "${prefix}/bin/{}" "$setup_dir"/bin/
 
@@ -138,17 +154,8 @@ if [ -f "$models_dir/pix2text-mfr/encoder_model.onnx" ]; then
         [ -f "$shared" ] && cp "$shared" "$setup_dir"/bin/
     elif [ -f "$prefix/bin/onnxruntime.dll" ]; then
         echo "  ONNX Runtime from MSYS2 (with its dependencies)"
-        to_copy=("$prefix/bin/onnxruntime.dll")
-        declare -A ort_seen
-        for ((i = 0; i < ${#to_copy[@]}; ++i)); do
-            cp "${to_copy[$i]}" "$setup_dir"/bin/
-            while IFS= read -r dep; do
-                if [[ -z ${ort_seen[$dep]+x} && -f "$prefix/bin/$dep" ]]; then
-                    ort_seen[$dep]=1
-                    to_copy+=("$prefix/bin/$dep")
-                fi
-            done < <(objdump -p "${to_copy[$i]}" | awk '/DLL Name:/ {print $3}')
-        done
+        cp "$prefix/bin/onnxruntime.dll" "$setup_dir"/bin/
+        copy_dll_closure "$prefix/bin/onnxruntime.dll"
     fi
 else
     echo "  (no model in $models_dir/pix2text-mfr: formula recognition will not be available)"

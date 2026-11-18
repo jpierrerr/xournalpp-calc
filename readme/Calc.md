@@ -46,10 +46,16 @@ Las regiones se guardan en el `.xopp` como textos con el atributo `calc="true"`.
 
 ## Malla de alineación
 
-**Herramientas → Malla de alineación** (Ctrl+Alt+M, o el botón de cuadrícula) muestra una malla de puntos como la de Mathcad. Sigue el fondo de la página:
+Dos botones (también en el menú Herramientas):
 
-- Cuadriculado o puntos: un punto en cada esquina de los cuadros.
-- Renglones: una fila de puntos sobre cada renglón (y columnas cada media distancia entre renglones, empezando en el margen).
-- Otros fondos: puntos cada 5 mm.
+- **Alinear a la malla** (Ctrl+Alt+M): cada cuadro de texto o región de cálculo nuevo empieza en el punto de la malla más cercano al clic, con la línea base sobre un renglón, y sus líneas quedan separadas un renglón (o varios si la letra no cabe).
+- **Malla visible** (Ctrl+Alt+V): muestra u oculta los puntos. La alineación funciona aunque la malla esté oculta. Los puntos solo se ven en pantalla: no salen al imprimir ni al exportar.
 
-Con la malla activa, cada cuadro de texto o región de cálculo nuevo empieza en el punto más cercano al clic, con la línea base sobre una fila de puntos, y la distancia entre sus líneas es la de la malla (o un múltiplo si la letra no cabe). Así cada línea queda sobre un renglón. Esta distancia se guarda en el archivo (`lineHeight`). La malla solo se ve en pantalla: no sale al imprimir ni al exportar.
+La malla es la misma en todos los formatos, para que los apuntes no se desordenen al cambiar el fondo de la hoja:
+
+- Cuadriculado: puntos en las esquinas de los cuadros de 5 mm.
+- Renglones: los renglones están cada **2 cuadros** (10 mm), el primero a 6 cuadros del borde superior y el margen vertical a 5 cuadros del borde izquierdo, así que caen sobre la malla.
+- Hoja en blanco: la misma malla de 5 mm.
+- Los renglones de escritura están cada 2 filas de puntos en todos los formatos.
+
+La separación entre líneas de cada cuadro de texto se guarda en el archivo (`lineHeight`).

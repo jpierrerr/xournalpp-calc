@@ -1186,8 +1186,8 @@ void Control::setCalcMode(bool enabled) {
     }
 }
 
-void Control::setCalcGrid(bool enabled) {
-    this->calcGrid = enabled;
+void Control::setCalcGridVisible(bool visible) {
+    this->calcGridVisible = visible;
     if (!this->win) {
         return;
     }

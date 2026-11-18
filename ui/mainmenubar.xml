@@ -859,9 +859,14 @@
       <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;g</attribute>
      </item>
      <item>
-      <attribute name="label" translatable="yes">Alignment Grid</attribute>
+      <attribute name="label" translatable="yes">Align to Grid</attribute>
       <attribute name="action">win.calc-grid</attribute>
       <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;m</attribute>
+     </item>
+     <item>
+      <attribute name="label" translatable="yes">Grid Visible</attribute>
+      <attribute name="action">win.calc-grid-visible</attribute>
+      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;v</attribute>
      </item>
     </section>
     <item>

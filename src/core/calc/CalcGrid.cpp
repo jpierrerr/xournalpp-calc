@@ -9,17 +9,17 @@
 namespace xoj::calc {
 
 namespace {
-constexpr double DEFAULT_STEP = 14.17;          // 5 mm, as the default graph background
-constexpr double RULED_HEADER = 80.0;           // RuledBackgroundView::HEADER_SIZE
-constexpr double RULED_DEFAULT_SPACING = 24.0;  // RuledBackgroundView::lineSpacing
-constexpr double LINED_DEFAULT_MARGIN = 72.0;   // LinedBackgroundView::margin
+constexpr double DEFAULT_STEP = 14.17;           // 5 mm, as the default graph background
+constexpr double RULED_HEADER = 85.02;           // RuledBackgroundView::HEADER_SIZE (6 squares)
+constexpr double RULED_DEFAULT_SPACING = 28.34;  // RuledBackgroundView::lineSpacing (2 squares)
+constexpr double LINED_DEFAULT_MARGIN = 70.85;   // LinedBackgroundView::margin (5 squares)
 }  // namespace
 
 double AlignGrid::snapX(double x) const { return x0 + std::round((x - x0) / dx) * dx; }
 
-double AlignGrid::snapY(double y) const { return y0 + std::round((y - y0) / dy) * dy; }
+double AlignGrid::snapY(double y) const { return y0 + std::round((y - y0) / linePitch()) * linePitch(); }
 
-double AlignGrid::pitchFor(double h) const { return dy * std::max(1.0, std::ceil(h / dy - 0.05)); }
+double AlignGrid::pitchFor(double h) const { return linePitch() * std::max(1.0, std::ceil(h / linePitch() - 0.05)); }
 
 AlignGrid alignmentGrid(const PageType& background, double pageWidth, double pageHeight) {
     BackgroundConfig config(background.config);
@@ -48,7 +48,7 @@ AlignGrid alignmentGrid(const PageType& background, double pageWidth, double pag
                     x0 += pageWidth;
                 }
             }
-            return {spacing / 2, spacing, x0, RULED_HEADER};
+            return {spacing / 2, spacing / 2, x0, RULED_HEADER};
         }
         default:
             return {DEFAULT_STEP, DEFAULT_STEP, 0, 0};

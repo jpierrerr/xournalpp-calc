@@ -11,7 +11,7 @@ using namespace background_config_strings;
 
 namespace {
 constexpr double DEFAULT_RASTER_SIZE = 14.17;  // 5mm
-constexpr double RULED_HEADER_SIZE = 80.0;
+constexpr double RULED_HEADER_SIZE = 85.02;    // RuledBackgroundView::HEADER_SIZE
 }  // namespace
 
 SnapToGridInputHandler::SnapToGridInputHandler(const Settings* settings): settings(settings), currentPage(nullptr) {}

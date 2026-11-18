@@ -292,9 +292,12 @@ public:
     /// xournalpp-calc: when enabled, new text boxes are calculation regions
     void setCalcMode(bool enabled);
     bool isCalcMode() const { return calcMode; }
-    /// xournalpp-calc: show the alignment grid (dots) and align new text boxes on it
-    void setCalcGrid(bool enabled);
+    /// xournalpp-calc: align new text boxes on the alignment grid
+    void setCalcGrid(bool enabled) { calcGrid = enabled; }
     bool isCalcGrid() const { return calcGrid; }
+    /// xournalpp-calc: show the dots of the alignment grid (independent of the alignment itself)
+    void setCalcGridVisible(bool visible);
+    bool isCalcGridVisible() const { return calcGridVisible; }
     /// xournalpp-calc: show the palette of Greek letters and math symbols
     void showGreekPalette();
 
@@ -405,6 +408,7 @@ private:
     guint calcUpdateSource = 0;
     bool calcMode = false;
     bool calcGrid = false;
+    bool calcGridVisible = false;
     GtkWidget* greekPalette = nullptr;
 
     /**

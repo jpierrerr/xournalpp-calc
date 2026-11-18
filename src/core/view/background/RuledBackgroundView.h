@@ -28,13 +28,13 @@ public:
     virtual void draw(cairo_t* cr) const override;
 
 protected:
-    double lineSpacing = 24.0;  // Between two horizontal lines
+    double lineSpacing = 28.34;  // Between two horizontal lines (xournalpp-calc: 2 squares of the 5 mm graph paper)
 
     constexpr static Color DEFAULT_H_LINE_COLOR = Colors::xopp_dodgerblue;
     constexpr static Color ALT_DEFAULT_H_LINE_COLOR = Colors::xopp_darkslategray;
     constexpr static double DEFAULT_LINE_WIDTH = 0.5;
 
-    constexpr static double HEADER_SIZE = 80.0;
+    constexpr static double HEADER_SIZE = 85.02;  // xournalpp-calc: 6 squares of the 5 mm graph paper
     constexpr static double FOOTER_SIZE = 60.0;
 };
 };  // namespace xoj::view

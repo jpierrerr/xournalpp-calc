@@ -1122,7 +1122,7 @@ auto XojPageView::paintPage(cairo_t* cr, GdkRectangle* rect) -> bool {
      *
      * To anyone adding another painter here: please keep this assumption true
      */
-    if (xournal->getControl()->isCalcGrid()) {
+    if (xournal->getControl()->isCalcGridVisible()) {
         xoj::calc::drawAlignmentGrid(
                 cr, xoj::calc::alignmentGrid(page->getBackgroundType(), page->getWidth(), page->getHeight()),
                 page->getWidth(), page->getHeight(), zoom);

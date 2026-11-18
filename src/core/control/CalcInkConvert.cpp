@@ -19,6 +19,7 @@
 #include "calc/LatexToCalc.h"
 #include "calc/ink/InkRecognizer.h"
 #include "control/Control.h"
+#include "control/actions/ActionDatabase.h"
 #include "control/settings/Settings.h"
 #include "control/tools/EditSelection.h"
 #include "control/ToolHandler.h"

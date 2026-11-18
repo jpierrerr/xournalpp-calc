@@ -189,7 +189,10 @@ option(ENABLE_INK_MATH "Recognize handwritten formulas with ONNX Runtime (if fou
 if (ENABLE_INK_MATH)
     pkg_check_modules(OnnxRuntime IMPORTED_TARGET libonnxruntime)
     if (OnnxRuntime_FOUND)
-        message(STATUS "Enable handwritten formula recognition (ONNX Runtime ${OnnxRuntime_VERSION})")
+        # Only the headers: the library is loaded at run time (see calc/ink/InkMathRecognizer.cpp)
+        add_library(onnxruntime_headers INTERFACE)
+        target_include_directories(onnxruntime_headers INTERFACE ${OnnxRuntime_INCLUDE_DIRS})
+        message(STATUS "Enable handwritten formula recognition (ONNX Runtime ${OnnxRuntime_VERSION} headers)")
     else ()
         message(STATUS "ONNX Runtime not found: handwritten formula recognition disabled")
         set(ENABLE_INK_MATH OFF)
@@ -284,7 +287,8 @@ target_link_libraries(external_modules INTERFACE
         $<$<TARGET_EXISTS:X11::X11>:X11::X11>
         $<$<TARGET_EXISTS:cpptrace::cpptrace>:cpptrace::cpptrace>
         $<$<TARGET_EXISTS:qpdf::libqpdf>:qpdf::libqpdf>
-        $<$<TARGET_EXISTS:PkgConfig::OnnxRuntime>:PkgConfig::OnnxRuntime>
+        $<$<TARGET_EXISTS:onnxruntime_headers>:onnxruntime_headers>
+        $<$<NOT:$<PLATFORM_ID:Windows>>:${CMAKE_DL_LIBS}>
         $<$<PLATFORM_ID:Windows>:ole32>
         $<$<PLATFORM_ID:Windows>:oleaut32>
         $<$<PLATFORM_ID:Windows>:uuid>

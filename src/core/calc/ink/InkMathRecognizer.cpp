@@ -35,7 +35,15 @@
 #include "filesystem.h"  // for path
 
 #ifdef ENABLE_INK_MATH
+// ONNX Runtime is loaded at run time (not linked): the program starts even if its DLL is missing or broken, and
+// on Windows the DLL next to the executable is used instead of the older one of Windows ML in System32
+#define ORT_API_MANUAL_INIT
 #include <onnxruntime_cxx_api.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 #endif
 
 namespace xoj::calc::ink {
@@ -477,6 +485,48 @@ double envDouble(const char* name, double def) {
 
 namespace {
 
+/// Load the ONNX Runtime library and initialize the C++ API. Empty string on success, else the reason
+std::string loadOnnxRuntime() {
+    using GetApiBaseFn = const OrtApiBase*(ORT_API_CALL*)();
+    GetApiBaseFn getApiBase = nullptr;
+    std::string tried;
+#ifdef _WIN32
+    std::vector<fs::path> paths{Util::getExePath() / "onnxruntime.dll"};
+    for (const auto& p: paths) {
+        HMODULE h = LoadLibraryExW(p.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if (h) {
+            getApiBase = reinterpret_cast<GetApiBaseFn>(reinterpret_cast<void*>(GetProcAddress(h, "OrtGetApiBase")));
+            if (getApiBase) {
+                break;
+            }
+        }
+        tried += std::string(char_cast(p.u8string().c_str())) + " (error " + std::to_string(GetLastError()) + ") ";
+    }
+#else
+    for (const char* name: {"libonnxruntime.so.1", "libonnxruntime.so"}) {
+        if (void* h = dlopen(name, RTLD_NOW | RTLD_LOCAL)) {
+            getApiBase = reinterpret_cast<GetApiBaseFn>(dlsym(h, "OrtGetApiBase"));
+            if (getApiBase) {
+                break;
+            }
+        }
+        tried += std::string(name) + " ";
+    }
+#endif
+    if (!getApiBase) {
+        return "No se pudo cargar ONNX Runtime: " + tried;
+    }
+    const OrtApiBase* base = getApiBase();
+    const OrtApi* api = base ? base->GetApi(ORT_API_VERSION) : nullptr;
+    if (!api) {
+        return std::string("La versión de ONNX Runtime instalada (") + (base ? base->GetVersionString() : "?") +
+               ") es más vieja que la que necesita el programa";
+    }
+    Ort::InitApi(api);
+    g_message("Ink: ONNX Runtime %s", base->GetVersionString());
+    return "";
+}
+
 /// The model, loaded on first use and kept
 class MathModel {
 public:
@@ -498,6 +548,11 @@ public:
     }
 
     bool load(std::string& error) {
+        static const std::string ortError = loadOnnxRuntime();
+        if (!ortError.empty()) {
+            error = ortError;
+            return false;
+        }
         fs::path dir = findModelDir();
         if (dir.empty()) {
             error = "No se encontró el modelo de fórmulas (carpeta models/pix2text-mfr junto al programa)";

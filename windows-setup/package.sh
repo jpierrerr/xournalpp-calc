@@ -123,8 +123,33 @@ models_dir="${JACKMATH_MODELS_DIR:-$HOME/hmr-models}"
 if [ -f "$models_dir/pix2text-mfr/encoder_model.onnx" ]; then
     mkdir -p "$setup_dir"/share/xournalpp/models
     cp -r "$models_dir/pix2text-mfr" "$setup_dir"/share/xournalpp/models/
-    # ONNX Runtime may load its shared provider library at run time
-    [ -f "$prefix/bin/onnxruntime_providers_shared.dll" ] && cp "$prefix/bin/onnxruntime_providers_shared.dll" "$setup_dir"/bin/
+    # ONNX Runtime is loaded at run time from bin/ (ldd does not see it, and Windows has an older one in System32).
+    # The official Microsoft build is preferred (signed, no other DLLs): $JACKMATH_ORT_DIR (default
+    # ~/hmr-models/onnxruntime), with onnxruntime.dll in it or in its lib/ folder
+    ort_dir="${JACKMATH_ORT_DIR:-$models_dir/onnxruntime}"
+    ort_dll=""
+    for f in "$ort_dir/onnxruntime.dll" "$ort_dir/lib/onnxruntime.dll"; do
+        [ -f "$f" ] && ort_dll="$f" && break
+    done
+    if [ -n "$ort_dll" ]; then
+        echo "  ONNX Runtime from $ort_dll"
+        cp "$ort_dll" "$setup_dir"/bin/
+        shared="$(dirname "$ort_dll")/onnxruntime_providers_shared.dll"
+        [ -f "$shared" ] && cp "$shared" "$setup_dir"/bin/
+    elif [ -f "$prefix/bin/onnxruntime.dll" ]; then
+        echo "  ONNX Runtime from MSYS2 (with its dependencies)"
+        to_copy=("$prefix/bin/onnxruntime.dll")
+        declare -A ort_seen
+        for ((i = 0; i < ${#to_copy[@]}; ++i)); do
+            cp "${to_copy[$i]}" "$setup_dir"/bin/
+            while IFS= read -r dep; do
+                if [[ -z ${ort_seen[$dep]+x} && -f "$prefix/bin/$dep" ]]; then
+                    ort_seen[$dep]=1
+                    to_copy+=("$prefix/bin/$dep")
+                fi
+            done < <(objdump -p "${to_copy[$i]}" | awk '/DLL Name:/ {print $3}')
+        done
+    fi
 else
     echo "  (no model in $models_dir/pix2text-mfr: formula recognition will not be available)"
 fi

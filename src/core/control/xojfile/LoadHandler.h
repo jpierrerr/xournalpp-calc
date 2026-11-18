@@ -106,6 +106,7 @@ private:
                  std::optional<TextAlignment> align, bool justify, fs::path filename, size_t timestamp) override;
     void setTextCalc(bool calc) override;
     void setTextLineHeight(double h) override;
+    void setTextCalcCells(std::string cells) override;
     void setTextContents(std::string contents) override;
     void finalizeText() override;
     void addImageLegacy(double left, double top, double right, double bottom,

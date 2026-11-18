@@ -379,7 +379,7 @@ std::string formatQuantity(const Quantity& q) {
 
 namespace {
 
-enum class Tok { Num, Ident, Op, LParen, RParen, Comma, Assign, Eq, Question, End };
+enum class Tok { Num, Ident, Str, Op, LParen, RParen, Comma, Assign, Eq, Question, End };
 
 struct Token {
     Tok type;
@@ -441,6 +441,29 @@ std::vector<Token> tokenize(std::string_view s) {
         if (const Symbol* sym = isSymbolAt(i)) {
             out.push_back({sym->type, sym->op});
             i += std::strlen(sym->utf8);
+            continue;
+        }
+        // Text between quotes (a cell reference or a file name): "Hoja1!C5", also with typographic quotes
+        if (c == '"' || startsWith(s, i, "“") || startsWith(s, i, "”")) {
+            size_t open = c == '"' ? 1 : std::strlen("“");
+            size_t start = i + open;
+            size_t end = start;
+            size_t close = 0;
+            for (; end < s.size(); end++) {
+                if (s[end] == '"') {
+                    close = 1;
+                    break;
+                }
+                if (startsWith(s, end, "”") || startsWith(s, end, "“")) {
+                    close = std::strlen("”");
+                    break;
+                }
+            }
+            if (close == 0) {
+                throw CalcError("faltan las comillas de cierre");
+            }
+            out.push_back({Tok::Str, std::string(s.substr(start, end - start))});
+            i = end + close;
             continue;
         }
         if (isSuperscriptAt(i)) {
@@ -730,6 +753,15 @@ private:
                 return q;
             }
             case Tok::Ident:
+                if (peek().type == Tok::LParen && t.text == "xl") {
+                    next();
+                    std::string ref = parseCellRef();
+                    expect(Tok::RParen, "falta ')' en xl");
+                    if (!env || !env->cells) {
+                        throw CalcError("xl() no está disponible aquí");
+                    }
+                    return {env->cells->read(ref), {}};
+                }
                 if (peek().type == Tok::LParen && isFunction(t.text)) {
                     next();
                     std::vector<Quantity> args;
@@ -754,6 +786,32 @@ private:
         }
     }
 
+public:
+    /// A cell reference: "Hoja1!C5" between quotes, or a plain cell name without quotes (C5)
+    std::string parseCellRef() {
+        const Token& r = next();
+        if (r.type == Tok::Str) {
+            return r.text;
+        }
+        if (r.type == Tok::Ident && isCellName(r.text)) {
+            return r.text;
+        }
+        throw CalcError("la celda va entre comillas, p. ej. \"Hoja1!C5\"");
+    }
+
+    static bool isCellName(const std::string& n) {
+        size_t i = 0;
+        while (i < n.size() && std::isalpha(static_cast<unsigned char>(n[i]))) {
+            i++;
+        }
+        if (i == 0 || i > 3 || i == n.size()) {
+            return false;
+        }
+        return std::all_of(n.begin() + static_cast<std::ptrdiff_t>(i), n.end(),
+                           [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+    }
+
+private:
     void expect(Tok type, const std::string& msg) {
         if (peek().type != type) {
             throw CalcError(msg);
@@ -927,6 +985,91 @@ std::string formatResult(const Quantity& q, const std::vector<Token>& toks, size
     return r;
 }
 
+/// The text of the last argument of a call written in one line, "enviar(M, \"D4\", kN·m)" → "kN·m"
+std::string lastArgumentText(std::string_view t) {
+    int depth = 0;
+    bool quoted = false;
+    size_t lastComma = std::string_view::npos;
+    size_t close = std::string_view::npos;
+    for (size_t i = 0; i < t.size(); i++) {
+        char c = t[i];
+        if (c == '"') {
+            quoted = !quoted;
+        } else if (quoted) {
+            continue;
+        } else if (c == '(' || c == '[') {
+            depth++;
+        } else if (c == ')' || c == ']') {
+            if (--depth == 0) {
+                close = i;
+            }
+        } else if (c == ',' && depth == 1) {
+            lastComma = i;
+        }
+    }
+    if (lastComma == std::string_view::npos || close == std::string_view::npos || close < lastComma) {
+        return {};
+    }
+    return trim(t.substr(lastComma + 1, close - lastComma - 1));
+}
+
+/// Statements that are not written with "=": excel("libro.xlsx") and enviar(valor, "celda", unidad).
+/// Returns false if the line is not one of them
+bool evaluateStatement(const std::string& t, Environment& env, LineResult& res) {
+    std::vector<Token> toks;
+    try {
+        toks = tokenize(t);
+    } catch (const CalcError&) {
+        return false;  // plain text that starts with the same word
+    }
+    if (toks.size() < 3 || toks[0].type != Tok::Ident || toks[1].type != Tok::LParen ||
+        (toks[0].text != "excel" && toks[0].text != "enviar")) {
+        return false;
+    }
+    if (!env.cells) {
+        throw CalcError(toks[0].text + "() no está disponible aquí");
+    }
+    if (toks[0].text == "excel") {
+        if (toks.size() != 5 || toks[2].type != Tok::Str || toks[3].type != Tok::RParen) {
+            throw CalcError("escribe el libro entre comillas: excel(\"cargas.xlsx\")");
+        }
+        res.result = "→ " + env.cells->useWorkbook(toks[2].text);
+    } else {
+        Parser p(toks, 2, &env);
+        Quantity q = p.parseExpression();
+        if (p.peek().type != Tok::Comma) {
+            throw CalcError("uso: enviar(valor, \"Hoja1!D4\", unidad)");
+        }
+        p.next();
+        std::string ref = p.parseCellRef();
+        std::string unitText;
+        double value = q.value;
+        size_t end = p.position();
+        if (p.peek().type == Tok::Comma) {
+            p.next();
+            unitText = lastArgumentText(t);
+            Parser up(toks, p.position(), nullptr);  // units only, as after "= ?"
+            Quantity unit = up.parseExpression();
+            if (!(unit.dim == q.dim)) {
+                throw CalcError("las unidades " + unitText + " no corresponden a " + dimName(q.dim));
+            }
+            value = q.value / unit.value;
+            end = up.position();
+        } else if (!q.dim.isDimensionless()) {
+            throw CalcError("indica la unidad en que se envía: enviar(valor, \"" + ref + "\", " + formatDim(q.dim) +
+                            ")");
+        }
+        if (toks[end].type != Tok::RParen || toks[end + 1].type != Tok::End) {
+            throw CalcError("uso: enviar(valor, \"Hoja1!D4\", unidad)");
+        }
+        std::string where = env.cells->write(ref, value);
+        res.result = "→ " + where + ": " + formatNumber(value) + (unitText.empty() ? "" : " " + unitText);
+    }
+    res.kind = LineResult::Kind::Evaluation;
+    res.display = t + "  " + res.result;
+    return true;
+}
+
 }  // namespace
 
 Quantity evaluateExpression(std::string_view expr, const Environment& env) {
@@ -945,6 +1088,22 @@ LineResult evaluateLine(std::string_view line, Environment& env) {
     res.display = res.source;
 
     std::string t = trim(line);
+    if (t.starts_with("excel") || t.starts_with("enviar")) {
+        try {
+            if (evaluateStatement(t, env, res)) {
+                if (env.cells) {
+                    for (auto& n: env.cells->takeNotes()) {
+                        res.note += (res.note.empty() ? "" : "; ") + n;
+                    }
+                }
+                return res;
+            }
+        } catch (const CalcError& e) {
+            res.kind = LineResult::Kind::Error;
+            res.error = e.what();
+            return res;
+        }
+    }
     // Plain text: empty lines, comments, and lines without any calculation operator
     if (t.empty() || t[0] == '#' || t[0] == '"' ||
         (t.find(":=") == std::string::npos && t.find('=') == std::string::npos && t.find("≔") == std::string::npos)) {
@@ -1017,6 +1176,11 @@ LineResult evaluateLine(std::string_view line, Environment& env) {
     } catch (const CalcError& e) {
         res.kind = LineResult::Kind::Error;
         res.error = e.what();
+    }
+    if (env.cells) {
+        for (auto& n: env.cells->takeNotes()) {
+            res.note += (res.note.empty() ? "" : "; ") + n;
+        }
     }
     return res;
 }

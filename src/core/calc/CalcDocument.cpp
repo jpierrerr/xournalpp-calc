@@ -4,6 +4,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
+#include <set>
 
 #include <glib.h>
 
@@ -12,6 +14,10 @@
 #include "model/Layer.h"
 #include "model/Text.h"
 #include "model/XojPage.h"
+
+#include "ExcelLink.h"
+
+namespace fs = std::filesystem;
 
 namespace xoj::calc {
 
@@ -53,7 +59,13 @@ std::string prettifyMarkup(std::string_view s, const Environment* env) {
     size_t i = 0;
     while (i < s.size()) {
         auto c = static_cast<unsigned char>(s[i]);
-        if (c == '*') {
+        if (c == '"') {
+            // Text between quotes (a cell or a file name) is shown as it is written
+            size_t j = s.find('"', i + 1);
+            j = j == std::string_view::npos ? s.size() : j + 1;
+            out += escape(s.substr(i, j - i));
+            i = j;
+        } else if (c == '*') {
             out += "·";
             i++;
         } else if (c == ':' && i + 1 < s.size() && s[i + 1] == '=') {
@@ -157,6 +169,11 @@ std::string prettifyMarkup(std::string_view s, const Environment* env) {
 std::string buildMarkup(const std::vector<LineResult>& lines, const Environment* env) {
     std::string out;
     bool first = true;
+    auto note = [](const LineResult& l) {
+        return l.note.empty() ?
+                       std::string() :
+                       std::string("   <span foreground=\"#77767b\" size=\"smaller\">") + escape(l.note) + "</span>";
+    };
     for (const auto& l: lines) {
         if (!first) {
             out += "\n";
@@ -167,7 +184,7 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
                 out += escape(l.source);
                 break;
             case LineResult::Kind::Definition:
-                out += prettifyMarkup(l.source, env);
+                out += prettifyMarkup(l.source, env) + note(l);
                 break;
             case LineResult::Kind::Evaluation: {
                 std::string_view prefix(l.display);
@@ -177,7 +194,8 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
                 const bool holds = l.result.find("✓") != std::string::npos;
                 const bool fails = l.result.find("✗") != std::string::npos;
                 const char* color = holds && !fails ? OK_COLOR : fails && !holds ? ERROR_COLOR : RESULT_COLOR;
-                out += std::string("<span foreground=\"") + color + "\">" + prettifyMarkup(l.result, env) + "</span>";
+                out += std::string("<span foreground=\"") + color + "\">" + prettifyMarkup(l.result, env) + "</span>" +
+                       note(l);
                 break;
             }
             case LineResult::Kind::Error:
@@ -190,30 +208,41 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
     return out;
 }
 
-std::vector<size_t> recalculateDocument(Document* doc) {
-    std::vector<size_t> changedPages;
-    Environment env;
+std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites) {
+    struct Region {
+        size_t page;
+        Text* text;
+        std::string source;
+        std::string cells;  ///< values read from Excel, as saved
+        std::string markup;
+        std::string newCells;
+    };
+    std::vector<Region> regions;
 
-    doc->lock();
+    // 1. Collect the regions in reading order. The evaluation itself happens without holding the document lock,
+    //    because talking to Excel may dispatch window messages (e.g. a repaint that needs the lock)
+    doc->lock_shared();
+    fs::path baseDir = doc->getFilepath();
+    baseDir = baseDir.empty() ? fs::path() : baseDir.parent_path();
     const size_t pageCount = doc->getPageCount();
     for (size_t p = 0; p < pageCount; p++) {
         PageRef page = doc->getPage(p);
         if (!page) {
             continue;
         }
-        std::vector<Text*> regions;
+        std::vector<Text*> onPage;
         for (Layer* layer: page->getLayers()) {
             for (auto& e: layer->getElements()) {
                 if (e->getType() == ELEMENT_TEXT) {
                     auto* t = dynamic_cast<Text*>(e.get());
                     if (t && t->isCalc()) {
-                        regions.push_back(t);
+                        onPage.push_back(t);
                     }
                 }
             }
         }
         // Reading order: top to bottom, then left to right (regions on the same line, within 2pt)
-        std::stable_sort(regions.begin(), regions.end(), [](const Text* a, const Text* b) {
+        std::stable_sort(onPage.begin(), onPage.end(), [](const Text* a, const Text* b) {
             const auto& pa = a->getOrigin();
             const auto& pb = b->getOrigin();
             if (std::abs(pa.y - pb.y) > 2.0) {
@@ -221,14 +250,47 @@ std::vector<size_t> recalculateDocument(Document* doc) {
             }
             return pa.x < pb.x;
         });
-
-        bool changed = false;
-        for (Text* t: regions) {
-            auto lines = evaluateText(t->getText(), env);
-            changed |= t->setCalcMarkup(buildMarkup(lines, &env));
+        for (Text* t: onPage) {
+            regions.push_back({p, t, t->getText(), t->getCalcCells(), {}, {}});
         }
-        if (changed) {
-            changedPages.push_back(p);
+    }
+    doc->unlock_shared();
+
+    // 2. Evaluate
+    ExcelLink link(baseDir, excelWrites);
+    Environment env;
+    env.cells = &link;
+    for (auto& r: regions) {
+        CellCache saved = parseCellCache(r.cells);
+        CellCache fresh;
+        link.setRegionCache(&saved, &fresh);
+        auto lines = evaluateText(r.source, env);
+        r.markup = buildMarkup(lines, &env);
+        r.newCells = serializeCellCache(fresh);
+    }
+    link.setRegionCache(nullptr, nullptr);
+
+    // 3. Show the results (in the regions that still exist)
+    std::vector<size_t> changedPages;
+    doc->lock();
+    std::set<const Text*> existing;
+    for (size_t p = 0; p < doc->getPageCount(); p++) {
+        if (PageRef page = doc->getPage(p)) {
+            for (Layer* layer: page->getLayers()) {
+                for (auto& e: layer->getElements()) {
+                    existing.insert(dynamic_cast<const Text*>(e.get()));
+                }
+            }
+        }
+    }
+    for (auto& r: regions) {
+        if (!existing.count(r.text)) {
+            continue;
+        }
+        bool changed = r.text->setCalcMarkup(std::move(r.markup));
+        r.text->setCalcCells(std::move(r.newCells));
+        if (changed && (changedPages.empty() || changedPages.back() != r.page)) {
+            changedPages.push_back(r.page);
         }
     }
     doc->unlock();

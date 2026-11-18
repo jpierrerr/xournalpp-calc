@@ -29,10 +29,13 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
  * Evaluate every calculation region of the document in reading order: page by page, and on each page from top to
  * bottom (then left to right). Variables defined in a region are available in all regions further down.
  *
+ * Excel cells are read and written as the regions say (excel(), xl(), enviar()). Workbooks are only changed if
+ * excelWrites is true.
+ *
  * The document must not be locked by the caller.
  *
  * @return the indices of the pages whose display changed
  */
-std::vector<size_t> recalculateDocument(Document* doc);
+std::vector<size_t> recalculateDocument(Document* doc, bool excelWrites = true);
 
 }  // namespace xoj::calc

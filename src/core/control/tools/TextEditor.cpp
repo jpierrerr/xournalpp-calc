@@ -443,6 +443,20 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
             }
         }
 
+        // xournalpp-calc: in calculations ":" gives the definition symbol ≔ at once, as in Mathcad; an "=" typed right
+        // after it (out of habit, ":=") is dropped
+        if (!hadSelection && te->textElement->isCalc() && (!strcmp(str, ":") || !strcmp(str, "="))) {
+            GtkTextIter cur = getIteratorAtCursor(te->buffer.get());
+            GtkTextIter prevIt = cur;
+            const bool afterDef = gtk_text_iter_backward_char(&prevIt) && gtk_text_iter_get_char(&prevIt) == 0x2254;
+            if (str[0] == ':') {
+                str = "≔";
+            } else if (afterDef) {
+                gtk_text_buffer_end_user_action(te->buffer.get());
+                return;
+            }
+        }
+
         // xournalpp-calc: two signs typed in a row become one symbol: +- or -+ → ±, -= or =- → ≤, += or =+ → ≥,
         // ++ → >, -- → <  (not after ":", so that ":=-3" stays a definition of a negative value)
         if (!hadSelection && (!strcmp(str, "+") || !strcmp(str, "-") || !strcmp(str, "="))) {

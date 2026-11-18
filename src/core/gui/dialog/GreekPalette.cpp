@@ -193,8 +193,9 @@ GtkWidget* createGreekPalette(Control* control, GtkWindow* parent) {
     }
 
     GtkWidget* hint = gtk_label_new(
-            "En un cuadro de texto: letra + Ctrl+G = griega (a→α, q→θ, W→Ω). Número o letra + Ctrl+RePág = exponente / "
-            "superíndice; + Ctrl+AvPág = subíndice. Ctrl+= pone ≔. Seguidos: +- → ±, -= → ≤, += → ≥, ++ → >, -- → <");
+            "En un cuadro de texto: letra + Ctrl+G = griega (a→α, q→θ, W→Ω). Ctrl+RePág y luego el número o letra = "
+            "exponente / superíndice; Ctrl+AvPág = subíndice. Ctrl+= pone ≔. Seguidos: +- → ±, -= → ≤, += → ≥, ++ → >, "
+            "-- → <");
     gtk_label_set_line_wrap(GTK_LABEL(hint), true);
     gtk_label_set_max_width_chars(GTK_LABEL(hint), 40);
     gtk_widget_set_sensitive(hint, false);

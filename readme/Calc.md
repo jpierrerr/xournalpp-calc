@@ -89,7 +89,7 @@ Con **Alinear a la malla** activado, mientras escribes en un cuadro:
 
 ## Hoja con membrete propio
 
-Si existe la carpeta `membrete` dentro de la carpeta de configuración (en Windows `%LOCALAPPDATA%\xournalpp\membrete`), con un archivo `membrete.ini`, aparece un formato de página más con tus logos y textos: el mismo marco de la hoja de parcial, con el logo izquierdo, el título en el centro, el logo derecho y una fila de campos para llenar.
+Si existe la carpeta `membrete` dentro de la carpeta de configuración (en Windows `%LOCALAPPDATA%\xournal-jackmath\membrete`), con un archivo `membrete.ini`, aparece un formato de página más con tus logos y textos: el mismo marco de la hoja de parcial, con el logo izquierdo, el título en el centro, el logo derecho y una fila de campos para llenar.
 
 ```ini
 [membrete]
@@ -101,3 +101,7 @@ campos=Programa;Hoja de cálculo
 ```
 
 Los logos (PNG o JPG) van en la misma carpeta; el programa recorta el fondo blanco o transparente. Los logos y textos son tuyos y no forman parte del programa. En otro equipo sin esa carpeta, la página se ve como hoja de parcial.
+
+## Carpeta de configuración
+
+Xournal JackMath guarda sus ajustes, barras de herramientas y membrete en su propia carpeta (`xournal-jackmath`; en Windows `%LOCALAPPDATA%\xournal-jackmath`), para no compartirlos con un Xournal++ oficial instalado en el mismo equipo. La primera vez copia automáticamente la carpeta `xournalpp` si existe. El instalador tampoco toca las claves de registro del Xournal++ oficial.

@@ -90,6 +90,7 @@ auto migrateSettings() -> MigrateResult {
 
     if (!fs::exists(newConfigPath)) {
         const std::array oldPaths = {
+                Util::getConfigFolder().parent_path() / "xournalpp",  // xournalpp-calc: before its own folder
                 Util::getConfigFolder().parent_path() / "com.github.xournalpp.xournalpp",
                 Util::getConfigFolder().parent_path() / "com.github.xournalpp.xournalpp.exe",
                 Util::GFilename(g_get_home_dir()).toPath().value_or(fs::path()) / ".xournalpp",
@@ -103,6 +104,10 @@ auto migrateSettings() -> MigrateResult {
             Util::ensureFolderExists(newConfigPath.parent_path());
             try {
                 fs::copy(oldPath, newConfigPath, fs::copy_options::recursive);
+                if (oldPath.filename() == "xournalpp") {
+                    // xournalpp-calc: same settings, only a folder of its own; nothing to tell the user
+                    return {MigrateStatus::NotNeeded, ""};
+                }
                 constexpr auto msg = "Due to a recent update, Xournal++ has changed where its configuration files are "
                                      "stored.\nThey have been automatically copied from\n\t{1}\nto\n\t{2}";
                 return {MigrateStatus::Success, FS(_F(msg) % oldPath.u8string() % newConfigPath.u8string())};

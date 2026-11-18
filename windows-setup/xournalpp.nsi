@@ -98,44 +98,14 @@ Var StartMenuFolder
 ;-------------------------------
 ; Uninstall previous version
 
-Var IsLegacyInstall
 Section "" SecUninstallPrevious
+	; xournalpp-calc: only a previous Xournal JackMath is removed; an official Xournal++ (also the legacy
+	; "Software\Xournalpp" one) is left alone
 	ReadRegStr $R0 SHCTX "Software\Xournal JackMath" ""
-	${If} $R0 == ""
-		; check for legacy installation
-		ReadRegStr $R0 HKCU "Software\Xournalpp" ""
-		${If} $R0 != ""
-			StrCpy $IsLegacyInstall 1
-		${EndIf}
-		SetRegView 64
-	${ENDIF}
 	${If} $R0 != ""
-        DetailPrint "Removing previous version located at $R0"
+		DetailPrint "Removing previous version located at $R0"
 		ExecWait '"$R0\Uninstall.exe /S"'
-
-		${If} $IsLegacyInstall == 1
-			DetailPrint "Detected legacy installation (version 1.0.20 and below), cleaning up old files."
-			RMDir /r "$R0\bin"
-			RMDir /r "$R0\lib"
-			RMDir /r "$R0\share"
-			RMDir /r "$R0\ui"
-			RMDir "$R0"
-
-			; delete old start menu entry
-			DetailPrint "Removing old start menu entries"
-
-			!insertmacro MUI_STARTMENU_GETFOLDER Application $StartMenuFolder
-			Delete "$SMPROGRAMS\$StartMenuFolder\Xournal++.lnk"
-			Delete "$SMPROGRAMS\$StartMenuFolder\Uninstall.lnk"
-			RMDir "$SMPROGRAMS\$StartMenuFolder"
-			
-			DetailPrint "Removing old registry keys"
-			DeleteRegKey HKLM "Software\Classes\Xournal++ file"
-			DeleteRegKey HKLM "Software\Classes\Xournal++ Template Files"
-			DeleteRegKey HKLM "Software\Classes\Xournal file"
-			DeleteRegKey HKCU "Software\Xournalpp"
-		${EndIf}
-    ${EndIf}
+	${EndIf}
 SectionEnd
 
 ;-------------------------------
@@ -148,7 +118,6 @@ SectionEnd
 
 !macro RegisterExt EXT PROGID
 	WriteRegStr SHCTX "Software\Classes\${EXT}\OpenWithProgIds" "${PROGID}" ""
-	WriteRegStr SHCTX "Software\Classes\Applications\xournalpp.exe\SupportedTypes" "${EXT}" ""
 !macroend
 
 !macro AddProgId PROGID CMD DESC
@@ -262,10 +231,8 @@ Section "Xournal JackMath" SecXournalpp
 	WriteRegStr SHCTX "Software\Xournal JackMath" "" '"$INSTDIR"'
 
 	; Set program information
-	WriteRegStr SHCTX "Software\Classes\Applications\xournalpp.exe" "" '"$INSTDIR\bin\xournalpp-wrapper.exe"'
-	WriteRegStr SHCTX "Software\Classes\Applications\xournalpp.exe" "FriendlyAppName" "Xournal JackMath"
-	WriteRegExpandStr SHCTX "Software\Classes\Applications\xournalpp.exe" "DefaultIcon" '"$INSTDIR\bin\xournalpp-wrapper.exe",0'
-	WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\App Paths\xournalpp.exe" "" '"$INSTDIR\bin\xournalpp-wrapper.exe"'
+	; xournalpp-calc: the keys Applications\xournalpp.exe and App Paths\xournalpp.exe are left to the official
+	; Xournal++ (same exe name); JackMath opens its files through its own ProgIds (XournalJackMath.*)
 
 	; Add file type information
 	!insertmacro RegisterExt ".xopp" "XournalJackMath.File"
@@ -339,8 +306,6 @@ Section "Uninstall"
 
 	; Remove registry keys
 	DeleteRegKey SHCTX "Software\Xournal JackMath"
-	DeleteRegKey SHCTX "Software\Classes\Applications\xournalpp.exe"
-	DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\App Paths\xournalpp.exe"
 	DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\Xournal JackMath"
 
 	!insertmacro DeleteProgId "XournalJackMath.File"

@@ -4913,3 +4913,27 @@ msgstr "Malla visible"
 
 msgid "Grid visible"
 msgstr "Malla visible"
+
+msgid "Convert Handwriting to Equation"
+msgstr "Convertir escritura a ecuación"
+
+msgid "Convert Handwriting to Text"
+msgstr "Convertir escritura a texto"
+
+msgid "Convert handwriting to equation"
+msgstr "Convertir escritura a ecuación"
+
+msgid "Convert handwriting to text"
+msgstr "Convertir escritura a texto"
+
+msgid "Convert to Equation While Writing"
+msgstr "Convertir a ecuación mientras escribo"
+
+msgid "Convert to equation while writing"
+msgstr "Convertir a ecuación mientras escribo"
+
+msgid "Convert to Text While Writing"
+msgstr "Convertir a texto mientras escribo"
+
+msgid "Convert to text while writing"
+msgstr "Convertir a texto mientras escribo"

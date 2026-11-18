@@ -210,6 +210,11 @@ void StrokeHandler::onButtonReleaseEvent(const PositionInputData& pos, double zo
     this->viewPool->dispatchAndClear(xoj::view::StrokeToolView::FINALIZATION_REQUEST, Range());
 
     page->fireElementChanged(ptr);
+
+    // xournalpp-calc: live conversion of handwriting into calculation regions
+    if (ptr->getToolType() == StrokeTool::PEN) {
+        control->inkStrokeFinished(page, ptr);
+    }
 }
 
 void StrokeHandler::strokeRecognizerDetected(std::unique_ptr<Stroke> recognized, Layer* layer) {
@@ -262,6 +267,7 @@ void StrokeHandler::onButtonPressEvent(const PositionInputData& pos, double zoom
     this->buttonDownPoint.y = pos.y / zoom;
 
     stroke = createStroke(this->control);
+    this->control->inkStrokeStarted();
 
     this->hasPressure = this->stroke->getToolType().isPressureSensitive() && pos.pressure != Point::NO_PRESSURE;
 

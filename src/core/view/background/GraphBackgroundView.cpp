@@ -22,6 +22,16 @@ GraphBackgroundView::GraphBackgroundView(double pageWidth, double pageHeight, Co
     config.loadValue(CFG_BOLD_LINE_INTERVAL, boldLineInterval);
     config.loadValue(CFG_BOLD_LINE_WIDTH, boldLineWidth);
 
+    config.loadValue(CFG_V_LINE, vLine);
+    if (vLine < 0) {
+        vLine += pageWidth;
+    }
+    if (backgroundColor.isLight()) {
+        vLineColor = getColorOr(config, CFG_FOREGROUND_COLOR_2, DEFAULT_V_LINE_COLOR);
+    } else {
+        vLineColor = getColorOr(config, CFG_ALT_FOREGROUND_COLOR_2, ALT_DEFAULT_V_LINE_COLOR);
+    }
+
     if (int roundToGrid = 0; margin > 0.0 && config.loadValue(CFG_ROUND_MARGIN, roundToGrid) && roundToGrid) {
         roundUpMargin = true;
     }
@@ -129,6 +139,16 @@ void GraphBackgroundView::draw(cairo_t* cr) const {
                 cairo_line_to(cr, maxX, y);
             }
         }
+        cairo_stroke(cr);
+    }
+
+    if (vLine > 0) {
+        // Vertical margin line, as on ruled paper with a vertical line
+        Util::cairo_set_source_rgbi(cr, vLineColor);
+        cairo_set_line_width(cr, lineWidth);
+        cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
+        cairo_move_to(cr, vLine, 0);
+        cairo_line_to(cr, vLine, pageHeight);
         cairo_stroke(cr);
     }
 

@@ -58,6 +58,7 @@ Dos botones (también en el menú Herramientas):
 La malla es la misma en todos los formatos, para que los apuntes no se desordenen al cambiar el fondo de la hoja:
 
 - Cuadriculado: puntos en las esquinas de los cuadros de 5 mm.
+- Cuadriculado con línea vertical: igual, con la línea roja de margen a 5 cuadros del borde izquierdo (como la hoja de renglones). En el archivo es `format=graph` con `vm=70.85`, así que el Xournal++ original lo abre como cuadriculado normal.
 - Renglones: los renglones están cada **2 cuadros** (10 mm), el primero a 6 cuadros del borde superior y el margen vertical a 5 cuadros del borde izquierdo, así que caen sobre la malla.
 - Hoja en blanco: la misma malla de 5 mm.
 - Los renglones de escritura están cada 2 filas de puntos en todos los formatos.

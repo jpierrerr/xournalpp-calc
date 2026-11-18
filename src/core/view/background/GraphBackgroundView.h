@@ -33,10 +33,15 @@ protected:
     double squareSize = 14.17;  // 5mm
     int boldLineInterval = 0;   // 0 means no bold lines, otherwise every Nth line is bold
     double boldLineWidth = 1.5;
+    double vLine =
+            0.0;  ///< x of the vertical margin line, as on ruled paper ("vm"); 0 = none, negative = from the right
+    Color vLineColor;
 
     constexpr static Color DEFAULT_LINE_COLOR = Colors::xopp_silver;
     constexpr static Color ALT_DEFAULT_LINE_COLOR = Colors::xopp_darkslategray;
     constexpr static double DEFAULT_LINE_WIDTH = 0.5;
     constexpr static double DEFAULT_BOLD_LINE_WIDTH = 1.5;
+    constexpr static Color DEFAULT_V_LINE_COLOR = Colors::xopp_deeppink;
+    constexpr static Color ALT_DEFAULT_V_LINE_COLOR = Colors::xopp_midnightblue;
 };
 };  // namespace xoj::view

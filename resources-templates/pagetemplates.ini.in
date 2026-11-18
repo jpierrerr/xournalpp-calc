@@ -25,6 +25,11 @@ format=staves
 name=Graph
 format=graph
 
+[graphLined]
+name=Graph with vertical line
+format=graph
+config=vm=70.85
+
 [predefinedDotted]
 name=Dotted
 format=dotted

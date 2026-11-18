@@ -650,6 +650,9 @@ msgstr "Pentagramas"
 msgid "Graph"
 msgstr "Cuadriculado"
 
+msgid "Graph with vertical line"
+msgstr "Cuadriculado con línea vertical"
+
 #: ../src/core/control/pagetype/PageTypeHandler.cpp:37
 msgid "Dotted"
 msgstr "Punteada"

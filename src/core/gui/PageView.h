@@ -104,6 +104,8 @@ public:
     inline bool isVisible() const { return visible; }
 
     void endText();
+    /// xournalpp-calc: whether a non-empty text box of the active layer is under the point
+    bool isTextAt(double x, double y) const;
 
     void endLink();
 

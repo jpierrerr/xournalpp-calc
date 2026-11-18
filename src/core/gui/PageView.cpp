@@ -495,8 +495,7 @@ auto XojPageView::onButtonDoublePressEvent(const PositionInputData& pos) -> bool
                 this->startEditingOnButtonRelease = true;
             }
         }
-    } else if (toolType == TOOL_TEXT && this->textEditor && this->textEditor->getTextElement() &&
-               this->textEditor->getTextElement()->getText().empty()) {
+    } else if (toolType == TOOL_TEXT && !this->isTextAt(x, y)) {
         // xournalpp-calc: double click on an empty spot with the text tool: draw a selection rectangle from here (to
         // move or delete a group of elements). With "Align to grid", this point is then put on the grid when moving
         this->endText();
@@ -526,6 +525,28 @@ auto XojPageView::onButtonDoublePressEvent(const PositionInputData& pos) -> bool
     }
 
     return true;
+}
+
+auto XojPageView::isTextAt(double x, double y) const -> bool {
+    // xournalpp-calc: a text (or calculation) box of the active layer, other than an empty one being created, under
+    // the point
+    Layer* layer = this->page->getSelectedLayer();
+    if (!layer) {
+        return false;
+    }
+    for (const Element* e: layer->getElementsView()) {
+        if (e->getType() != ELEMENT_TEXT) {
+            continue;
+        }
+        if (static_cast<const Text*>(e)->getText().empty()) {
+            continue;
+        }
+        const auto& box = e->getBoundingBox();
+        if (x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height) {
+            return true;
+        }
+    }
+    return false;
 }
 
 auto XojPageView::onButtonTriplePressEvent(const PositionInputData& pos) -> bool {

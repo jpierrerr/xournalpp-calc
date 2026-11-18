@@ -8,7 +8,9 @@
 
 namespace xoj::helper {
 auto createPreviewImage(const PageType& pt) -> GtkWidget* {
-    const double zoom = 0.5;
+    // Formats with a header (exam sheet, letterhead) are shown as a whole A4 page, so that the header fits
+    const bool hasHeader = pt.config.find("ex=1") != std::string::npos || pt.config.find("lh=1") != std::string::npos;
+    const double zoom = hasHeader ? PREVIEW_WIDTH / 595.28 : 0.5;
 
     xoj::util::CairoSurfaceSPtr surface(cairo_image_surface_create(CAIRO_FORMAT_ARGB32, PREVIEW_WIDTH, PREVIEW_HEIGHT),
                                         xoj::util::adopt);
@@ -18,7 +20,7 @@ auto createPreviewImage(const PageType& pt) -> GtkWidget* {
     cairo_scale(cr, zoom, zoom);
 
     auto bgView = xoj::view::BackgroundView::createRuled(PREVIEW_WIDTH / zoom, PREVIEW_HEIGHT / zoom, Colors::white, pt,
-                                                         1. / zoom);
+                                                         hasHeader ? 2.0 : 1. / zoom);
     bgView->draw(cr);
 
     cairo_identity_matrix(cr);

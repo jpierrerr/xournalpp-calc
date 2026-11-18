@@ -145,6 +145,10 @@ void onSymbolClicked(GtkButton* button, Control* control) {
         // No text box being edited: copy it, so that it can be pasted anywhere
         gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), symbol, -1);
     }
+    // Close the palette once a symbol is picked
+    if (GtkWidget* win = gtk_widget_get_toplevel(GTK_WIDGET(button)); win && gtk_widget_is_toplevel(win)) {
+        gtk_widget_hide(win);
+    }
 }
 
 GtkWidget* makeSection(Control* control, const Section& s) {

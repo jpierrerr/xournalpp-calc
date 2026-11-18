@@ -1307,7 +1307,9 @@ void Control::calcGridGoTo(const PageRef& page, double x, double line, double bo
                 xournal->scrollTo(idx, {x - 3 * grid.dx, line - 3 * grid.linePitch(), x + 8 * grid.dx,
                                         line + 2 * grid.linePitch()});
                 // The new box snaps its baseline to the writing line closest to this point
+                c->calcGridExactLine = line;
                 view->startText(x, line - 3.0);
+                c->calcGridExactLine.reset();
                 return G_SOURCE_REMOVE;
             },
             new Target{this, page, x, line, boxX, boxY}, +[](gpointer data) { delete static_cast<Target*>(data); });

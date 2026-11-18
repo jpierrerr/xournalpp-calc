@@ -1,10 +1,11 @@
 #include "TextEditor.h"
 
-#include <cmath>    // for ceil
-#include <cstring>  // for strcmp, size_t
-#include <memory>   // for allocator, make_unique, __shared_p...
-#include <string>   // for std::string()
-#include <utility>  // for move
+#include <algorithm>  // for count
+#include <cmath>      // for ceil
+#include <cstring>    // for strcmp, size_t
+#include <memory>     // for allocator, make_unique, __shared_p...
+#include <string>     // for std::string()
+#include <utility>    // for move
 
 #include <gdk/gdkkeysyms.h>  // for GDK_KEY_B, GDK_KEY_ISO_Enter, GDK_...
 #include <glib-object.h>     // for g_object_get, g_object_unref, G_CA...
@@ -549,7 +550,7 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
     Text* t = this->textElement.get();
     const double lh = t->getLineHeight() > 0 ? t->getLineHeight() : grid.pitchFor(t->naturalLineHeight());
     const auto& origin = t->getOrigin();
-    const double firstLine = grid.snapY(origin.y + t->firstBaseline() + xoj::calc::BASELINE_LIFT);
+    const double firstLine = grid.snapRow(origin.y + t->firstBaseline() + xoj::calc::BASELINE_LIFT);
     const double lastLine = firstLine + (nLines - 1) * lh;
     const double x = grid.snapX(origin.x);
     // Leave one empty square of the grid after the box
@@ -567,10 +568,10 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
         line = empty ? firstLine : lastLine;
     } else if (left) {
         nx = x - grid.dx;
-    } else if (up) {
-        line = firstLine - (empty ? grid.linePitch() : lh);
+    } else if (up) {  // the arrows move one row of dots
+        line = firstLine - grid.dy;
     } else {  // down
-        line = lastLine + (empty ? grid.linePitch() : lh);
+        line = lastLine + grid.dy;
     }
     if ((enter || right) && !empty) {
         // Start after the box as it will be displayed (with the results, for a calculation region)
@@ -1338,9 +1339,22 @@ void TextEditor::initializeEditionAt(double x, double y) {
     std::shared_lock lock(*this->control->getDocument());
 
     // Should we reverse this loop to select the most recent text rather than the oldest?
+    const auto exactLine = this->control->getCalcGridExactLine();
     for (auto&& e: this->page->getSelectedLayer()->getElements()) {
         if (e->getType() == ELEMENT_TEXT && e->hasBoundingBoxContaining(x, y)) {
-            text = dynamic_cast<Text*>(e.get());
+            auto* t = dynamic_cast<Text*>(e.get());
+            if (exactLine && t) {
+                // Grid navigation: only enter a text that has a line on the requested row of dots
+                auto grid = xoj::calc::alignmentGrid(this->page->getBackgroundType(), this->page->getWidth(),
+                                                     this->page->getHeight());
+                const double first = t->getOrigin().y + t->firstBaseline() + xoj::calc::BASELINE_LIFT;
+                const double pitch = t->getLineHeight() > 0 ? t->getLineHeight() : t->naturalLineHeight();
+                const auto lines = std::count(t->getText().begin(), t->getText().end(), '\n');
+                if (*exactLine < first - grid.dy / 2 || *exactLine > first + lines * pitch + grid.dy / 2) {
+                    continue;
+                }
+            }
+            text = t;
             break;
         }
     }
@@ -1363,7 +1377,8 @@ void TextEditor::initializeEditionAt(double x, double y) {
             double lineH = this->textElement->naturalLineHeight();
             this->textElement->setLineHeight(grid.pitchFor(lineH));
             // The letters sit 1 mm above the line, so that the dots do not cut them
-            double baseline = grid.snapY(y + 0.25 * lineH) - xoj::calc::BASELINE_LIFT;
+            double baseline = this->control->getCalcGridExactLine().value_or(grid.snapY(y + 0.25 * lineH)) -
+                              xoj::calc::BASELINE_LIFT;
             this->textElement->setTransformation(
                     xoj::util::Matrix::TRANSLATION(grid.snapX(x), baseline - this->textElement->firstBaseline()));
         }

@@ -300,6 +300,8 @@ public:
     /// If (boxX, boxY) is a point of the box being closed, x is instead the first dot one square after that box, as
     /// displayed once recalculated (a calculation region grows with its results).
     void calcGridGoTo(const PageRef& page, double x, double line, double boxX = -1, double boxY = -1);
+    /// xournalpp-calc: the writing line requested by calcGridGoTo while it opens the next text box
+    std::optional<double> getCalcGridExactLine() const { return calcGridExactLine; }
     /// xournalpp-calc: show the dots of the alignment grid (independent of the alignment itself)
     void setCalcGridVisible(bool visible);
     bool isCalcGridVisible() const { return calcGridVisible; }
@@ -411,6 +413,7 @@ protected:
 
 private:
     guint calcUpdateSource = 0;
+    std::optional<double> calcGridExactLine;
     bool calcMode = false;
     bool calcGrid = false;
     bool calcGridVisible = false;

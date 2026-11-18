@@ -19,6 +19,8 @@ double AlignGrid::snapX(double x) const { return x0 + std::round((x - x0) / dx) 
 
 double AlignGrid::snapY(double y) const { return y0 + std::round((y - y0) / linePitch()) * linePitch(); }
 
+double AlignGrid::snapRow(double y) const { return y0 + std::round((y - y0) / dy) * dy; }
+
 double AlignGrid::pitchFor(double h) const { return linePitch() * std::max(1.0, std::ceil(h / linePitch() - 0.05)); }
 
 AlignGrid alignmentGrid(const PageType& background, double pageWidth, double pageHeight) {

@@ -33,6 +33,8 @@ struct AlignGrid {
     double snapX(double x) const;
     /// The writing line closest to y
     double snapY(double y) const;
+    /// The row of dots closest to y
+    double snapRow(double y) const;
     /// Smallest multiple of the line pitch that is at least h (minus a small tolerance)
     double pitchFor(double h) const;
 };

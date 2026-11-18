@@ -56,6 +56,9 @@ std::string prettifyMarkup(std::string_view s, const Environment* env) {
         if (c == '*') {
             out += "·";
             i++;
+        } else if (c == ':' && i + 1 < s.size() && s[i + 1] == '=') {
+            out += "≔";  // ":=" is shown as the definition symbol
+            i += 2;
         } else if (c == '^') {
             i++;
             if (i < s.size() && s[i] == '(') {

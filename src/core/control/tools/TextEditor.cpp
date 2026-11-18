@@ -366,6 +366,39 @@ void TextEditor::afterFontChange() {
     this->repaintEditor();
 }
 
+namespace {
+/// Unicode superscript / subscript of a character, or nullptr if there is none
+const char* scriptChar(gunichar c, bool superscript) {
+    static const char* const SUP_DIGITS[] = {"⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"};
+    static const char* const SUB_DIGITS[] = {"₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"};
+    if (c >= '0' && c <= '9') {
+        return (superscript ? SUP_DIGITS : SUB_DIGITS)[c - '0'];
+    }
+    static const char* const SUP_LOWER[] = {"ᵃ", "ᵇ", "ᶜ", "ᵈ",     "ᵉ", "ᶠ", "ᵍ", "ʰ", "ⁱ", "ʲ", "ᵏ", "ˡ", "ᵐ",
+                                            "ⁿ", "ᵒ", "ᵖ", nullptr, "ʳ", "ˢ", "ᵗ", "ᵘ", "ᵛ", "ʷ", "ˣ", "ʸ", "ᶻ"};
+    static const char* const SUB_LOWER[] = {"ₐ", nullptr, nullptr, nullptr, "ₑ",     nullptr, nullptr, "ₕ",     "ᵢ",
+                                            "ⱼ", "ₖ",     "ₗ",     "ₘ",     "ₙ",     "ₒ",     "ₚ",     nullptr, "ᵣ",
+                                            "ₛ", "ₜ",     "ᵤ",     "ᵥ",     nullptr, "ₓ",     nullptr, nullptr};
+    if (c >= 'a' && c <= 'z') {
+        return (superscript ? SUP_LOWER : SUB_LOWER)[c - 'a'];
+    }
+    switch (c) {
+        case '+':
+            return superscript ? "⁺" : "₊";
+        case '-':
+            return superscript ? "⁻" : "₋";
+        case '=':
+            return superscript ? "⁼" : "₌";
+        case '(':
+            return superscript ? "⁽" : "₍";
+        case ')':
+            return superscript ? "⁾" : "₎";
+        default:
+            return nullptr;
+    }
+}
+}  // namespace
+
 void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextEditor* te) {
     gtk_text_buffer_begin_user_action(te->buffer.get());
 
@@ -386,6 +419,27 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
             auto insert = getIteratorAtCursor(te->buffer.get());
             if (!gtk_text_iter_ends_line(&insert)) {
                 te->deleteFromCursor(GTK_DELETE_CHARS, 1);
+            }
+        }
+
+        // xournalpp-calc: after Ctrl+PgUp / Ctrl+PgDown, the character typed goes up (exponent) or down (subscript)
+        std::string scripted;
+        if (te->pendingScript != 0 && !hadSelection && g_utf8_strlen(str, -1) == 1) {
+            const gunichar c = g_utf8_get_char(str);
+            const bool sup = te->pendingScript > 0;
+            if (te->textElement->isCalc()) {
+                // Calculations: "1 m" + Ctrl+PgUp + "2" → "1 m^2" (shown m²); "A" + Ctrl+PgDown + "s" → "A_s" (Aₛ).
+                // Following digits or letters stay in the exponent / subscript by themselves
+                te->pendingScript = 0;
+                if (g_unichar_isalnum(c) || (sup && (c == '-' || c == '('))) {
+                    scripted = std::string(sup ? "^" : "_") + str;
+                    str = scripted.c_str();
+                }
+            } else if (const char* sc = scriptChar(c, sup)) {
+                // Plain text: Unicode superscript / subscript characters, until one has none (e.g. a space)
+                str = sc;
+            } else {
+                te->pendingScript = 0;
             }
         }
 
@@ -440,89 +494,6 @@ void TextEditor::insertText(const std::string& str) {
     }
 }
 
-namespace {
-/// Unicode superscript / subscript of a character, or nullptr if there is none
-const char* scriptChar(gunichar c, bool superscript) {
-    static const char* const SUP_DIGITS[] = {"⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"};
-    static const char* const SUB_DIGITS[] = {"₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"};
-    if (c >= '0' && c <= '9') {
-        return (superscript ? SUP_DIGITS : SUB_DIGITS)[c - '0'];
-    }
-    static const char* const SUP_LOWER[] = {"ᵃ", "ᵇ", "ᶜ", "ᵈ",     "ᵉ", "ᶠ", "ᵍ", "ʰ", "ⁱ", "ʲ", "ᵏ", "ˡ", "ᵐ",
-                                            "ⁿ", "ᵒ", "ᵖ", nullptr, "ʳ", "ˢ", "ᵗ", "ᵘ", "ᵛ", "ʷ", "ˣ", "ʸ", "ᶻ"};
-    static const char* const SUB_LOWER[] = {"ₐ", nullptr, nullptr, nullptr, "ₑ",     nullptr, nullptr, "ₕ",     "ᵢ",
-                                            "ⱼ", "ₖ",     "ₗ",     "ₘ",     "ₙ",     "ₒ",     "ₚ",     nullptr, "ᵣ",
-                                            "ₛ", "ₜ",     "ᵤ",     "ᵥ",     nullptr, "ₓ",     nullptr, nullptr};
-    if (c >= 'a' && c <= 'z') {
-        return (superscript ? SUP_LOWER : SUB_LOWER)[c - 'a'];
-    }
-    switch (c) {
-        case '+':
-            return superscript ? "⁺" : "₊";
-        case '-':
-            return superscript ? "⁻" : "₋";
-        case '=':
-            return superscript ? "⁼" : "₌";
-        case '(':
-            return superscript ? "⁽" : "₍";
-        case ')':
-            return superscript ? "⁾" : "₎";
-        default:
-            return nullptr;
-    }
-}
-}  // namespace
-
-void TextEditor::scriptBeforeCursor(bool superscript) {
-    // The number (or the letter) just before the cursor becomes an exponent / superscript or a subscript
-    GtkTextIter end = getIteratorAtCursor(this->buffer.get());
-    GtkTextIter start = end;
-    if (!gtk_text_iter_backward_char(&start)) {
-        gtk_widget_error_bell(this->xournalWidget);
-        return;
-    }
-    gunichar c = gtk_text_iter_get_char(&start);
-    if (g_unichar_isdigit(c)) {
-        GtkTextIter prev = start;
-        while (gtk_text_iter_backward_char(&prev)) {
-            gunichar p = gtk_text_iter_get_char(&prev);
-            if (!g_unichar_isdigit(p) && p != '.') {
-                break;
-            }
-            start = prev;
-        }
-    } else if (!g_unichar_isalpha(c)) {
-        gtk_widget_error_bell(this->xournalWidget);
-        return;
-    }
-
-    gtk_text_buffer_begin_user_action(this->buffer.get());
-    if (this->textElement->isCalc()) {
-        // Calculations: "x2" → "x^2" (exponent), "As" → "A_s" (subscript); shown raised or lowered
-        gtk_text_buffer_insert(this->buffer.get(), &start, superscript ? "^" : "_", 1);
-    } else {
-        // Plain text: Unicode superscript / subscript characters, where they exist
-        auto text = xoj::util::OwnedCString::assumeOwnership(gtk_text_iter_get_text(&start, &end));
-        std::string out;
-        for (const char* p = text.get(); *p; p = g_utf8_next_char(p)) {
-            const char* sc = scriptChar(g_utf8_get_char(p), superscript);
-            if (!sc) {
-                out.clear();
-                break;
-            }
-            out += sc;
-        }
-        if (out.empty()) {
-            gtk_widget_error_bell(this->xournalWidget);
-        } else {
-            gtk_text_buffer_delete(this->buffer.get(), &start, &end);
-            gtk_text_buffer_insert_at_cursor(this->buffer.get(), out.c_str(), -1);
-        }
-    }
-    gtk_text_buffer_end_user_action(this->buffer.get());
-    this->contentsChanged();
-    this->repaintEditor();
-}
 
 void TextEditor::insertDefinition() { insertText("≔"); }
 
@@ -607,6 +578,24 @@ auto TextEditor::imDeleteSurroundingCallback(GtkIMContext* context, gint offset,
 }
 
 auto TextEditor::onKeyPressEvent(const KeyEvent& event) -> bool {
+    // xournalpp-calc: Ctrl+= inserts ≔. On Spanish keyboards "=" is Shift+0, and with Ctrl held some systems report
+    // the key as "0" or ")", so all of them are accepted (Ctrl+Shift+0)
+    if ((event.state & GDK_CONTROL_MASK) && !(event.state & GDK_MOD1_MASK)) {
+        const guint k = event.keyval;
+        if (k == GDK_KEY_equal || k == GDK_KEY_KP_Equal || k == GDK_KEY_0 || k == GDK_KEY_parenright) {
+            insertDefinition();
+            return true;
+        }
+    }
+    // Keys that are not text (arrows, Enter, Backspace…) cancel a pending exponent / subscript
+    if (this->pendingScript != 0 && gdk_keyval_to_unicode(event.keyval) == 0 &&
+        !(event.keyval >= GDK_KEY_Shift_L && event.keyval <= GDK_KEY_Hyper_R) &&
+        !(event.keyval == GDK_KEY_ISO_Level3_Shift) &&
+        !((event.state & GDK_CONTROL_MASK) &&
+          (event.keyval == GDK_KEY_Page_Up || event.keyval == GDK_KEY_Page_Down || event.keyval == GDK_KEY_KP_Page_Up ||
+           event.keyval == GDK_KEY_KP_Page_Down))) {
+        this->pendingScript = 0;
+    }
 
     // IME needs to handle the input first so the candidate window works correctly
     if (gtk_im_context_filter_keypress(this->imContext.get(), event.sourceEvent)) {

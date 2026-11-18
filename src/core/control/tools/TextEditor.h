@@ -105,10 +105,11 @@ public:
 private:
     void toggleOverwrite();
     void toggleBoldFace();
-    void superscriptBeforeCursor() { scriptBeforeCursor(true); }  ///< Ctrl+PgUp: exponent / superscript
-    void subscriptBeforeCursor() { scriptBeforeCursor(false); }   ///< Ctrl+PgDown: subscript
-    void insertDefinition();                                      ///< Ctrl+= : definition symbol ≔
-    void scriptBeforeCursor(bool superscript);
+    /// Ctrl+PgUp / Ctrl+PgDown: what is typed next becomes an exponent (superscript) or a subscript; pressing it
+    /// again cancels
+    void superscriptBeforeCursor() { pendingScript = pendingScript == 1 ? 0 : 1; }
+    void subscriptBeforeCursor() { pendingScript = pendingScript == -1 ? 0 : -1; }
+    void insertDefinition();      ///< Ctrl+= : definition symbol ≔
     void greekifyBeforeCursor();  ///< Mathcad-style Ctrl+G: replace the latin letter before the cursor by a Greek one
     /// xournalpp-calc: Enter, Tab and the arrows move to another box on the alignment grid. True if handled
     bool handleGridNavigation(const KeyEvent& event);
@@ -238,6 +239,7 @@ private:
     bool needImReset = false;
     bool mouseDown = false;
     bool cursorOverwrite = false;
+    int pendingScript = 0;  ///< 1: the next character typed is an exponent / superscript; -1: a subscript
     bool cursorVisible = false;
 
     // In a blinking period, how much time is the cursor visible vs not visible

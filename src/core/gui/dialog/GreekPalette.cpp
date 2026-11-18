@@ -110,9 +110,9 @@ std::string tooltipFor(const char* symbol) {
     }
     // Keyboard shortcuts of the text boxes
     static const SymbolName SHORTCUTS[] = {
-            {"²", "número y Ctrl+RePág (Page Up): exponente"},
-            {"³", "número y Ctrl+RePág (Page Up): exponente"},
-            {"⁻¹", "número y Ctrl+RePág (Page Up): exponente"},
+            {"²", "Ctrl+RePág (Page Up) y luego el número: exponente"},
+            {"³", "Ctrl+RePág (Page Up) y luego el número: exponente"},
+            {"⁻¹", "Ctrl+RePág (Page Up) y luego el número: exponente"},
             {"±", "escribe +- o -+"},
             {"≤", "escribe -= o =-"},
             {"≥", "escribe += o =+"},

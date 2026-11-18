@@ -131,6 +131,9 @@ const TextEditor::KeyBindings TextEditor::keyBindings(
          {KeyBindings::hash(CTRL, GDK_KEY_b), wrap<&TextEditor::toggleBoldFace>},
          {KeyBindings::hash(CTRL, GDK_KEY_B), wrap<&TextEditor::toggleBoldFace>},
 
+         {KeyBindings::hash(CTRL, GDK_KEY_g), wrap<&TextEditor::greekifyBeforeCursor>},
+         {KeyBindings::hash(CTRL, GDK_KEY_G), wrap<&TextEditor::greekifyBeforeCursor>},
+
          {KeyBindings::hash(CTRL, GDK_KEY_plus), wrap<&TextEditor::increaseFontSize>},
          {KeyBindings::hash(CTRL, GDK_KEY_KP_Add), wrap<&TextEditor::increaseFontSize>},
 

@@ -814,6 +814,25 @@ struct ActionProperties<Action::TEXT_ALIGNMENT> {
 };
 
 template <>
+struct ActionProperties<Action::CALC_MODE> {
+    using state_type = bool;
+    static state_type initialState(Control* ctrl) { return ctrl->isCalcMode(); }
+    static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
+        g_simple_action_set_state(ga, p);
+        bool enabled = g_variant_get_boolean(p);
+        ctrl->setCalcMode(enabled);
+        if (enabled && ctrl->getToolHandler()->getToolType() != TOOL_TEXT) {
+            ctrl->selectTool(TOOL_TEXT);
+        }
+    }
+};
+
+template <>
+struct ActionProperties<Action::GREEK_PALETTE> {
+    static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->showGreekPalette(); }
+};
+
+template <>
 struct ActionProperties<Action::TEXT_JUSTIFY> {
     using state_type = bool;
     static state_type initialState(Control* ctrl) { return ctrl->getToolHandler()->getTextJustify(); }

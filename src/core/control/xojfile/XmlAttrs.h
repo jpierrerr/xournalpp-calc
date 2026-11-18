@@ -58,6 +58,7 @@ constexpr auto X_COORD_STR = u8"x";  // also in link
 constexpr auto Y_COORD_STR = u8"y";  // also in link
 constexpr auto ALIGN_STR = u8"align";  // also in link
 constexpr auto JUSTIFY_STR = u8"justify";
+constexpr auto CALC_STR = u8"calc";  ///< xournalpp-calc: the text is a calculation region
 
 // image
 constexpr auto LEFT_POS_STR = u8"left";      // also in teximage

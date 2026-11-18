@@ -8,6 +8,7 @@
 #include <gdk/gdkkeysyms.h>  // for GDK_KEY_B, GDK_KEY_ISO_Enter, GDK_...
 #include <glib-object.h>     // for g_object_get, g_object_unref, G_CA...
 
+#include "calc/CalcEngine.h"  // for greekForLatin
 #include "control/AudioController.h"
 #include "control/Control.h"  // for Control
 #include "control/actions/ActionDatabase.h"
@@ -393,6 +394,38 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
     gtk_text_buffer_end_user_action(te->buffer.get());
     te->contentsChanged();
     te->repaintEditor();
+}
+
+void TextEditor::setCalc(bool calc) {
+    this->textElement->setCalc(calc);
+    this->repaintEditor();
+}
+
+void TextEditor::insertText(const std::string& str) {
+    if (!str.empty()) {
+        iMCommitCallback(nullptr, str.c_str(), this);
+    }
+}
+
+void TextEditor::greekifyBeforeCursor() {
+    GtkTextIter end = getIteratorAtCursor(this->buffer.get());
+    GtkTextIter start = end;
+    if (!gtk_text_iter_backward_char(&start)) {
+        gtk_widget_error_bell(this->xournalWidget);
+        return;
+    }
+    gunichar c = gtk_text_iter_get_char(&start);
+    std::string greek = c < 128 ? xoj::calc::greekForLatin(static_cast<char>(c)) : "";
+    if (greek.empty()) {
+        gtk_widget_error_bell(this->xournalWidget);
+        return;
+    }
+    gtk_text_buffer_begin_user_action(this->buffer.get());
+    gtk_text_buffer_delete(this->buffer.get(), &start, &end);
+    gtk_text_buffer_insert_at_cursor(this->buffer.get(), greek.c_str(), -1);
+    gtk_text_buffer_end_user_action(this->buffer.get());
+    this->contentsChanged();
+    this->repaintEditor();
 }
 
 void TextEditor::iMPreeditChangedCallback(GtkIMContext* context, TextEditor* te) {
@@ -1247,6 +1280,7 @@ void TextEditor::initializeEditionAt(double x, double y) {
                 xoj::util::Matrix::TRANSLATION(x, y - this->textElement->getBoundingBox().height / 2));
         this->textElement->setAlignment(h->getTextAlignment());
         this->textElement->setJustify(h->getTextJustify());
+        this->textElement->setCalc(this->control->isCalcMode());
 
 #ifdef ENABLE_AUDIO
         if (auto audioController = control->getAudioController(); audioController && audioController->isRecording()) {

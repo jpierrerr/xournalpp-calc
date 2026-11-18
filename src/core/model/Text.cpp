@@ -39,6 +39,8 @@ auto Text::cloneText() const -> std::unique_ptr<Text> {
     text->wrapWidth = this->wrapWidth;
     text->align = this->align;
     text->justify = this->justify;
+    text->calc = this->calc;
+    text->calcMarkup = this->calcMarkup;
 
     return text;
 }
@@ -97,9 +99,26 @@ Text::Boxes Text::computeBoxesForLayout(PangoLayout* layout, double wrapWidth) {
     return res;
 }
 
+bool Text::setCalcMarkup(std::string markup) {
+    if (markup == this->calcMarkup) {
+        return false;
+    }
+    this->calcMarkup = std::move(markup);
+    sizeCalculated = false;
+    return true;
+}
+
+void Text::applyDisplayContent(PangoLayout* layout) const {
+    if (this->calc && !this->inEditing && !this->calcMarkup.empty()) {
+        pango_layout_set_markup(layout, this->calcMarkup.c_str(), static_cast<int>(this->calcMarkup.length()));
+    } else {
+        pango_layout_set_text(layout, this->text.c_str(), static_cast<int>(this->text.length()));
+    }
+}
+
 void Text::calcSize() const {
     auto layout = createPangoLayout();
-    pango_layout_set_text(layout.get(), this->text.c_str(), static_cast<int>(this->text.length()));
+    applyDisplayContent(layout.get());
 
     auto boxes = computeBoxesForLayout(layout.get(), this->wrapWidth);
     this->naturalSize = boxes.theoreticalSize;
@@ -112,7 +131,12 @@ void Text::calcSize() const {
     this->sizeCalculated = true;
 }
 
-void Text::setInEditing(bool inEditing) { this->inEditing = inEditing; }
+void Text::setInEditing(bool inEditing) {
+    this->inEditing = inEditing;
+    if (this->calc) {
+        sizeCalculated = false;
+    }
+}
 
 auto Text::createPangoLayout() const -> xoj::util::GObjectSPtr<PangoLayout> {
     xoj::util::GObjectSPtr<PangoContext> c(pango_font_map_create_context(pango_cairo_font_map_get_default()),
@@ -158,6 +182,7 @@ void Text::serialize(ObjectOutputStream& out) const {
     out.writeDouble(this->wrapWidth);
     out.writeInt(static_cast<int>(this->align));
     out.writeInt(this->justify);
+    out.writeInt(this->calc);
 
     out.endObject();
 }
@@ -176,6 +201,8 @@ void Text::readSerialized(ObjectInputStream& in) {
     this->align = static_cast<TextAlignment::Value>(in.readInt());
     this->align.validate();
     this->justify = in.readInt() != 0;
+    this->calc = in.readInt() != 0;
+    this->sizeCalculated = false;
 
     in.endObject();
 }

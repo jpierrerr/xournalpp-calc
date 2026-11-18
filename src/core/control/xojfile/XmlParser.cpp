@@ -480,6 +480,9 @@ void XmlParser::parseTextTag(const XmlParserHelper::AttributeMap& attributeMap) 
 
     this->builder.addText(std::string{font}, size, matrix.value(), color, wrap, align, justify, std::move(tempFilename),
                           tempTimestamp);
+    if (XmlParserHelper::getAttribMandatory<bool>(xoj::xml_attrs::CALC_STR, attributeMap, false, false)) {
+        this->builder.setTextCalc(true);
+    }
 
     this->tempTimestamp = 0;
 }

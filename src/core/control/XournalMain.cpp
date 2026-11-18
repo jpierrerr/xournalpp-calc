@@ -21,6 +21,7 @@
 #include <glib.h>         // for GOptionEntry, gchar, G_O...
 #include <libintl.h>      // for bindtextdomain, textdomain
 
+#include "calc/CalcDocument.h"               // for recalculateDocument
 #include "control/RecentManager.h"           // for RecentManager
 #include "control/jobs/ExportParameters.h"   // for ExportBackgroundType
 #include "control/jobs/XournalScheduler.h"   // for XournalScheduler
@@ -172,6 +173,7 @@ auto loadDocumentOrExit(const fs::path& filename, ExportBackgroundType exportBac
         if (exportBackground != EXPORT_BACKGROUND_NONE) {
             throwIfMissingPdfFileName(loader);
         }
+        xoj::calc::recalculateDocument(doc.get());  // so that exported files show the results
         return doc;
     } catch (const std::exception& e) {
         std::cerr << FS(_F("Error loading document: {1}") % e.what()) << std::endl;

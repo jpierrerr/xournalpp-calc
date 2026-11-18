@@ -287,6 +287,14 @@ public:
 
     TextEditor* getTextEditor();
 
+    /// xournalpp-calc: re-evaluate the calculation regions of the document (deferred to the main loop)
+    void scheduleCalcUpdate();
+    /// xournalpp-calc: when enabled, new text boxes are calculation regions
+    void setCalcMode(bool enabled);
+    bool isCalcMode() const { return calcMode; }
+    /// xournalpp-calc: show the palette of Greek letters and math symbols
+    void showGreekPalette();
+
     GladeSearchpath* getGladeSearchPath() const;
 
     void disableSidebarTmp(bool disabled);
@@ -391,6 +399,10 @@ protected:
     void saveImpl(bool saveAs, std::function<void(bool)> callback);
 
 private:
+    guint calcUpdateSource = 0;
+    bool calcMode = false;
+    GtkWidget* greekPalette = nullptr;
+
     /**
      * @brief Creates the specified geometric tool if it's not on the current page yet. Deletes it if it already exists.
      * @return true if a geometric tool was created

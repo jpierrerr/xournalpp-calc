@@ -369,6 +369,11 @@ void LoadHandler::addText(std::string font, double size, xoj::util::Matrix matri
     setAudioAttributes(*this->text, std::move(filename), timestamp);
 }
 
+void LoadHandler::setTextCalc(bool calc) {
+    xoj_assert(this->text);
+    this->text->setCalc(calc);
+}
+
 void LoadHandler::setTextContents(std::string contents) {
     xoj_assert(this->text);
 

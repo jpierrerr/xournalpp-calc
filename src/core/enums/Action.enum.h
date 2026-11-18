@@ -143,6 +143,10 @@ enum class Action : size_t {
     TEXT_ALIGNMENT,
     TEXT_JUSTIFY,
 
+    // xournalpp-calc
+    CALC_MODE,      ///< New text boxes are calculation regions
+    GREEK_PALETTE,  ///< Show the palette of Greek letters
+
     // Plugin Menu
     PLUGIN_MANAGER,
 

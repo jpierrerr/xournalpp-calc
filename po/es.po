@@ -4852,3 +4852,28 @@ msgstr "Archivo de notas Xournal++"
 msgid "Xournal++ page template file"
 msgstr "Archivo de plantilla de Xournal++"
 
+
+# xournalpp-calc
+msgid "Calculation Region"
+msgstr "Región de cálculo"
+
+msgid "Greek Letters and Symbols..."
+msgstr "Letras griegas y símbolos..."
+
+msgid "Calculation region"
+msgstr "Región de cálculo"
+
+msgid "Greek letters and symbols"
+msgstr "Letras griegas y símbolos"
+
+msgid "Lowercase"
+msgstr "Minúsculas"
+
+msgid "Uppercase"
+msgstr "Mayúsculas"
+
+msgid "Math"
+msgstr "Matemáticas"
+
+msgid "Tip: in a text box, type a latin letter and press Ctrl+G (a→α, q→θ, W→Ω)"
+msgstr "Consejo: en un cuadro de texto, escribe una letra latina y pulsa Ctrl+G (a→α, q→θ, W→Ω)"

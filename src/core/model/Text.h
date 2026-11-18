@@ -63,6 +63,21 @@ public:
     inline void setJustify(bool j) { this->justify = j; }
     inline bool getJustify() const { return justify; }
 
+    /// Calculation region (Mathcad style): the text is evaluated by xoj::calc and shown with its results
+    inline void setCalc(bool c) {
+        this->calc = c;
+        sizeCalculated = false;
+    }
+    inline bool isCalc() const { return calc; }
+
+    /// Pango markup shown for a calculation region when it is not being edited (computed, not saved).
+    /// Returns true if it changed.
+    bool setCalcMarkup(std::string markup);
+    inline const std::string& getCalcMarkup() const { return calcMarkup; }
+
+    /// Put the content that is displayed (text, or the calculation results) into the layout
+    void applyDisplayContent(PangoLayout* layout) const;
+
     auto cloneText() const -> std::unique_ptr<Text>;
     auto clone() const -> ElementPtr override;
 
@@ -100,6 +115,9 @@ private:
     double wrapWidth = NO_WRAP;  ///< NO_WRAP for no wrap
     TextAlignment align = TextAlignment::LEFT;
     bool justify = false;  ///< Stretch whitespaces to make all complete lines have the same width
+
+    bool calc = false;       ///< Calculation region
+    std::string calcMarkup;  ///< Displayed content of a calculation region (with results)
 
     bool inEditing = false;
 };

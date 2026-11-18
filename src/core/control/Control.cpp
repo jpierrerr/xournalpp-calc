@@ -1,8 +1,8 @@
 #include "Control.h"
 
-#include <algorithm>  // for max
-#include <cstdlib>    // for size_t
-#include <exception>  // for exce...
+#include <algorithm>   // for max
+#include <cstdlib>     // for size_t
+#include <exception>   // for exce...
 #include <functional>  // for bind
 #include <iterator>    // for end
 #include <memory>      // for make...
@@ -11,6 +11,7 @@
 #include <string>      // for string
 #include <utility>     // for move
 
+#include "calc/CalcDocument.h"                                   // for recalculateDocument
 #include "control/AudioController.h"                             // for Audi...
 #include "control/ClipboardHandler.h"                            // for Clip...
 #include "control/CompassController.h"                           // for Comp...
@@ -51,6 +52,7 @@
 #include "gui/dialog/ExportDialog.h"                             // for ExportDialog
 #include "gui/dialog/FormatDialog.h"                             // for Form...
 #include "gui/dialog/GotoDialog.h"                               // for Goto...
+#include "gui/dialog/GreekPalette.h"                             // for GreekPalette
 #include "gui/dialog/PageTemplateDialog.h"                       // for Page...
 #include "gui/dialog/SelectBackgroundColorDialog.h"              // for Sele...
 #include "gui/dialog/SelectOpacityDialog.h"                      // for Opac...
@@ -178,6 +180,12 @@ Control::Control(GApplication* gtkApp, GladeSearchpath* gladeSearchPath): gtkApp
 
 Control::~Control() {
     g_source_remove(this->changeTimout);
+    if (this->calcUpdateSource) {
+        g_source_remove(this->calcUpdateSource);
+    }
+    if (this->greekPalette) {
+        gtk_widget_destroy(this->greekPalette);
+    }
     this->enableAutosave(false);
 
     deleteLastAutosaveFile();
@@ -1152,6 +1160,38 @@ void Control::undoRedoChanged() {
     win->setRedoDescription(undoRedo->redoDescription());
 
     updateWindowTitle();
+    scheduleCalcUpdate();
+}
+
+void Control::scheduleCalcUpdate() {
+    if (this->calcUpdateSource) {
+        return;
+    }
+    this->calcUpdateSource = g_idle_add(
+            +[](gpointer data) -> gboolean {
+                auto* self = static_cast<Control*>(data);
+                self->calcUpdateSource = 0;
+                for (size_t p: xoj::calc::recalculateDocument(self->doc)) {
+                    self->firePageChanged(p);
+                }
+                return G_SOURCE_REMOVE;
+            },
+            this);
+}
+
+void Control::setCalcMode(bool enabled) {
+    this->calcMode = enabled;
+    if (auto* te = getTextEditor(); te) {
+        te->setCalc(enabled);
+    }
+}
+
+void Control::showGreekPalette() {
+    if (!this->greekPalette) {
+        this->greekPalette = xoj::popup::createGreekPalette(this, getGtkWindow());
+    }
+    gtk_widget_show_all(this->greekPalette);
+    gtk_window_present(GTK_WINDOW(this->greekPalette));
 }
 
 void Control::undoRedoPageChanged(PageRef page) {
@@ -1576,6 +1616,7 @@ void Control::replaceDocument(std::unique_ptr<Document> doc, int scrollToPage) {
     }
 
     fileLoaded(scrollToPage);
+    scheduleCalcUpdate();
 }
 
 static auto formatErrorMessages(const std::vector<std::string>& errorMessages) -> std::string {

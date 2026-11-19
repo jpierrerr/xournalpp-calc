@@ -868,36 +868,6 @@
       <attribute name="action">win.calc-grid-visible</attribute>
       <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;v</attribute>
      </item>
-     <item>
-      <attribute name="label" translatable="yes">Convert Handwriting to Equation</attribute>
-      <attribute name="action">win.calc-ink-to-math</attribute>
-      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;e</attribute>
-     </item>
-     <item>
-      <attribute name="label" translatable="yes">Convert Handwriting to Text</attribute>
-      <attribute name="action">win.calc-ink-to-text</attribute>
-      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;t</attribute>
-     </item>
-     <item>
-      <attribute name="label" translatable="yes">Convert Image to Equation</attribute>
-      <attribute name="action">win.calc-image-to-math</attribute>
-      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;i</attribute>
-     </item>
-     <item>
-      <attribute name="label" translatable="yes">Convert Image to Text</attribute>
-      <attribute name="action">win.calc-image-to-text</attribute>
-      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;&lt;Shift&gt;i</attribute>
-     </item>
-     <item>
-      <attribute name="label" translatable="yes">Convert to Equation While Writing</attribute>
-      <attribute name="action">win.calc-ink-live</attribute>
-      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;w</attribute>
-     </item>
-     <item>
-      <attribute name="label" translatable="yes">Convert to Text While Writing</attribute>
-      <attribute name="action">win.calc-ink-live-text</attribute>
-      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;x</attribute>
-     </item>
      <submenu>
       <attribute name="label" translatable="yes">Excel</attribute>
       <item>

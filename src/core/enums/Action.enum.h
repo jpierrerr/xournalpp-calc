@@ -148,12 +148,6 @@ enum class Action : size_t {
     GREEK_PALETTE,      ///< Show the palette of Greek letters
     CALC_GRID,          ///< Align new text boxes on the alignment grid
     CALC_GRID_VISIBLE,  ///< Show the alignment grid (dots)
-    CALC_INK_TO_MATH,   ///< Convert the selected handwriting into a calculation region
-    CALC_INK_TO_TEXT,   ///< Convert the selected handwriting into text
-    CALC_INK_LIVE,      ///< Convert the handwriting into calculation regions while writing
-    CALC_INK_LIVE_TEXT, ///< Convert the handwriting into text while writing
-    CALC_IMAGE_TO_MATH, ///< Recognize the formula of the selected image or of the image in the clipboard
-    CALC_IMAGE_TO_TEXT, ///< Recognize the printed text of the selected image or of the image in the clipboard
     CALC_EXCEL_LINK,    ///< Link an Excel workbook (inserts excel("...") in a calculation region)
     CALC_EXCEL_INPUT,   ///< Read a cell of the workbook into a variable
     CALC_EXCEL_OUTPUT,  ///< Send a variable to a cell of the workbook

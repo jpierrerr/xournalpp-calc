@@ -196,9 +196,6 @@ Control::~Control() {
     if (this->calcExcelWatchSource) {
         g_source_remove(this->calcExcelWatchSource);
     }
-    if (this->inkLiveSource) {
-        g_source_remove(this->inkLiveSource);
-    }
     if (this->greekPalette) {
         gtk_widget_destroy(this->greekPalette);
     }

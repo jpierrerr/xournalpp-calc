@@ -132,35 +132,6 @@ echo "copy qpdf"
 cp "$prefix"/bin/libqpdf*.dll "$setup_dir"/bin
 cp "$prefix"/lib/libqpdf* "$setup_dir"/lib
 
-echo "copy handwriting models"
-# xournalpp-calc: the ONNX model for handwritten formulas (pix2text-mfr, MIT license) is not in the repository;
-# it is taken from $JACKMATH_MODELS_DIR (default ~/hmr-models) if it was downloaded there
-models_dir="${JACKMATH_MODELS_DIR:-$HOME/hmr-models}"
-if [ -f "$models_dir/pix2text-mfr/encoder_model.onnx" ]; then
-    mkdir -p "$setup_dir"/share/xournalpp/models
-    cp -r "$models_dir/pix2text-mfr" "$setup_dir"/share/xournalpp/models/
-    # ONNX Runtime is loaded at run time from bin/ (ldd does not see it, and Windows has an older one in System32).
-    # The official Microsoft build is preferred (signed, no other DLLs): $JACKMATH_ORT_DIR (default
-    # ~/hmr-models/onnxruntime), with onnxruntime.dll in it or in its lib/ folder
-    ort_dir="${JACKMATH_ORT_DIR:-$models_dir/onnxruntime}"
-    ort_dll=""
-    for f in "$ort_dir/onnxruntime.dll" "$ort_dir/lib/onnxruntime.dll"; do
-        [ -f "$f" ] && ort_dll="$f" && break
-    done
-    if [ -n "$ort_dll" ]; then
-        echo "  ONNX Runtime from $ort_dll"
-        cp "$ort_dll" "$setup_dir"/bin/
-        shared="$(dirname "$ort_dll")/onnxruntime_providers_shared.dll"
-        [ -f "$shared" ] && cp "$shared" "$setup_dir"/bin/
-    elif [ -f "$prefix/bin/onnxruntime.dll" ]; then
-        echo "  ONNX Runtime from MSYS2 (with its dependencies)"
-        cp "$prefix/bin/onnxruntime.dll" "$setup_dir"/bin/
-        copy_dll_closure "$prefix/bin/onnxruntime.dll"
-    fi
-else
-    echo "  (no model in $models_dir/pix2text-mfr: formula recognition will not be available)"
-fi
-
 echo "create installer"
 version=$(cat "$build_dir/VERSION" | sed '1!d')
 # xournalpp-calc: also accept NSIS installed with pacman (mingw-w64-*-nsis); sort.exe is avoided above because

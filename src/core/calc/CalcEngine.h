@@ -72,8 +72,33 @@ std::string formatDim(const Dim& d);
 /// Format a quantity in automatically chosen SI units, e.g. "750 N·m"
 std::string formatQuantity(const Quantity& q);
 
+/**
+ * Link with cells of a spreadsheet (Excel): implemented outside of the engine (see ExcelLink.h), so that the engine
+ * does not depend on Windows or on the file format.
+ *
+ *     excel("cargas.xlsx")                  workbook used by the following references
+ *     P := xl("Cargas!C5")·kN               value of a cell (Excel has no units: they are written after it)
+ *     enviar(M, "Resumen!D4", kN·m)         write M, converted to kN·m, to a cell
+ *
+ * A reference is "C5" (first sheet), "Hoja1!C5", "'Mi hoja'!C5" or "[otro.xlsx]Hoja1!C5". Errors are thrown as
+ * CalcError.
+ */
+class CellLink {
+public:
+    virtual ~CellLink() = default;
+    /// Use a workbook for the following references. Returns how it is reached, e.g. "abierto en Excel"
+    virtual std::string useWorkbook(const std::string& path) = 0;
+    /// Value of a cell
+    virtual double read(const std::string& ref) = 0;
+    /// Write a number to a cell. Returns where it went, e.g. "Resumen!D4 en Excel"
+    virtual std::string write(const std::string& ref, double value) = 0;
+    /// Remarks about the last operations (e.g. "valor guardado: el libro no está disponible"), cleared when read
+    virtual std::vector<std::string> takeNotes() { return {}; }
+};
+
 struct Environment {
     std::map<std::string, Quantity> vars;
+    CellLink* cells = nullptr;  ///< link with a spreadsheet (nullptr: xl(), excel() and enviar() give an error)
 };
 
 struct LineResult {
@@ -88,6 +113,7 @@ struct LineResult {
     std::string display;  ///< the line as it is shown (source with the result filled in)
     std::string result;   ///< the result part only, e.g. "750 N·m"
     std::string error;    ///< error message (Kind::Error)
+    std::string note;     ///< remark shown after the line in small grey letters (e.g. a cell read from the cache)
 };
 
 /// Evaluate a single statement, updating env if it is a definition

@@ -75,6 +75,11 @@ public:
     bool setCalcMarkup(std::string markup);
     inline const std::string& getCalcMarkup() const { return calcMarkup; }
 
+    /// Values read from Excel cells by a calculation region (see calc/ExcelLink.h), saved so that the results are
+    /// still shown when the workbook is not available
+    inline void setCalcCells(std::string c) { this->calcCells = std::move(c); }
+    inline const std::string& getCalcCells() const { return calcCells; }
+
     /// Put the content that is displayed (text, or the calculation results) into the layout
     void applyDisplayContent(PangoLayout* layout) const;
 
@@ -128,6 +133,7 @@ private:
     double lineHeight = 0;   ///< Fixed line pitch (alignment grid), 0 for natural
     bool calc = false;       ///< Calculation region
     std::string calcMarkup;  ///< Displayed content of a calculation region (with results)
+    std::string calcCells;   ///< Values read from Excel cells (serialized calc::CellCache)
 
     bool inEditing = false;
 };

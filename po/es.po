@@ -4913,3 +4913,42 @@ msgstr "Malla visible"
 
 msgid "Grid visible"
 msgstr "Malla visible"
+
+msgid "Convert Handwriting to Equation"
+msgstr "Convertir escritura a ecuación"
+
+msgid "Convert Handwriting to Text"
+msgstr "Convertir escritura a texto"
+
+msgid "Convert handwriting to equation"
+msgstr "Convertir escritura a ecuación"
+
+msgid "Convert handwriting to text"
+msgstr "Convertir escritura a texto"
+
+msgid "Convert Image to Equation"
+msgstr "Convertir imagen a ecuación (captura o imagen seleccionada)"
+
+msgid "Convert Image to Text"
+msgstr "Convertir imagen a texto (captura o imagen seleccionada)"
+
+msgid "Convert to Equation While Writing"
+msgstr "Convertir a ecuación mientras escribo"
+
+msgid "Convert to equation while writing"
+msgstr "Convertir a ecuación mientras escribo"
+
+msgid "Convert to Text While Writing"
+msgstr "Convertir a texto mientras escribo"
+
+msgid "Convert to text while writing"
+msgstr "Convertir a texto mientras escribo"
+
+msgid "Link Excel Workbook…"
+msgstr "Ligar libro de Excel…"
+
+msgid "Input Value from Excel…"
+msgstr "Valor de entrada desde Excel…"
+
+msgid "Output Value to Excel…"
+msgstr "Valor de salida hacia Excel…"

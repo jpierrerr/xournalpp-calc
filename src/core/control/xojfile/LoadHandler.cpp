@@ -379,6 +379,11 @@ void LoadHandler::setTextLineHeight(double h) {
     this->text->setLineHeight(h);
 }
 
+void LoadHandler::setTextCalcCells(std::string cells) {
+    xoj_assert(this->text);
+    this->text->setCalcCells(std::move(cells));
+}
+
 void LoadHandler::setTextContents(std::string contents) {
     xoj_assert(this->text);
 

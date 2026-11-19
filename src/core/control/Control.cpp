@@ -1,8 +1,8 @@
 #include "Control.h"
 
-#include <algorithm>  // for max
-#include <cstdlib>    // for size_t
-#include <exception>  // for exce...
+#include <algorithm>   // for max
+#include <cstdlib>     // for size_t
+#include <exception>   // for exce...
 #include <functional>  // for bind
 #include <iterator>    // for end
 #include <memory>      // for make...
@@ -170,6 +170,15 @@ Control::Control(GApplication* gtkApp, GladeSearchpath* gladeSearchPath): gtkApp
      */
     this->changeTimout = g_timeout_add_seconds(5, xoj::util::wrap_v<checkChangedDocument>, this);
 
+    // xournalpp-calc: changes made in a linked Excel workbook show up without touching the document
+    this->calcExcelWatchSource = g_timeout_add(
+            1000,
+            +[](gpointer data) -> gboolean {
+                static_cast<Control*>(data)->refreshExcelValues();
+                return G_SOURCE_CONTINUE;
+            },
+            this);
+
     this->pageBackgroundChangeController = std::make_unique<PageBackgroundChangeController>(this);
 
     this->layerController = new LayerController(this);
@@ -183,6 +192,9 @@ Control::~Control() {
     g_source_remove(this->changeTimout);
     if (this->calcUpdateSource) {
         g_source_remove(this->calcUpdateSource);
+    }
+    if (this->calcExcelWatchSource) {
+        g_source_remove(this->calcExcelWatchSource);
     }
     if (this->greekPalette) {
         gtk_widget_destroy(this->greekPalette);
@@ -1200,6 +1212,36 @@ void Control::setCalcGridVisible(bool visible) {
             v->repaintPage();
         }
     }
+}
+
+void Control::refreshExcelValues() {
+    if (!this->win || !this->doc || this->calcUpdateSource || this->isBlocking) {
+        return;
+    }
+    try {
+        if (!xoj::calc::documentUsesExcel(this->doc)) {
+            return;
+        }
+    } catch (const std::exception&) {
+        return;
+    }
+    for (size_t p: xoj::calc::recalculateDocument(this->doc, true, true)) {
+        firePageChanged(p);
+    }
+}
+
+void Control::calcLeaveTextBox() {
+    g_idle_add_full(
+            G_PRIORITY_DEFAULT_IDLE,
+            +[](gpointer data) -> gboolean {
+                auto* c = static_cast<Control*>(data);
+                if (c->win) {
+                    c->win->getXournal()->endTextAllPages();
+                    c->scheduleCalcUpdate();
+                }
+                return G_SOURCE_REMOVE;
+            },
+            this, nullptr);
 }
 
 void Control::calcGridGoTo(const PageRef& page, double x, double line, double boxX, double boxY) {

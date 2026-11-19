@@ -80,6 +80,8 @@ public:
     void setCalc(bool calc);
     /// Insert a string at the cursor, as if typed (used by the Greek letters palette)
     void insertText(const std::string& str);
+    /// Insert a whole line at the cursor, on a new line if the cursor is not at the start of an empty one
+    void insertLine(const std::string& line);
 
     PangoLayout* getUpToDateLayout() const;
 
@@ -105,7 +107,7 @@ public:
 private:
     void toggleOverwrite();
     void toggleBoldFace();
-    /// Ctrl+PgUp / Ctrl+PgDown: what is typed next becomes an exponent (superscript) or a subscript; pressing it
+    /// Ctrl+Up / Ctrl+Down: what is typed next becomes an exponent (superscript) or a subscript; pressing it
     /// again cancels
     void superscriptBeforeCursor() { pendingScript = pendingScript == 1 ? 0 : 1; }
     void subscriptBeforeCursor() { pendingScript = pendingScript == -1 ? 0 : -1; }

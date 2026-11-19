@@ -42,6 +42,7 @@ auto Text::cloneText() const -> std::unique_ptr<Text> {
     text->calc = this->calc;
     text->lineHeight = this->lineHeight;
     text->calcMarkup = this->calcMarkup;
+    text->calcCells = this->calcCells;
 
     return text;
 }
@@ -222,6 +223,7 @@ void Text::serialize(ObjectOutputStream& out) const {
     out.writeInt(this->justify);
     out.writeInt(this->calc);
     out.writeDouble(this->lineHeight);
+    out.writeString(this->calcCells);
 
     out.endObject();
 }
@@ -242,6 +244,7 @@ void Text::readSerialized(ObjectInputStream& in) {
     this->justify = in.readInt() != 0;
     this->calc = in.readInt() != 0;
     this->lineHeight = in.readDouble();
+    this->calcCells = in.readString();
     this->sizeCalculated = false;
 
     in.endObject();

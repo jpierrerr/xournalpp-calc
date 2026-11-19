@@ -58,6 +58,8 @@ class PluginController;
 class Document;
 class EditSelection;
 class Element;
+class Layer;
+class Stroke;
 class MainWindow;
 class ObjectInputStream;
 class ScrollHandler;
@@ -300,6 +302,10 @@ public:
     /// If (boxX, boxY) is a point of the box being closed, x is instead the first dot one square after that box, as
     /// displayed once recalculated (a calculation region grows with its results).
     void calcGridGoTo(const PageRef& page, double x, double line, double boxX = -1, double boxY = -1);
+    /// xournalpp-calc: finish editing the text box (after the key event that asks for it)
+    void calcLeaveTextBox();
+    /// xournalpp-calc: recalculate if the document uses Excel, so that changes made in Excel show up at once
+    void refreshExcelValues();
     /// xournalpp-calc: the writing line requested by calcGridGoTo while it opens the next text box
     std::optional<double> getCalcGridExactLine() const { return calcGridExactLine; }
     /// xournalpp-calc: show the dots of the alignment grid (independent of the alignment itself)
@@ -307,6 +313,16 @@ public:
     bool isCalcGridVisible() const { return calcGridVisible; }
     /// xournalpp-calc: show the palette of Greek letters and math symbols
     void showGreekPalette();
+    /// xournalpp-calc: choose an Excel workbook and insert excel("...") in a calculation region. Returns the
+    /// workbook, or an empty path if cancelled
+    fs::path excelLinkWorkbook();
+    fs::path chooseExcelWorkbook();
+    /// xournalpp-calc: pick a cell of the linked workbook and insert a line that reads it into a variable (input)
+    /// or sends a variable to it (output)
+    void excelPickCell(bool input);
+    /// xournalpp-calc: add a line to the calculation region being edited, or to a new region below the last one
+    /// of the current page
+    void insertCalcLine(const std::string& line, bool calc = true);
 
     GladeSearchpath* getGladeSearchPath() const;
 
@@ -413,6 +429,7 @@ protected:
 
 private:
     guint calcUpdateSource = 0;
+    guint calcExcelWatchSource = 0;  ///< refreshes the values read from Excel every second
     std::optional<double> calcGridExactLine;
     bool calcMode = false;
     bool calcGrid = false;

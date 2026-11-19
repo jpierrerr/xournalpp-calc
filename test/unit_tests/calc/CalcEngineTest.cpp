@@ -172,7 +172,8 @@ TEST(CalcEngine, subscriptWithoutUnderscore) {
 
 TEST(CalcEngine, comparisons) {
     Environment env;
-    auto lines = evaluateText("s := 180 MPa\nfy := 420 MPa\ns ≤ fy =\ns > fy =\n0 < s ≤ fy =\ns <= 0.4 fy =\ns ≠ fy =", env);
+    auto lines =
+            evaluateText("s := 180 MPa\nfy := 420 MPa\ns ≤ fy =\ns > fy =\n0 < s ≤ fy =\ns <= 0.4 fy =\ns ≠ fy =", env);
     EXPECT_EQ(lines[2].result, "✓ cumple");
     EXPECT_EQ(lines[3].result, "✗ no cumple");
     EXPECT_EQ(lines[4].result, "✓ cumple");
@@ -183,9 +184,41 @@ TEST(CalcEngine, comparisons) {
 
 TEST(CalcEngine, plusMinus) {
     Environment env;
-    auto lines = evaluateText("a := 1\nb := -1\nc := -6\nx := (-b ± sqrt(b^2 - 4*a*c)) / (2*a) =\nx_2 =\nL := 2 m ± 3 cm = ? cm", env);
+    auto lines = evaluateText(
+            "a := 1\nb := -1\nc := -6\nx := (-b ± sqrt(b^2 - 4*a*c)) / (2*a) =\nx_2 =\nL := 2 m ± 3 cm = ? cm", env);
     EXPECT_EQ(lines[3].result, "3 ; -2");
     EXPECT_EQ(lines[3].display, "x := (-b ± sqrt(b^2 - 4*a*c)) / (2*a) = 3 ; -2");
     EXPECT_EQ(lines[4].result, "-2");
     EXPECT_EQ(lines[5].result, "203 cm ; 197 cm");
+}
+
+TEST(CalcEngine, deepNestingIsAnErrorNotACrash) {
+    Environment env;
+    // Reasonable nesting still works
+    auto ok = evaluateLine("x := " + std::string(50, '(') + "2" + std::string(50, ')') + " =", env);
+    EXPECT_EQ(ok.kind, Kind::Evaluation) << ok.error;
+    EXPECT_EQ(ok.result, "2");
+    // Thousands of levels would overflow the stack: they are refused
+    for (const std::string& line: {"x := " + std::string(20000, '(') + "1" + std::string(20000, ')') + " =",
+                                   "y := " + std::string(20000, '-') + "1 =", [] {
+                                       std::string p = "z := 2";
+                                       for (int i = 0; i < 20000; i++) {
+                                           p += "^-1";
+                                       }
+                                       return p + " =";
+                                   }()}) {
+        auto r = evaluateLine(line, env);
+        EXPECT_EQ(r.kind, Kind::Error);
+        EXPECT_NE(r.error.find("anidada"), std::string::npos);
+    }
+}
+
+TEST(CalcEngine, primeAfterGreekLetters) {
+    Environment env;
+    // φ′ (prime, typed as a tilde after the letter), φ´ and φ' are the same variable
+    auto lines = evaluateText("φ′ := 30 deg\nσ′ := 120 kPa\nφ' =\nσ´ = ? kPa\nτ := σ′·tan(φ′) =", env);
+    EXPECT_EQ(lines[2].kind, Kind::Evaluation) << lines[2].error;
+    EXPECT_EQ(lines[3].result, "120 kPa");
+    EXPECT_EQ(lines[4].kind, Kind::Evaluation) << lines[4].error;
+    EXPECT_NE(lines[4].result.find("69.28"), std::string::npos) << lines[4].result;
 }

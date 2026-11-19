@@ -853,6 +853,21 @@ struct ActionProperties<Action::GREEK_PALETTE> {
 };
 
 template <>
+struct ActionProperties<Action::CALC_EXCEL_LINK> {
+    static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->excelLinkWorkbook(); }
+};
+
+template <>
+struct ActionProperties<Action::CALC_EXCEL_INPUT> {
+    static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->excelPickCell(true); }
+};
+
+template <>
+struct ActionProperties<Action::CALC_EXCEL_OUTPUT> {
+    static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->excelPickCell(false); }
+};
+
+template <>
 struct ActionProperties<Action::TEXT_JUSTIFY> {
     using state_type = bool;
     static state_type initialState(Control* ctrl) { return ctrl->getToolHandler()->getTextJustify(); }

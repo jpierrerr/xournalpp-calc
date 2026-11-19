@@ -51,6 +51,34 @@
 
 using std::string;
 
+namespace {
+/// xournalpp-calc: menu of the Excel tool (link a workbook, read a cell, send a value)
+class ExcelPopoverFactory final: public PopoverFactory {
+public:
+    GtkWidget* createPopover() const override {
+        GtkWidget* popover = gtk_popover_new();
+        GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+        gtk_container_set_border_width(GTK_CONTAINER(box), 6);
+        gtk_container_add(GTK_CONTAINER(popover), box);
+        struct Item {
+            const char* label;
+            Action action;
+        };
+        const Item items[] = {{"Ligar Excel (Examinar…)", Action::CALC_EXCEL_LINK},
+                              {"Valor de entrada (leer una celda)", Action::CALC_EXCEL_INPUT},
+                              {"Valor de salida (enviar a una celda)", Action::CALC_EXCEL_OUTPUT}};
+        for (const auto& it: items) {
+            GtkWidget* btn = gtk_model_button_new();
+            g_object_set(btn, "text", it.label, nullptr);
+            gtk_actionable_set_action_name(GTK_ACTIONABLE(btn), (std::string("win.") + Action_toString(it.action)).c_str());
+            gtk_box_pack_start(GTK_BOX(box), btn, false, false, 0);
+        }
+        gtk_widget_show_all(box);
+        return popover;
+    }
+};
+}  // namespace
+
 ToolMenuHandler::ToolMenuHandler(Control* control, GladeGui* gui):
         parent(GTK_WINDOW(gui->getWindow())),
         control(control),
@@ -450,6 +478,12 @@ void ToolMenuHandler::initToolItems() {
                         _("Grid visible"));
     emplaceStockItem("GREEK_PALETTE", Cat::TOOLS, Action::GREEK_PALETTE, "accessories-character-map",
                      _("Greek letters and symbols"));
+    this->excelPopover = std::make_unique<ExcelPopoverFactory>();
+    {
+        auto&& tb = emplaceItem<ToolButton>("EXCEL", Cat::TOOLS, Action::CALC_EXCEL_LINK, iconName("jackmath-excel"),
+                                            std::string("Excel: ligar libro, valores de entrada y de salida"), false);
+        tb.setPopoverFactory(this->excelPopover.get());
+    }
     emplaceStockItemWithTarget("FORMAT_ALIGN_LEFT", Cat::TOOLS, Action::TEXT_ALIGNMENT, TextAlignment::LEFT,
                                "format-justify-left", _("Align text to the left"));
     emplaceStockItemWithTarget("FORMAT_ALIGN_CENTER", Cat::TOOLS, Action::TEXT_ALIGNMENT, TextAlignment::CENTER,

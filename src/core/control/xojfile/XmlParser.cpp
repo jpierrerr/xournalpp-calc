@@ -487,6 +487,10 @@ void XmlParser::parseTextTag(const XmlParserHelper::AttributeMap& attributeMap) 
         lh && *lh > 0) {
         this->builder.setTextLineHeight(*lh);
     }
+    if (const auto cells = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::CALC_CELLS_STR, attributeMap);
+        cells && !cells->empty()) {
+        this->builder.setTextCalcCells(std::string(*cells));
+    }
 
     this->tempTimestamp = 0;
 }

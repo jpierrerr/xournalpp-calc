@@ -232,6 +232,9 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
             if (t->getLineHeight() > 0) {
                 text->setAttrib(xoj::xml_attrs::LINE_HEIGHT_STR, t->getLineHeight());
             }
+            if (t->isCalc() && !t->getCalcCells().empty()) {
+                text->setAttrib(xoj::xml_attrs::CALC_CELLS_STR, t->getCalcCells());
+            }
 
             writeAudio(text, *t);
         } else if (e->getType() == ELEMENT_IMAGE) {

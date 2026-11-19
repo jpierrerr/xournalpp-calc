@@ -78,8 +78,8 @@ Con **Alinear a la malla** activado, mientras escribes en un cuadro:
 | Shift+Enter | Salto de línea dentro del mismo cuadro |
 | Tab | Cierra el cuadro y abre otro en el renglón de abajo, en la misma columna |
 | Flechas | Con el cuadro vacío, lo mueven un punto de la malla (arriba/abajo, un renglón). Con texto, mueven el cursor y, al llegar al borde del cuadro, saltan a un cuadro nuevo al lado |
-| Ctrl+RePág (Page Up) | Lo que escribas a continuación sale como exponente / superíndice (`1 m` + Ctrl+RePág + `2` → 1 m²). En cálculos escribe `^`. Pulsarlo otra vez lo cancela |
-| Ctrl+AvPág (Page Down) | Lo que escribas a continuación sale como subíndice (`A` + Ctrl+AvPág + `s` → Aₛ). En cálculos escribe `_`; después `As` también encuentra a `A_s` |
+| Ctrl+↑ | Lo que escribas a continuación sale como exponente / superíndice (`1 m` + Ctrl+↑ + `2` → 1 m²). En cálculos escribe `^`. Pulsarlo otra vez lo cancela |
+| Ctrl+↓ | Lo que escribas a continuación sale como subíndice (`A` + Ctrl+↓ + `s` → Aₛ). En cálculos escribe `_`; después `As` también encuentra a `A_s` |
 | `==` | Símbolo de definición ≔ (escribir `:=` también se muestra como ≔). También Ctrl+0 |
 | `+-` / `-+`, `-=` / `=-`, `+=` / `=+`, `++`, `--` | Se convierten en ±, ≤, ≥, >, < (`:=-` no se toca) |
 

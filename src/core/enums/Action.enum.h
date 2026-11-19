@@ -148,6 +148,9 @@ enum class Action : size_t {
     GREEK_PALETTE,      ///< Show the palette of Greek letters
     CALC_GRID,          ///< Align new text boxes on the alignment grid
     CALC_GRID_VISIBLE,  ///< Show the alignment grid (dots)
+    CALC_EXCEL_LINK,    ///< Link an Excel workbook (inserts excel("...") in a calculation region)
+    CALC_EXCEL_INPUT,   ///< Read a cell of the workbook into a variable
+    CALC_EXCEL_OUTPUT,  ///< Send a variable to a cell of the workbook
 
     // Plugin Menu
     PLUGIN_MANAGER,

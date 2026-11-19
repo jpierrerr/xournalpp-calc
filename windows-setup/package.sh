@@ -31,7 +31,23 @@ echo "copy installed files"
 (cd $build_dir && cmake --install . --prefix "$setup_dir")
 
 echo "copy libraries"
-ldd "$build_dir/xournalpp.exe" | grep "${prefix}.*\.dll" -o | awk '!seen[$0]++' | xargs -I{} cp "{}" "$setup_dir"/bin/
+# xournalpp-calc: follow the import tables with objdump (it only reads the files) instead of ldd, which runs the
+# program and fails when Windows Smart App Control blocks a freshly linked executable
+copy_dll_closure() {
+    local -a queue=("$@")
+    local -A seen
+    local i dep
+    for ((i = 0; i < ${#queue[@]}; ++i)); do
+        while IFS= read -r dep; do
+            if [[ -z ${seen[$dep]+x} && -f "$prefix/bin/$dep" ]]; then
+                seen[$dep]=1
+                cp "$prefix/bin/$dep" "$setup_dir"/bin/
+                queue+=("$prefix/bin/$dep")
+            fi
+        done < <(objdump -p "${queue[$i]}" | awk '/DLL Name:/ {print $3}')
+    done
+}
+copy_dll_closure "$build_dir/xournalpp.exe"
 # CI workaround: copy libcrypto and libssl in case they are not already copied.
 ldd "$build_dir/xournalpp.exe" | grep -E 'lib(ssl|crypto)[^\.]*\.dll' -o | awk '!seen[$0]++' | xargs -I{} cp "${prefix}/bin/{}" "$setup_dir"/bin/
 

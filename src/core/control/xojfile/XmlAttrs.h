@@ -60,6 +60,7 @@ constexpr auto ALIGN_STR = u8"align";  // also in link
 constexpr auto JUSTIFY_STR = u8"justify";
 constexpr auto CALC_STR = u8"calc";               ///< xournalpp-calc: the text is a calculation region
 constexpr auto LINE_HEIGHT_STR = u8"lineHeight";  ///< xournalpp-calc: fixed line pitch (alignment grid)
+constexpr auto CALC_CELLS_STR = u8"calcCells";     ///< xournalpp-calc: values read from Excel cells
 
 // image
 constexpr auto LEFT_POS_STR = u8"left";      // also in teximage

@@ -272,6 +272,10 @@ target_link_libraries(external_modules INTERFACE
         $<$<TARGET_EXISTS:X11::X11>:X11::X11>
         $<$<TARGET_EXISTS:cpptrace::cpptrace>:cpptrace::cpptrace>
         $<$<TARGET_EXISTS:qpdf::libqpdf>:qpdf::libqpdf>
+        $<$<NOT:$<PLATFORM_ID:Windows>>:${CMAKE_DL_LIBS}>
+        $<$<PLATFORM_ID:Windows>:ole32>
+        $<$<PLATFORM_ID:Windows>:oleaut32>
+        $<$<PLATFORM_ID:Windows>:uuid>
         ZLIB::ZLIB
         Threads::Threads
         )

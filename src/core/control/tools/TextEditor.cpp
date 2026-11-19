@@ -190,8 +190,7 @@ TextEditor::TextEditor(Control* control, const PageRef& page, GtkWidget* xournal
         gtk_widget_add_controller(w, GTK_EVENT_CONTROLLER(drag));
 #endif
 
-        icon->addSignal(
-                G_OBJECT(drag),
+        icon->addSignal(G_OBJECT(drag),
                 g_signal_connect(drag, "drag-update",
                                  G_CALLBACK(+[](GtkGestureDrag*, gdouble offsetX, gdouble offsetY, gpointer p) {
                                      // Warning: because the icon is moved, the parameters offsetX and offsetY
@@ -422,13 +421,13 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
             }
         }
 
-        // xournalpp-calc: after Ctrl+PgUp / Ctrl+PgDown, the character typed goes up (exponent) or down (subscript)
+        // xournalpp-calc: after Ctrl+Up / Ctrl+Down, the character typed goes up (exponent) or down (subscript)
         std::string scripted;
         if (te->pendingScript != 0 && !hadSelection && g_utf8_strlen(str, -1) == 1) {
             const gunichar c = g_utf8_get_char(str);
             const bool sup = te->pendingScript > 0;
             if (te->textElement->isCalc()) {
-                // Calculations: "1 m" + Ctrl+PgUp + "2" → "1 m^2" (shown m²); "A" + Ctrl+PgDown + "s" → "A_s" (Aₛ).
+                // Calculations: "1 m" + Ctrl+Up + "2" → "1 m^2" (shown m²); "A" + Ctrl+Down + "s" → "A_s" (Aₛ).
                 // Following digits or letters stay in the exponent / subscript by themselves
                 te->pendingScript = 0;
                 if (g_unichar_isalnum(c) || (sup && (c == '-' || c == '('))) {
@@ -440,6 +439,29 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
                 str = sc;
             } else {
                 te->pendingScript = 0;
+            }
+        }
+
+        // xournalpp-calc: a tilde (´) or an apostrophe typed right after a Greek letter is a prime: φ´ → φ′ (as in
+        // the effective friction angle). The tilde may come together with the next key (dead key + space or letter)
+        std::string primed;
+        if (!hadSelection && (g_str_has_prefix(str, "´") || g_str_has_prefix(str, "'"))) {
+            GtkTextIter end = getIteratorAtCursor(te->buffer.get());
+            GtkTextIter start = end;
+            if (gtk_text_iter_backward_char(&start)) {
+                const gunichar prev = gtk_text_iter_get_char(&start);
+                const bool greek = (prev >= 0x0391 && prev <= 0x03A9) || (prev >= 0x03B1 && prev <= 0x03C9) ||
+                                   (prev >= 0x03D0 && prev <= 0x03F5);
+                if (greek) {
+                    const size_t len = g_str_has_prefix(str, "´") ? std::strlen("´") : 1;
+                    std::string rest = str + len;
+                    // dead key + space gives "´ " or "´": the space only completed the tilde
+                    if (rest == " " || rest == "\u00a0") {
+                        rest.clear();
+                    }
+                    primed = "′" + rest;
+                    str = primed.c_str();
+                }
             }
         }
 
@@ -615,9 +637,8 @@ auto TextEditor::onKeyPressEvent(const KeyEvent& event) -> bool {
     if (this->pendingScript != 0 && gdk_keyval_to_unicode(event.keyval) == 0 &&
         !(event.keyval >= GDK_KEY_Shift_L && event.keyval <= GDK_KEY_Hyper_R) &&
         !(event.keyval == GDK_KEY_ISO_Level3_Shift) &&
-        !((event.state & GDK_CONTROL_MASK) &&
-          (event.keyval == GDK_KEY_Page_Up || event.keyval == GDK_KEY_Page_Down || event.keyval == GDK_KEY_KP_Page_Up ||
-           event.keyval == GDK_KEY_KP_Page_Down))) {
+        !((event.state & GDK_CONTROL_MASK) && (event.keyval == GDK_KEY_Up || event.keyval == GDK_KEY_Down ||
+                                               event.keyval == GDK_KEY_KP_Up || event.keyval == GDK_KEY_KP_Down))) {
         this->pendingScript = 0;
     }
 
@@ -1489,7 +1510,8 @@ void TextEditor::initializeEditionAt(double x, double y) {
                 const double first = t->getOrigin().y + t->firstBaseline() + xoj::calc::BASELINE_LIFT;
                 const double pitch = t->getLineHeight() > 0 ? t->getLineHeight() : t->naturalLineHeight();
                 const auto lines = std::count(t->getText().begin(), t->getText().end(), '\n');
-                if (*exactLine < first - grid.dy / 2 || *exactLine > first + static_cast<double>(lines) * pitch + grid.dy / 2) {
+                if (*exactLine < first - grid.dy / 2 ||
+                    *exactLine > first + static_cast<double>(lines) * pitch + grid.dy / 2) {
                     continue;
                 }
             }

@@ -106,6 +106,8 @@ constexpr const char* ACTION_NAMES[] = {  // Action to string conversion map
         "calc-ink-to-text",
         "calc-ink-live",
         "calc-ink-live-text",
+        "calc-image-to-math",
+        "calc-image-to-text",
         "calc-excel-link",
         "calc-excel-input",
         "calc-excel-output",

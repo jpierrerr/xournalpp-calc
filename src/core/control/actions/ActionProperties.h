@@ -862,6 +862,16 @@ struct ActionProperties<Action::CALC_INK_TO_TEXT> {
     static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->convertSelectedInk(false); }
 };
 
+template <>
+struct ActionProperties<Action::CALC_IMAGE_TO_MATH> {
+    static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->convertImage(true); }
+};
+
+template <>
+struct ActionProperties<Action::CALC_IMAGE_TO_TEXT> {
+    static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->convertImage(false); }
+};
+
 template <bool math>
 struct InkLiveActionProperties {
     using state_type = bool;

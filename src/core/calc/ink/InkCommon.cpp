@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 
@@ -224,6 +225,208 @@ std::vector<unsigned char> renderStrokes(const std::vector<InkStroke>& strokes, 
         cairo_surface_write_to_png(surf, debugPng.c_str());
     }
     cairo_surface_destroy(surf);
+    return out;
+}
+
+GrayImage grayFromSurface(cairo_surface_t* surface) {
+    GrayImage img;
+    if (!surface || cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
+        return img;
+    }
+    // Draw it on white in a known format (transparent PNGs, any pixel format)
+    const int w = cairo_image_surface_get_width(surface);
+    const int h = cairo_image_surface_get_height(surface);
+    if (w <= 0 || h <= 0 || static_cast<long long>(w) * h > 64LL * 1024 * 1024) {
+        return img;
+    }
+    cairo_surface_t* rgb = cairo_image_surface_create(CAIRO_FORMAT_RGB24, w, h);
+    cairo_t* cr = cairo_create(rgb);
+    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_paint(cr);
+    cairo_set_source_surface(cr, surface, 0, 0);
+    cairo_paint(cr);
+    cairo_destroy(cr);
+    cairo_surface_flush(rgb);
+
+    img.w = w;
+    img.h = h;
+    img.px.resize(static_cast<size_t>(w) * h);
+    const unsigned char* data = cairo_image_surface_get_data(rgb);
+    const int stride = cairo_image_surface_get_stride(rgb);
+    unsigned long long sum = 0;
+    for (int y = 0; y < h; y++) {
+        const auto* row = reinterpret_cast<const uint32_t*>(data + static_cast<size_t>(y) * stride);
+        for (int x = 0; x < w; x++) {
+            const uint32_t p = row[x];
+            const unsigned r = (p >> 16) & 0xFF, g = (p >> 8) & 0xFF, b = p & 0xFF;
+            const auto v = static_cast<unsigned char>((299 * r + 587 * g + 114 * b) / 1000);
+            img.px[static_cast<size_t>(y) * w + x] = v;
+            sum += v;
+        }
+    }
+    cairo_surface_destroy(rgb);
+    // A dark background (dark mode of a viewer, a blackboard): invert
+    if (sum / img.px.size() < 110) {
+        for (auto& v: img.px) {
+            v = static_cast<unsigned char>(255 - v);
+        }
+    }
+    return img;
+}
+
+namespace {
+
+/// Threshold between writing and background: halfway between the background (the most common light value) and
+/// the darkest pixels
+int inkThreshold(const GrayImage& img) {
+    std::array<size_t, 256> hist{};
+    for (unsigned char v: img.px) {
+        hist[v]++;
+    }
+    int background = 255;
+    size_t best = 0;
+    for (int v = 128; v < 256; v++) {
+        if (hist[static_cast<size_t>(v)] > best) {
+            best = hist[static_cast<size_t>(v)];
+            background = v;
+        }
+    }
+    int darkest = 0;
+    while (darkest < 255 && hist[static_cast<size_t>(darkest)] == 0) {
+        darkest++;
+    }
+    if (darkest > background - 50) {
+        return 0;  // no contrast: nothing is writing
+    }
+    return (background + darkest) / 2;
+}
+
+GrayImage crop(const GrayImage& img, int x0, int y0, int x1, int y1) {
+    GrayImage out;
+    out.w = x1 - x0;
+    out.h = y1 - y0;
+    out.px.resize(static_cast<size_t>(out.w) * out.h);
+    for (int y = 0; y < out.h; y++) {
+        std::copy_n(img.px.begin() + static_cast<long>(static_cast<size_t>(y0 + y) * img.w + x0), out.w,
+                    out.px.begin() + static_cast<long>(static_cast<size_t>(y) * out.w));
+    }
+    return out;
+}
+
+}  // namespace
+
+std::vector<GrayImage> splitImageLines(const GrayImage& img) {
+    std::vector<GrayImage> lines;
+    if (img.w <= 0 || img.h <= 0) {
+        return lines;
+    }
+    const int t = inkThreshold(img);
+    std::vector<int> rowInk(static_cast<size_t>(img.h), 0);
+    std::vector<int> colInk(static_cast<size_t>(img.w), 0);
+    for (int y = 0; y < img.h; y++) {
+        for (int x = 0; x < img.w; x++) {
+            if (img.px[static_cast<size_t>(y) * img.w + x] < t) {
+                rowInk[static_cast<size_t>(y)]++;
+                colInk[static_cast<size_t>(x)]++;
+            }
+        }
+    }
+    // Bands of rows with writing
+    struct Band {
+        int y0, y1;
+    };
+    std::vector<Band> bands;
+    for (int y = 0; y < img.h; y++) {
+        if (rowInk[static_cast<size_t>(y)] > 0) {
+            if (!bands.empty() && bands.back().y1 == y) {
+                bands.back().y1 = y + 1;
+            } else {
+                bands.push_back({y, y + 1});
+            }
+        }
+    }
+    if (bands.empty()) {
+        return lines;
+    }
+    // Join bands separated by small gaps (the parts of a fraction, an exponent, the dot of an i)
+    std::vector<Band> joined{bands.front()};
+    for (size_t i = 1; i < bands.size(); i++) {
+        Band& last = joined.back();
+        const int gap = bands[i].y0 - last.y1;
+        const int smaller = std::min(last.y1 - last.y0, bands[i].y1 - bands[i].y0);
+        const int larger = std::max(last.y1 - last.y0, bands[i].y1 - bands[i].y0);
+        if (gap <= std::max(3, larger / 3) || smaller < larger / 3) {
+            last.y1 = bands[i].y1;
+        } else {
+            joined.push_back(bands[i]);
+        }
+    }
+    for (const Band& b: joined) {
+        int x0 = img.w, x1 = 0;
+        for (int y = b.y0; y < b.y1; y++) {
+            for (int x = 0; x < img.w; x++) {
+                if (img.px[static_cast<size_t>(y) * img.w + x] < t) {
+                    x0 = std::min(x0, x);
+                    x1 = std::max(x1, x + 1);
+                }
+            }
+        }
+        if (x1 - x0 < 2 || b.y1 - b.y0 < 2) {
+            continue;  // a speck
+        }
+        lines.push_back(crop(img, x0, b.y0, x1, b.y1));
+    }
+    return lines;
+}
+
+std::vector<unsigned char> fitImage(const GrayImage& img, int w, int h, const std::string& debugPng) {
+    std::vector<unsigned char> out(static_cast<size_t>(w) * h, 255);
+    if (img.w <= 0 || img.h <= 0) {
+        return out;
+    }
+    // The picture of the writing with a margin of about a quarter of its height (as in typeset formulas)
+    const int pad = std::max(4, std::min(img.w, img.h) / 4);
+    const int pw = img.w + 2 * pad;
+    const int ph = img.h + 2 * pad;
+    cairo_surface_t* src = cairo_image_surface_create(CAIRO_FORMAT_RGB24, pw, ph);
+    {
+        unsigned char* data = cairo_image_surface_get_data(src);
+        const int stride = cairo_image_surface_get_stride(src);
+        cairo_surface_flush(src);
+        for (int y = 0; y < ph; y++) {
+            auto* row = reinterpret_cast<uint32_t*>(data + static_cast<size_t>(y) * stride);
+            for (int x = 0; x < pw; x++) {
+                const int ix = x - pad, iy = y - pad;
+                const unsigned v = (ix >= 0 && iy >= 0 && ix < img.w && iy < img.h) ?
+                                           img.px[static_cast<size_t>(iy) * img.w + ix] :
+                                           255u;
+                row[x] = 0xFF000000u | (v << 16) | (v << 8) | v;
+            }
+        }
+        cairo_surface_mark_dirty(src);
+    }
+    cairo_surface_t* dst = cairo_image_surface_create(CAIRO_FORMAT_RGB24, w, h);
+    cairo_t* cr = cairo_create(dst);
+    cairo_scale(cr, static_cast<double>(w) / pw, static_cast<double>(h) / ph);
+    cairo_set_source_surface(cr, src, 0, 0);
+    cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_GOOD);
+    cairo_pattern_set_extend(cairo_get_source(cr), CAIRO_EXTEND_PAD);  // white up to the edges
+    cairo_paint(cr);
+    cairo_destroy(cr);
+    cairo_surface_flush(dst);
+    const unsigned char* data = cairo_image_surface_get_data(dst);
+    const int stride = cairo_image_surface_get_stride(dst);
+    for (int y = 0; y < h; y++) {
+        const auto* row = reinterpret_cast<const uint32_t*>(data + static_cast<size_t>(y) * stride);
+        for (int x = 0; x < w; x++) {
+            out[static_cast<size_t>(y) * w + x] = static_cast<unsigned char>(row[x] & 0xFF);
+        }
+    }
+    if (!debugPng.empty()) {
+        cairo_surface_write_to_png(dst, debugPng.c_str());
+    }
+    cairo_surface_destroy(src);
+    cairo_surface_destroy(dst);
     return out;
 }
 

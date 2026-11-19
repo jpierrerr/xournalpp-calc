@@ -107,7 +107,7 @@ public:
 private:
     void toggleOverwrite();
     void toggleBoldFace();
-    /// Ctrl+PgUp / Ctrl+PgDown: what is typed next becomes an exponent (superscript) or a subscript; pressing it
+    /// Ctrl+Up / Ctrl+Down: what is typed next becomes an exponent (superscript) or a subscript; pressing it
     /// again cancels
     void superscriptBeforeCursor() { pendingScript = pendingScript == 1 ? 0 : 1; }
     void subscriptBeforeCursor() { pendingScript = pendingScript == -1 ? 0 : -1; }

@@ -156,8 +156,8 @@ void Control::excelPickCell(bool input) {
     }
 }
 
-void Control::insertCalcLine(const std::string& line) {
-    if (auto* te = getTextEditor(); te && te->getTextElement() && te->getTextElement()->isCalc()) {
+void Control::insertCalcLine(const std::string& line, bool calc) {
+    if (auto* te = getTextEditor(); te && te->getTextElement() && te->getTextElement()->isCalc() == calc) {
         te->insertLine(line);
         return;
     }
@@ -206,7 +206,7 @@ void Control::insertCalcLine(const std::string& line) {
     t->setText(line);
     t->setFont(this->settings->getFont());
     t->setColor(this->toolHandler->getTool(TOOL_TEXT).getColor());
-    t->setCalc(true);
+    t->setCalc(calc);
     t->setLineHeight(grid.pitchFor(t->naturalLineHeight()));
     t->setTransformation(
             xoj::util::Matrix::TRANSLATION(x, writingLine - xoj::calc::BASELINE_LIFT - t->firstBaseline()));

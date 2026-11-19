@@ -603,6 +603,22 @@ public:
         }
         auto gray = renderStrokes(strokes, size, size, envDouble("JACKMATH_INK_HEIGHT", 64),
                                   envDouble("JACKMATH_INK_PEN", 1.6), debugPng);
+        return recognizePixels(gray, error);
+    }
+
+    /// Recognize a formula in a picture of a line
+    std::optional<std::string> recognizeImageLine(const GrayImage& line, std::string& error) {
+        std::string debugPng;
+        if (g_getenv("JACKMATH_INK_DEBUG")) {
+            debugPng = std::string(char_cast(
+                    (fs::temp_directory_path() / ("jackmath-img-" + std::to_string(debugCounter++) + ".png")).u8string()));
+        }
+        return recognizePixels(fitImage(line, imageSize, imageSize, debugPng), error);
+    }
+
+    /// Recognize the formula in a square grayscale picture of imageSize pixels
+    std::optional<std::string> recognizePixels(const std::vector<unsigned char>& gray, std::string& error) {
+        const int size = imageSize;
         std::vector<float> pixels(3 * static_cast<size_t>(size) * size);
         const size_t plane = static_cast<size_t>(size) * size;
         for (size_t i = 0; i < plane; i++) {
@@ -755,7 +771,38 @@ std::optional<std::string> recognizeMath(const std::vector<InkStroke>& strokes, 
     return result;
 }
 
+std::optional<std::string> recognizeMathImage(const GrayImage& img, std::string& error) {
+    MathModel* model = MathModel::get(error);
+    if (!model) {
+        return std::nullopt;
+    }
+    std::string result;
+    for (const auto& line: splitImageLines(img)) {
+        auto latex = model->recognizeImageLine(line, error);
+        if (!latex) {
+            return std::nullopt;
+        }
+        if (latex->empty()) {
+            continue;
+        }
+        if (!result.empty()) {
+            result += " \\\\ ";
+        }
+        result += *latex;
+    }
+    if (result.empty()) {
+        error = "No se reconoció ninguna fórmula en la imagen";
+        return std::nullopt;
+    }
+    return result;
+}
+
 #else
+
+std::optional<std::string> recognizeMathImage(const GrayImage&, std::string& error) {
+    error = "Este programa se compiló sin ONNX Runtime: no puede reconocer fórmulas";
+    return std::nullopt;
+}
 
 std::optional<std::string> recognizeMath(const std::vector<InkStroke>&, std::string& error) {
     error = "Este programa se compiló sin ONNX Runtime: no puede reconocer fórmulas";

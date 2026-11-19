@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include <cairo.h>
+
 namespace xoj::calc::ink {
 
 struct InkPoint {
@@ -52,6 +54,32 @@ std::vector<std::vector<size_t>> blockIndices(const std::vector<InkStroke>& stro
 /// If debugPng is not empty, the image is also saved there
 std::vector<unsigned char> renderStrokes(const std::vector<InkStroke>& strokes, int w, int h, double lineHeight,
                                          double penWidth, const std::string& debugPng = "");
+
+/// A grayscale picture (row-major, 0 = black, 255 = white), e.g. a screenshot of a formula
+struct GrayImage {
+    int w = 0;
+    int h = 0;
+    std::vector<unsigned char> px;
+};
+
+/// The picture of an image (any cairo image surface): transparent parts become white, and light writing on a dark
+/// background is inverted so that the writing is always dark
+GrayImage grayFromSurface(cairo_surface_t* surface);
+
+/// The lines of writing of a picture, cropped to the writing, from top to bottom. A line is cut where there is a
+/// band of empty rows taller than half of the lines around it (fractions and exponents stay in their line)
+std::vector<GrayImage> splitImageLines(const GrayImage& img);
+
+/// A picture stretched to w×h with a white margin around the writing, as the model sees it. If debugPng is not
+/// empty, the result is also saved there
+std::vector<unsigned char> fitImage(const GrayImage& img, int w, int h, const std::string& debugPng = "");
+
+/// Recognize a formula in a picture (a screenshot of a PDF, a photo of the board...). LaTeX of each line joined by
+/// "\\", or nullopt with a message in error
+std::optional<std::string> recognizeMathImage(const GrayImage& img, std::string& error);
+
+/// Recognize printed text in a picture with the text recognition (OCR) of Windows. Lines joined with '\n'
+std::optional<std::string> recognizeTextImage(const GrayImage& img, std::string& error);
 
 /// Recognize a handwritten formula (one or several lines). Returns the LaTeX of each line joined by "\\\\",
 /// or nullopt with a message in error

@@ -338,7 +338,10 @@ public:
     void excelPickCell(bool input);
     /// xournalpp-calc: add a line to the calculation region being edited, or to a new region below the last one
     /// of the current page
-    void insertCalcLine(const std::string& line);
+    void insertCalcLine(const std::string& line, bool calc = true);
+    /// xournalpp-calc: recognize the selected image(s), or else the image in the clipboard (a screenshot of a PDF),
+    /// as a formula (math: a calculation region) or as printed text
+    void convertImage(bool math);
 
     GladeSearchpath* getGladeSearchPath() const;
 

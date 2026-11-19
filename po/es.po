@@ -4926,6 +4926,12 @@ msgstr "Convertir escritura a ecuación"
 msgid "Convert handwriting to text"
 msgstr "Convertir escritura a texto"
 
+msgid "Convert Image to Equation"
+msgstr "Convertir imagen a ecuación (captura o imagen seleccionada)"
+
+msgid "Convert Image to Text"
+msgstr "Convertir imagen a texto (captura o imagen seleccionada)"
+
 msgid "Convert to Equation While Writing"
 msgstr "Convertir a ecuación mientras escribo"
 

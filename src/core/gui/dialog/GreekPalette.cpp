@@ -110,9 +110,9 @@ std::string tooltipFor(const char* symbol) {
     }
     // Keyboard shortcuts of the text boxes
     static const SymbolName SHORTCUTS[] = {
-            {"²", "Ctrl+RePág (Page Up) y luego el número: exponente"},
-            {"³", "Ctrl+RePág (Page Up) y luego el número: exponente"},
-            {"⁻¹", "Ctrl+RePág (Page Up) y luego el número: exponente"},
+            {"²", "Ctrl+↑ y luego el número: exponente"},
+            {"³", "Ctrl+↑ y luego el número: exponente"},
+            {"⁻¹", "Ctrl+↑ y luego el número: exponente"},
             {"±", "escribe +- o -+"},
             {"≤", "escribe -= o =-"},
             {"≥", "escribe += o =+"},
@@ -197,8 +197,8 @@ GtkWidget* createGreekPalette(Control* control, GtkWindow* parent) {
     }
 
     GtkWidget* hint = gtk_label_new(
-            "En un cuadro de texto: letra + Ctrl+G = griega (a→α, q→θ, W→Ω). Ctrl+RePág y luego el número o letra = "
-            "exponente / superíndice; Ctrl+AvPág = subíndice. == pone ≔. Seguidos: +- → ±, -= → ≤, += → ≥, ++ → >, "
+            "En un cuadro de texto: letra + Ctrl+G = griega (a→α, q→θ, W→Ω). Ctrl+↑ y luego el número o letra = "
+            "exponente / superíndice; Ctrl+↓ = subíndice. == pone ≔. Seguidos: +- → ±, -= → ≤, += → ≥, ++ → >, "
             "-- → <");
     gtk_label_set_line_wrap(GTK_LABEL(hint), true);
     gtk_label_set_max_width_chars(GTK_LABEL(hint), 40);

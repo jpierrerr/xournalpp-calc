@@ -879,6 +879,16 @@
       <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;t</attribute>
      </item>
      <item>
+      <attribute name="label" translatable="yes">Convert Image to Equation</attribute>
+      <attribute name="action">win.calc-image-to-math</attribute>
+      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;i</attribute>
+     </item>
+     <item>
+      <attribute name="label" translatable="yes">Convert Image to Text</attribute>
+      <attribute name="action">win.calc-image-to-text</attribute>
+      <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;&lt;Shift&gt;i</attribute>
+     </item>
+     <item>
       <attribute name="label" translatable="yes">Convert to Equation While Writing</attribute>
       <attribute name="action">win.calc-ink-live</attribute>
       <attribute name="accel">&lt;Ctrl&gt;&lt;Alt&gt;w</attribute>

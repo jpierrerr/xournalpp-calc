@@ -212,3 +212,13 @@ TEST(CalcEngine, deepNestingIsAnErrorNotACrash) {
         EXPECT_NE(r.error.find("anidada"), std::string::npos);
     }
 }
+
+TEST(CalcEngine, primeAfterGreekLetters) {
+    Environment env;
+    // φ′ (prime, typed as a tilde after the letter), φ´ and φ' are the same variable
+    auto lines = evaluateText("φ′ := 30 deg\nσ′ := 120 kPa\nφ' =\nσ´ = ? kPa\nτ := σ′·tan(φ′) =", env);
+    EXPECT_EQ(lines[2].kind, Kind::Evaluation) << lines[2].error;
+    EXPECT_EQ(lines[3].result, "120 kPa");
+    EXPECT_EQ(lines[4].kind, Kind::Evaluation) << lines[4].error;
+    EXPECT_NE(lines[4].result.find("69.28"), std::string::npos) << lines[4].result;
+}

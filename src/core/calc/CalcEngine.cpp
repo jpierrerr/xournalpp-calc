@@ -522,7 +522,14 @@ std::vector<Token> tokenize(std::string_view s) {
                    !isSuperscriptAt(i)) {
                 i++;
             }
-            out.push_back({Tok::Ident, std::string(s.substr(start, i - start))});
+            // A prime written as ′ (typed as a tilde after a Greek letter: φ′) or ´ is the same as an apostrophe: φ′ = φ'
+            std::string name(s.substr(start, i - start));
+            for (const char* prime: {"′", "´"}) {
+                for (size_t p = name.find(prime); p != std::string::npos; p = name.find(prime, p + 1)) {
+                    name.replace(p, std::strlen(prime), "'");
+                }
+            }
+            out.push_back({Tok::Ident, std::move(name)});
             continue;
         }
         if (startsWith(s, i, ":=")) {
@@ -852,7 +859,7 @@ private:
             Quantity u = *findUnit(up->first);
             return Quantity{std::pow(u.value, up->second), u.dim.pow(up->second)};
         }
-        // "As" finds "A_s" (a subscript written with Ctrl+PgDown) when only one variable matches
+        // "As" finds "A_s" (a subscript written with Ctrl+Down) when only one variable matches
         if (env && name.find('_') == std::string::npos) {
             const Quantity* match = nullptr;
             int count = 0;
@@ -1179,7 +1186,7 @@ LineResult evaluateLineUnchecked(std::string_view line, Environment& env) {
         if (defName) {
             env.vars[*defName] = q;
             if (q2) {
-                // x is the "+" result; x_1 and x_2 (written x1/x2 with Ctrl+PgDown) are both results
+                // x is the "+" result; x_1 and x_2 (written x1/x2 with Ctrl+Down) are both results
                 env.vars[*defName + "_1"] = q;
                 env.vars[*defName + "_2"] = *q2;
             }

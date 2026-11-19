@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,14 +20,15 @@
 #include "calc/LatexToCalc.h"
 #include "calc/ink/InkRecognizer.h"
 #include "control/Control.h"
+#include "control/ToolHandler.h"
 #include "control/actions/ActionDatabase.h"
 #include "control/settings/Settings.h"
 #include "control/tools/EditSelection.h"
-#include "control/ToolHandler.h"
 #include "gui/MainWindow.h"
 #include "gui/XournalView.h"
 #include "model/Document.h"
 #include "model/Element.h"
+#include "model/Image.h"
 #include "model/Layer.h"
 #include "model/Stroke.h"
 #include "model/Text.h"
@@ -35,9 +37,9 @@
 #include "undo/GroupUndoAction.h"
 #include "undo/InsertUndoAction.h"
 #include "undo/UndoRedoHandler.h"
-#include "util/XojMsgBox.h"
 #include "util/Matrix.h"
 #include "util/Util.h"
+#include "util/XojMsgBox.h"
 
 namespace {
 
@@ -103,13 +105,19 @@ void Control::convertSelectedInk(bool math) {
     if (EditSelection* sel = xournal->getSelection()) {
         // The selected strokes: put them back on the page (with any move applied) and convert them there
         bool others = false;
+        bool images = false;
         std::vector<const Element*> elements;
         for (const Element* e: sel->getElementsView()) {
             if (e->getType() == ELEMENT_STROKE) {
                 elements.push_back(e);
             } else {
                 others = true;
+                images = images || e->getType() == ELEMENT_IMAGE;
             }
+        }
+        if (images) {
+            convertImage(math);  // a screenshot pasted on the page
+            return;
         }
         if (others) {
             XojMsgBox::showMessageToUser(getGtkWindow(),
@@ -171,8 +179,8 @@ bool Control::convertInkStrokes(const PageRef& page, Layer* layer, const std::ve
                 blockInk.push_back(ink[i]);
             }
             std::string err;
-            auto recognized = math ? xoj::calc::ink::recognizeMath(blockInk, err) :
-                                     xoj::calc::ink::recognizeText(blockInk, err);
+            auto recognized =
+                    math ? xoj::calc::ink::recognizeMath(blockInk, err) : xoj::calc::ink::recognizeText(blockInk, err);
             if (!recognized) {
                 error = err;
                 continue;
@@ -330,4 +338,140 @@ void Control::flushLiveInk() {
     if (!strokes.empty()) {
         convertInkStrokes(page, layer, strokes, this->inkLiveMath, false);
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Images: a screenshot of a formula or of text (from a PDF, a book, the board), selected on the page or in the
+// clipboard
+
+void Control::convertImage(bool math) {
+    if (!this->win) {
+        return;
+    }
+    // The images to recognize, and where to put the result (below each selected image)
+    struct Source {
+        xoj::calc::ink::GrayImage img;
+        PageRef page;
+        Layer* layer = nullptr;
+        double x = 0;
+        double bottom = 0;
+    };
+    std::vector<Source> sources;
+    XournalView* xournal = this->win->getXournal();
+    if (EditSelection* sel = xournal->getSelection()) {
+        for (const Element* e: sel->getElementsView()) {
+            if (e->getType() != ELEMENT_IMAGE) {
+                continue;
+            }
+            const auto* image = static_cast<const Image*>(e);
+            Source src;
+            src.img = xoj::calc::ink::grayFromSurface(image->getImage());
+            const auto& box = e->getBoundingBox();
+            src.x = box.x;
+            src.bottom = box.y + box.height;
+            src.page = sel->getSourcePage();
+            src.layer = sel->getSourceLayer();
+            if (src.img.w > 0) {
+                sources.push_back(std::move(src));
+            }
+        }
+    }
+    bool fromClipboard = false;
+    if (sources.empty()) {
+        GtkClipboard* clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+        if (GdkPixbuf* pixbuf = gtk_clipboard_wait_for_image(clipboard)) {
+            cairo_surface_t* surf = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1, nullptr);
+            Source src;
+            src.img = xoj::calc::ink::grayFromSurface(surf);
+            cairo_surface_destroy(surf);
+            g_object_unref(pixbuf);
+            if (src.img.w > 0) {
+                sources.push_back(std::move(src));
+                fromClipboard = true;
+            }
+        }
+    }
+    if (sources.empty()) {
+        XojMsgBox::showMessageToUser(getGtkWindow(),
+                                     "No hay una imagen para convertir. Toma una captura de la fórmula o del texto "
+                                     "(Windows + Shift + S) y vuelve a usar esta opción, o selecciona una imagen de "
+                                     "la hoja.",
+                                     GTK_MESSAGE_INFO);
+        return;
+    }
+
+    std::vector<std::string> texts;
+    std::string error;
+    {
+        BusyCursor busy(getGtkWindow());
+        for (const auto& src: sources) {
+            std::string err;
+            std::optional<std::string> recognized;
+            try {
+                recognized = math ? xoj::calc::ink::recognizeMathImage(src.img, err) :
+                                    xoj::calc::ink::recognizeTextImage(src.img, err);
+            } catch (const std::exception& e) {
+                err = e.what();
+            }
+            std::string text;
+            if (recognized) {
+                text = math ? xoj::calc::latexToCalc(*recognized) : *recognized;
+                g_message("Image: %s → %s", recognized->c_str(), text.c_str());
+            } else {
+                error = err;
+            }
+            texts.push_back(std::move(text));
+        }
+    }
+    bool any = false;
+    for (const auto& t: texts) {
+        any = any || !t.empty();
+    }
+    if (!any) {
+        XojMsgBox::showErrorToUser(getGtkWindow(),
+                                   error.empty() ? std::string("No se reconoció nada en la imagen.") : error);
+        return;
+    }
+
+    if (fromClipboard) {
+        // In the region being edited, or in a new one below the last of the page
+        insertCalcLine(texts.front(), math);
+        return;
+    }
+    xournal->clearSelection();
+    auto group = std::make_unique<GroupUndoAction>();
+    for (size_t i = 0; i < sources.size(); i++) {
+        if (texts[i].empty() || !sources[i].page || !sources[i].layer) {
+            continue;
+        }
+        const Source& src = sources[i];
+        auto t = std::make_unique<Text>();
+        t->setText(texts[i]);
+        t->setFont(this->settings->getFont());
+        t->setColor(this->toolHandler->getTool(TOOL_TEXT).getColor());
+        t->setCalc(math);
+        // Below the image, on the next writing line
+        double x = src.x;
+        double baseline = src.bottom + t->firstBaseline() + 4;
+        if (this->calcGrid) {
+            auto grid = xoj::calc::alignmentGrid(src.page->getBackgroundType(), src.page->getWidth(),
+                                                 src.page->getHeight());
+            t->setLineHeight(grid.pitchFor(t->naturalLineHeight()));
+            x = grid.snapX(x);
+            double line = grid.snapY(src.bottom);
+            while (line - xoj::calc::BASELINE_LIFT - t->firstBaseline() < src.bottom) {
+                line += grid.linePitch();
+            }
+            baseline = line - xoj::calc::BASELINE_LIFT;
+        }
+        t->setTransformation(xoj::util::Matrix::TRANSLATION(x, baseline - t->firstBaseline()));
+        Text* ptr = t.get();
+        this->doc->lock();
+        src.layer->addElement(std::move(t));
+        this->doc->unlock();
+        src.page->fireElementChanged(ptr);
+        group->addAction(std::make_unique<InsertUndoAction>(src.page, src.layer, ptr));
+    }
+    this->undoRedo->addUndoAction(std::move(group));
+    scheduleCalcUpdate();
 }

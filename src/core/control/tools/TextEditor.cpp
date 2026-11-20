@@ -1650,6 +1650,11 @@ void TextEditor::finalizeEdition() {
         // Modifying a preexisting element
         this->viewPool->dispatchAndClear(xoj::view::TextEditionView::FINALIZATION_REQUEST, this->previousBoundingBox);
 
+        if (this->textElement->isCalc() && this->textElement->getText() != this->originalTextElement->getText()) {
+            // xournalpp-calc: the results of the old text are not shown with the new one (they come back at once,
+            // when the regions are recalculated)
+            this->textElement->setCalcMarkup({});
+        }
         doc->lock();
         Layer* layer = this->page->getSelectedLayer();
         auto [orig, _] = layer->removeElement(this->originalTextElement);
@@ -1745,8 +1750,13 @@ void TextEditor::initializeEditionAt(double x, double y) {
     } else {
         this->originalTextElement = text;
         this->textElement = text->cloneText();
+        // xournalpp-calc: a calculation region is shown with its results (wider than what is written); while it is
+        // edited only what is written is shown, so the area of the results must be repainted too
+        const auto shownBox = text->getBoundingBox();
         text->setInEditing(true);
         lock.unlock();
+        Range shown(shownBox);
+        this->page->fireRangeChanged(shown);
 
         auto* db = this->control->getActionDatabase();
         db->setActionState(Action::FONT, this->textElement->getFont().asString().c_str());

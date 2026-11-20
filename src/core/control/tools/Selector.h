@@ -36,6 +36,8 @@ public:
      * @return layerId of selected objects, 0 if there is nothing in RectSelection
      */
     size_t finalize(PageRef page, bool disableMultilayer, Document* doc);
+    /// xournalpp-calc: Esc while selecting: remove the rectangle/lasso without selecting anything
+    void cancel();
 
     virtual void currentPos(double x, double y) = 0;
     virtual bool userTapped(double zoom) const = 0;

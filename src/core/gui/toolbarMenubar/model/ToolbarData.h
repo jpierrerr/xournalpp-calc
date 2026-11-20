@@ -41,6 +41,13 @@ public:
     int insertItem(const std::string& toolbar, const std::string& item, int position);
     bool removeItemByID(const std::string& toolbar, int id);
 
+    /// xournalpp-calc: names of the items of one bar (e.g. "toolbarTop1"), in order
+    std::vector<std::string> getItemNames(const std::string& toolbar) const;
+    /// xournalpp-calc: replace the items of one bar
+    void setItemNames(const std::string& toolbar, const std::vector<std::string>& items);
+    /// xournalpp-calc: replace all the bars with those of another toolbar configuration (keeps id, name)
+    void copyContentsFrom(const ToolbarData& other);
+
 private:
     std::string id;
     std::string name;

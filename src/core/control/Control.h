@@ -172,6 +172,13 @@ public:
 
     void selectTool(ToolType type);
     void selectDefaultTool();
+    /**
+     * @brief Esc with nothing left to cancel: put away the tool in use (ruler, compass, calculation region,
+     * floating toolbox) and go back to the neutral tool (select objects). Background options such as grid
+     * snapping are not touched.
+     * @return true if something changed
+     */
+    bool escapeCurrentTool();
 
     void fontChanged(const XojFont& font);      ///< Set the font after the user selected a font
 
@@ -194,7 +201,10 @@ public:
     void setViewLayoutB2T(bool b2t);
 
     void manageToolbars();
+    /// xournalpp-calc: the window with the list of tools of each bar
     void customizeToolbars();
+    /// The original editor: drag tools from a window onto the bars
+    void customizeToolbarsByDrag();
     void setFullscreen(bool enabled);
     void setShowSidebar(bool enabled);
     void setShowToolbar(bool enabled);

@@ -53,6 +53,7 @@
 #include "gui/dialog/ExportDialog.h"                             // for ExportDialog
 #include "gui/dialog/FormatDialog.h"                             // for Form...
 #include "gui/dialog/GotoDialog.h"                               // for Goto...
+#include "gui/dialog/ToolbarEditorDialog.h"                      // for ToolbarEditorDialog
 #include "gui/dialog/GreekPalette.h"                             // for GreekPalette
 #include "gui/dialog/PageTemplateDialog.h"                       // for Page...
 #include "gui/dialog/SelectBackgroundColorDialog.h"              // for Sele...
@@ -626,6 +627,11 @@ void Control::manageToolbars() {
 
 void Control::customizeToolbars() {
     xoj_assert(this->win != nullptr);
+    xoj::popup::ToolbarEditorDialog::show(this);
+}
+
+void Control::customizeToolbarsByDrag() {
+    xoj_assert(this->win != nullptr);
 
     if (this->win->getSelectedToolbar()->isPredefined()) {
         enum { YES = 1, NO };
@@ -642,7 +648,7 @@ void Control::customizeToolbars() {
                                        ctrl->win->updateToolbarMenu();
 
                                        xoj_assert(!ctrl->win->getSelectedToolbar()->isPredefined());
-                                       ctrl->customizeToolbars();
+                                       ctrl->customizeToolbarsByDrag();
                                    }
                                });
     } else {
@@ -1400,6 +1406,36 @@ void Control::selectDefaultTool() {
     if (toolHandler->getToolType() != TOOL_NONE) {
         selectTool(toolHandler->getToolType());
     }
+}
+
+bool Control::escapeCurrentTool() {
+    bool changed = false;
+    if (this->geometryToolController) {
+        resetGeometryTool();
+        this->actionDB->setActionState(Action::SETSQUARE, false);
+        this->actionDB->setActionState(Action::COMPASS, false);
+        changed = true;
+    }
+    if (this->win) {
+        if (auto* pdf = this->win->getPdfToolbox(); pdf && pdf->hasSelection()) {
+            // First Esc only drops the selected PDF text
+            pdf->userCancelSelection();
+            this->win->getXournal()->repaintSelection(true);
+            return true;
+        }
+        if (auto* ft = this->win->getFloatingToolbox(); ft) {
+            ft->hide();
+        }
+    }
+    if (this->calcMode) {
+        this->actionDB->fireChangeActionState(Action::CALC_MODE, false);
+        changed = true;
+    }
+    if (toolHandler->getToolType() != TOOL_SELECT_OBJECT) {
+        selectTool(TOOL_SELECT_OBJECT);
+        changed = true;
+    }
+    return changed;
 }
 
 void Control::toolChanged() {

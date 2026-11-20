@@ -16,6 +16,8 @@ Selector::Selector(bool multiLayer):
 
 Selector::~Selector() = default;
 
+void Selector::cancel() { this->viewPool->dispatchAndClear(xoj::view::SelectorView::DELETE_VIEWS_REQUEST, this->bbox); }
+
 auto Selector::finalize(PageRef page, bool disableMultilayer, Document* doc) -> size_t {
     this->page = page;
 

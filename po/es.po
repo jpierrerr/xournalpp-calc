@@ -4952,3 +4952,119 @@ msgstr "Valor de entrada desde Excel…"
 
 msgid "Output Value to Excel…"
 msgstr "Valor de salida hacia Excel…"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Top, row 1"
+msgstr "Arriba, fila 1"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Top, row 2"
+msgstr "Arriba, fila 2"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Left, column 1"
+msgstr "Izquierda, columna 1"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Left, column 2"
+msgstr "Izquierda, columna 2"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Right, column 1"
+msgstr "Derecha, columna 1"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Right, column 2"
+msgstr "Derecha, columna 2"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Bottom, row 1"
+msgstr "Abajo, fila 1"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Bottom, row 2"
+msgstr "Abajo, fila 2"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Customize toolbar"
+msgstr "Personalizar barra de herramientas"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Bar:"
+msgstr "Barra:"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Up"
+msgstr "Subir"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Down"
+msgstr "Bajar"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Move to:"
+msgstr "Mover a:"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Restore original"
+msgstr "Restaurar original"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Drag onto the bars…"
+msgstr "Arrastrar a las barras…"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "The previous editor: drag tools from a window onto the bars"
+msgstr "El editor anterior: arrastrar herramientas desde una ventana hasta las barras"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Color: {1}"
+msgstr "Color: {1}"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "{1} (custom)"
+msgstr "{1} (personalizada)"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Layout: {1}. Changes are applied at once and kept for the next time."
+msgstr "Barra en uso: {1}. Los cambios se aplican de inmediato y se guardan para la próxima vez."
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Untick to hide it"
+msgstr "Desmarca para ocultarla"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Tick to show it in this bar"
+msgstr "Marca para mostrarla en esta barra"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Shown in this bar (drag them or use Up/Down to change the order)"
+msgstr "Visibles en esta barra (arrástralas o usa Subir/Bajar para cambiar el orden)"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "(empty: this bar is not shown)"
+msgstr "(vacía: esta barra no se muestra)"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Not in this bar (tick one to add it at the end; if it is in another bar, it moves here)"
+msgstr "No están en esta barra (marca una para ponerla al final; si está en otra barra, se mueve aquí)"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "now in {1}"
+msgstr "ahora en {1}"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "This toolbar is already the original one."
+msgstr "Esta barra ya es la original."
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Go back to the original toolbar \"{1}\"?"
+msgstr "¿Volver a la barra original «{1}»?"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "The changes made to this toolbar are discarded."
+msgstr "Se descartan los cambios hechos a esta barra."
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Restore"
+msgstr "Restaurar"

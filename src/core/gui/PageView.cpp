@@ -912,6 +912,21 @@ auto XojPageView::onKeyPressEvent(const KeyEvent& event) -> bool {
             endText();
             return true;
         }
+        // xournalpp-calc: Esc drops the selection rectangle/lasso being drawn (also the one that follows the pointer
+        // after a double click)
+        if (this->selector) {
+            this->selector->cancel();
+            this->selector.reset();
+            this->selectionGridAnchor.reset();
+            this->dcSelectionPending = false;
+            this->dcSelectionPendingUsed = false;
+            return true;
+        }
+        // A stroke, shape or vertical space still being drawn ends when the button is released: keep the tool
+        // until then
+        if (this->inputHandler || this->verticalSpace || this->imageSizeSelection || this->inEraser) {
+            return true;
+        }
 
         return false;
     }

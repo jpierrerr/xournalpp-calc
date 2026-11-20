@@ -203,6 +203,14 @@ auto XournalView::onKeyPressEvent(const KeyEvent& event) -> bool {
         return true;
     }
 
+    // Esc with nothing else to cancel puts away the tool in use (the text being edited, the selection and the
+    // spline were already handled above)
+    if (keyval == GDK_KEY_Escape && (state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK | GDK_MOD1_MASK)) == 0) {
+        if (control->escapeCurrentTool()) {
+            return true;
+        }
+    }
+
     Layout* layout = this->getLayout();
 
     if (!state) {

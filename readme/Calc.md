@@ -110,3 +110,28 @@ Xournal JackMath guarda sus ajustes, barras de herramientas y membrete en su pro
 ## Seleccionar con doble clic (herramienta de texto)
 
 Con la herramienta de texto (también en modo cálculo), haz doble clic en un sitio vacío: desde ese punto se dibuja un rectángulo de selección. Puedes arrastrar sin soltar el segundo clic, o soltar y mover el puntero (por ejemplo con el touchpad): el rectángulo lo sigue hasta el siguiente clic. Con la selección puedes mover el grupo (arrastrándolo) o borrarlo (Supr). Si "Alinear a la malla" está activo, al mover el grupo el punto donde hiciste el doble clic queda sobre un punto de la malla. El doble clic sobre un texto existente sigue seleccionando la palabra.
+
+## Tecla Esc
+
+Esc suelta la herramienta en uso, por pasos:
+
+1. Primero cancela lo que esté a medias: el texto o la ecuación que se escribe, la selección, el rectángulo de
+   selección que se está trazando (también el que sigue al puntero tras un doble clic), la curva (spline) o el texto
+   de PDF seleccionado. Mientras se mantiene el botón pulsado dibujando un trazo o una forma, Esc no hace nada.
+2. Si no hay nada a medias, quita la regla o el compás, apaga la región de cálculo y vuelve a la herramienta
+   **Seleccionar objeto** (la flecha).
+
+Las opciones de fondo (alinear a la malla, acople de giro, malla visible...) no cambian.
+
+## Personalizar la barra de herramientas
+
+*Editar → Barras de herramientas → Personalizar* abre una ventana con una lista por cada barra (Arriba fila 1,
+Arriba fila 2, Izquierda, Derecha, Abajo):
+
+- Arriba están las herramientas visibles, en su orden. Desmarcar una la oculta. Se cambian de orden arrastrándolas o
+  con **Subir**/**Bajar**; **Mover a** la pasa a otra barra.
+- Abajo están las que no están en esa barra, por grupos. Marcar una la pone al final de la barra; si estaba en otra
+  barra, se mueve.
+- Los cambios se aplican de inmediato y se guardan en `toolbar.ini`. Una barra predefinida se copia la primera vez
+  (queda como "... (personalizada)"); **Restaurar original** vuelve a la predefinida y borra la copia.
+- **Arrastrar a las barras...** abre el editor anterior de Xournal++ (arrastrar desde una ventana hasta las barras).

@@ -161,3 +161,33 @@ auto ToolbarData::removeItemByID(const string& toolbar, int id) -> bool {
 
     return false;
 }
+
+auto ToolbarData::getItemNames(const std::string& toolbar) const -> std::vector<std::string> {
+    std::vector<std::string> names;
+    for (const ToolbarEntry& e: this->contents) {
+        if (e.getName() == toolbar) {
+            for (const auto& it: e.getItems()) {
+                names.emplace_back(it.getName());
+            }
+            break;
+        }
+    }
+    return names;
+}
+
+void ToolbarData::setItemNames(const std::string& toolbar, const std::vector<std::string>& items) {
+    ToolbarEntry entry;
+    entry.setName(toolbar);
+    for (const auto& name: items) {
+        entry.addItem(name);
+    }
+    for (ToolbarEntry& e: this->contents) {
+        if (e.getName() == toolbar) {
+            e = std::move(entry);
+            return;
+        }
+    }
+    this->contents.emplace_back(std::move(entry));
+}
+
+void ToolbarData::copyContentsFrom(const ToolbarData& other) { this->contents = other.contents; }

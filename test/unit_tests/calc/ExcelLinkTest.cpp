@@ -286,3 +286,15 @@ TEST_F(XlsxFileTest, sheetsAndPreview) {
     auto small = xlsx::preview(file, "", 3, 30);  // first sheet, only the first rows
     EXPECT_EQ(small.rows, 3);
 }
+
+TEST(CalcDocument, functionsInMathNotation) {
+    EXPECT_EQ(prettifyMarkup("SENO(30 deg)"), "sen(30 deg)");
+    EXPECT_EQ(prettifyMarkup("cos(x) + TAN(y)"), "cos(x) + tan(y)");
+    EXPECT_EQ(prettifyMarkup("RAIZ(a^2 + b^2)"), "√<span overline=\"single\">a<sup>2</sup> + b<sup>2</sup></span>");
+    EXPECT_EQ(prettifyMarkup("ABS(x)"), "|x|");
+    EXPECT_EQ(prettifyMarkup("LOG(8;2)"), "log<sub>2</sub>(8)");
+    EXPECT_EQ(prettifyMarkup("MAX(a;b)"), "max(a; b)");
+    EXPECT_EQ(prettifyMarkup("redondear.menos(x; 2)"), "REDONDEAR.MENOS(x; 2)");
+    EXPECT_EQ(prettifyMarkup("SENO(RAIZ(x))"), "sen(√<span overline=\"single\">x</span>)");
+    EXPECT_EQ(prettifyMarkup("SENO"), "SENO");  // without parentheses it is not a call
+}

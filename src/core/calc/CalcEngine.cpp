@@ -374,6 +374,131 @@ std::string formatQuantity(const Quantity& q) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Functions
+// ---------------------------------------------------------------------------------------------------------------------
+
+namespace {
+
+/// Upper case without accents, for names of functions: "raíz" → "RAIZ", "redondear.más" → "REDONDEAR.MAS"
+std::string foldFunctionName(std::string_view s) {
+    static const std::pair<const char*, char> ACCENTS[] = {{"á", 'A'}, {"é", 'E'}, {"í", 'I'}, {"ó", 'O'}, {"ú", 'U'},
+                                                           {"Á", 'A'}, {"É", 'E'}, {"Í", 'I'}, {"Ó", 'O'}, {"Ú", 'U'}};
+    std::string out;
+    out.reserve(s.size());
+    for (size_t i = 0; i < s.size();) {
+        auto c = static_cast<unsigned char>(s[i]);
+        if (c < 0x80) {
+            out += static_cast<char>(std::toupper(c));
+            i++;
+            continue;
+        }
+        bool found = false;
+        for (const auto& [accented, plain]: ACCENTS) {
+            const size_t len = std::strlen(accented);
+            if (s.substr(i, len) == accented) {
+                out += plain;
+                i += len;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            out += static_cast<char>(c);
+            i++;
+        }
+    }
+    return out;
+}
+
+}  // namespace
+
+const std::vector<FunctionInfo>& functionCatalog() {
+    static const std::vector<FunctionInfo> CATALOG = {
+            {"RAIZ", "RAIZ(x)", "Raíz cuadrada (se muestra √x)"},
+            {"RAIZ3", "RAIZ3(x)", "Raíz cúbica (se muestra ∛x)"},
+            {"ABS", "ABS(x)", "Valor absoluto (se muestra |x|)"},
+            {"SENO", "SENO(ángulo)", "Seno (se muestra sen)"},
+            {"COS", "COS(ángulo)", "Coseno"},
+            {"TAN", "TAN(ángulo)", "Tangente"},
+            {"ASENO", "ASENO(x)", "Arco seno: el ángulo cuyo seno es x"},
+            {"ACOS", "ACOS(x)", "Arco coseno"},
+            {"ATAN", "ATAN(x)", "Arco tangente"},
+            {"ATAN2", "ATAN2(x; y)", "Ángulo del punto (x; y), como en Excel"},
+            {"LN", "LN(x)", "Logaritmo natural"},
+            {"LOG10", "LOG10(x)", "Logaritmo en base 10"},
+            {"LOG", "LOG(x; base)", "Logaritmo en otra base (sin base: 10)"},
+            {"EXP", "EXP(x)", "e elevado a x"},
+            {"MIN", "MIN(a; b; ...)", "El menor de los valores"},
+            {"MAX", "MAX(a; b; ...)", "El mayor de los valores"},
+            {"REDONDEAR", "REDONDEAR(x; decimales)", "Redondea a esos decimales"},
+            {"REDONDEAR.MENOS", "REDONDEAR.MENOS(x; decimales)", "Redondea hacia cero"},
+            {"REDONDEAR.MAS", "REDONDEAR.MAS(x; decimales)", "Redondea alejándose de cero"},
+    };
+    return CATALOG;
+}
+
+std::vector<const FunctionInfo*> functionsStartingWith(std::string_view prefix) {
+    std::vector<const FunctionInfo*> out;
+    const std::string p = foldFunctionName(prefix);
+    if (p.empty()) {
+        return out;
+    }
+    for (const auto& f: functionCatalog()) {
+        if (std::string_view(f.name).substr(0, p.size()) == p) {
+            out.push_back(&f);
+        }
+    }
+    return out;
+}
+
+std::optional<std::string> functionId(std::string_view name) {
+    // The names of the first versions keep their meaning, written in lower case as they were
+    static const std::pair<const char*, const char*> LEGACY[] = {
+            {"atan2", "atan2yx"}, {"floor", "floor"}, {"ceil", "ceil"}, {"round", "round"}, {"log", "log"}};
+    for (const auto& [n, id]: LEGACY) {
+        if (name == n) {
+            return std::string(id);
+        }
+    }
+    static const std::unordered_map<std::string, std::string> NAMES = {
+            {"RAIZ", "sqrt"},       {"SQRT", "sqrt"},
+            {"RAIZ3", "cbrt"},      {"CBRT", "cbrt"},
+            {"ABS", "abs"},         {"SENO", "sin"},
+            {"SEN", "sin"},         {"SIN", "sin"},
+            {"COS", "cos"},         {"TAN", "tan"},
+            {"ASENO", "asin"},      {"ASEN", "asin"},
+            {"ASIN", "asin"},       {"ACOS", "acos"},
+            {"ATAN", "atan"},       {"ATAN2", "atan2"},
+            {"LN", "ln"},           {"LOG10", "log10"},
+            {"LOG", "log"},         {"EXP", "exp"},
+            {"MIN", "min"},         {"MAX", "max"},
+            {"REDONDEAR", "round"}, {"ROUND", "round"},
+            {"REDONDEAR.MENOS", "rounddown"},
+            {"REDONDEAR.MAS", "roundup"},
+            {"FLOOR", "floor"},     {"CEIL", "ceil"},
+    };
+    if (auto it = NAMES.find(foldFunctionName(name)); it != NAMES.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
+
+bool callsFunction(const std::string& name, const Environment* env) {
+    if (!functionId(name)) {
+        return false;
+    }
+    if (!env || !env->vars.count(name)) {
+        return true;
+    }
+    // Written exactly as a function, it is the function even if there is a variable with that name
+    static const char* const OLD[] = {"sqrt", "abs", "sin", "cos", "tan", "asin",  "acos",  "atan", "atan2",
+                                      "ln",   "log", "exp", "min", "max", "round", "floor", "ceil", "cbrt"};
+    return std::any_of(std::begin(OLD), std::end(OLD), [&](const char* f) { return name == f; }) ||
+           std::any_of(functionCatalog().begin(), functionCatalog().end(),
+                       [&](const FunctionInfo& f) { return name == f.name; });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Lexer
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -523,6 +648,17 @@ std::vector<Token> tokenize(std::string_view s) {
                 i++;
             }
             // A prime written as ′ (typed as a tilde after a Greek letter: φ′) or ´ is the same as an apostrophe: φ′ = φ'
+            // REDONDEAR.MENOS and REDONDEAR.MAS have a point in their name, as in Excel
+            if (i + 1 < s.size() && s[i] == '.' && foldFunctionName(s.substr(start, i - start)) == "REDONDEAR") {
+                size_t j = i + 1;
+                while (j < s.size() && isIdentChar(static_cast<unsigned char>(s[j])) && !isSymbolAt(j)) {
+                    j++;
+                }
+                const std::string suffix = foldFunctionName(s.substr(i + 1, j - i - 1));
+                if (suffix == "MENOS" || suffix == "MAS") {
+                    i = j;
+                }
+            }
             std::string name(s.substr(start, i - start));
             for (const char* prime: {"′", "´"}) {
                 for (size_t p = name.find(prime); p != std::string::npos; p = name.find(prime, p + 1)) {
@@ -788,7 +924,10 @@ private:
                     }
                     return {env->cells->read(ref), {}};
                 }
-                if (peek().type == Tok::LParen && isFunction(t.text)) {
+                // A function, unless the name (in other letters than a function) is a variable of the user:
+                // "Max (a + b)" multiplies a variable Max
+                if (auto id = peek().type == Tok::LParen && callsFunction(t.text, env) ? functionId(t.text) :
+                                                                                         std::nullopt) {
                     next();
                     std::vector<Quantity> args;
                     if (peek().type != Tok::RParen) {
@@ -799,10 +938,10 @@ private:
                         }
                     }
                     expect(Tok::RParen, "falta ')' en " + t.text);
-                    return callFunction(t.text, args);
+                    return callFunction(*id, t.text, args);
                 }
                 if (t.text == "sqrt") {  // "√x" without parentheses
-                    return callFunction("sqrt", {parsePower()});
+                    return callFunction("sqrt", "√", {parsePower()});
                 }
                 return lookup(t.text);
             case Tok::End:
@@ -878,12 +1017,6 @@ private:
         throw CalcError(env ? "variable no definida: " + name : "unidad desconocida: " + name);
     }
 
-    static bool isFunction(const std::string& n) {
-        static const char* const FUNCS[] = {"sqrt", "abs", "sin", "cos", "tan", "asin",  "acos",  "atan", "atan2",
-                                            "ln",   "log", "exp", "min", "max", "round", "floor", "ceil", "cbrt"};
-        return std::any_of(std::begin(FUNCS), std::end(FUNCS), [&](const char* f) { return n == f; });
-    }
-
     static void requireArgs(const std::string& f, const std::vector<Quantity>& a, size_t n) {
         if (a.size() != n) {
             throw CalcError(f + " requiere " + std::to_string(n) + " argumento(s)");
@@ -897,16 +1030,34 @@ private:
         return q.value;
     }
 
-    static Quantity callFunction(const std::string& f, const std::vector<Quantity>& a) {
-        using std::numbers::pi;
+    static void requireArgs(const std::string& f, const std::vector<Quantity>& a, size_t lo, size_t hi) {
+        if (a.size() < lo || a.size() > hi) {
+            throw CalcError(f + " requiere " + std::to_string(lo) + " o " + std::to_string(hi) + " argumentos");
+        }
+    }
+
+    /// Number of decimals of REDONDEAR(x; decimales): a whole number, 0 if it is not given
+    static int decimals(const std::string& name, const std::vector<Quantity>& a) {
+        if (a.size() < 2) {
+            return 0;
+        }
+        double d = dimless(name, a[1]);
+        if (std::abs(d - std::round(d)) > 1e-9 || std::abs(d) > 15) {
+            throw CalcError("los decimales de " + name + " deben ser un número entero");
+        }
+        return static_cast<int>(std::round(d));
+    }
+
+    /// f: internal identifier (see functionId); name: as it is written, for the messages
+    static Quantity callFunction(const std::string& f, const std::string& name, const std::vector<Quantity>& a) {
         if (f == "min" || f == "max") {
             if (a.empty()) {
-                throw CalcError(f + " requiere argumentos");
+                throw CalcError(name + " requiere argumentos");
             }
             Quantity r = a[0];
             for (const auto& q: a) {
                 if (!(q.dim == r.dim)) {
-                    throw CalcError("unidades incompatibles en " + f);
+                    throw CalcError("unidades incompatibles en " + name);
                 }
                 if (f == "min" ? q.value < r.value : q.value > r.value) {
                     r = q;
@@ -914,29 +1065,59 @@ private:
             }
             return r;
         }
-        if (f == "atan2") {
-            requireArgs(f, a, 2);
+        if (f == "atan2" || f == "atan2yx") {
+            // ATAN2(x; y) as in Excel; the atan2(y, x) of the first versions keeps its order
+            requireArgs(name, a, 2);
             if (!(a[0].dim == a[1].dim)) {
-                throw CalcError("unidades incompatibles en atan2");
+                throw CalcError("unidades incompatibles en " + name);
             }
-            return {std::atan2(a[0].value, a[1].value), {}};
+            const double x = f == "atan2" ? a[0].value : a[1].value;
+            const double y = f == "atan2" ? a[1].value : a[0].value;
+            if (x == 0 && y == 0) {
+                throw CalcError(name + " no está definido en (0; 0)");
+            }
+            return {std::atan2(y, x), {}};
         }
-        requireArgs(f, a, 1);
+        if (f == "log") {
+            requireArgs(name, a, 1, 2);
+            double v = dimless(name, a[0]);
+            double base = a.size() == 2 ? dimless(name, a[1]) : 10.0;
+            if (v <= 0 || base <= 0 || base == 1) {
+                throw CalcError("argumento fuera de dominio en " + name);
+            }
+            return {std::log(v) / std::log(base), {}};
+        }
+        if (f == "round" || f == "rounddown" || f == "roundup") {
+            requireArgs(name, a, 1, 2);
+            const double v = dimless(name, a[0]);
+            const double scale = std::pow(10.0, decimals(name, a));
+            const double x = v * scale;
+            // a value like 2.675 is stored as 2.67499999...: round what is meant
+            const double nearest = std::round(x);
+            const double t = std::abs(x - nearest) < 1e-9 * std::max(1.0, std::abs(x)) ? nearest : x;
+            double r = f == "round" ? std::round(t) : f == "rounddown" ? std::trunc(t) : (t < 0 ? std::floor(t) : std::ceil(t));
+            return {r / scale, {}};
+        }
+        requireArgs(name, a, 1);
         const Quantity& x = a[0];
         if (f == "sqrt") {
             return power(x, {0.5, {}});
         }
         if (f == "cbrt") {
+            if (x.value < 0) {
+                Quantity r = power({-x.value, x.dim}, {1.0 / 3.0, {}});
+                r.value = -r.value;
+                return r;
+            }
             return power(x, {1.0 / 3.0, {}});
         }
         if (f == "abs") {
             return {std::abs(x.value), x.dim};
         }
-        if (f == "round" || f == "floor" || f == "ceil") {
-            double v = dimless(f, x);
-            return {f == "round" ? std::round(v) : f == "floor" ? std::floor(v) : std::ceil(v), {}};
+        double v = dimless(name, x);
+        if (f == "floor" || f == "ceil") {
+            return {f == "floor" ? std::floor(v) : std::ceil(v), {}};
         }
-        double v = dimless(f, x);
         double r;
         if (f == "sin") {
             r = std::sin(v);
@@ -951,16 +1132,15 @@ private:
         } else if (f == "atan") {
             r = std::atan(v);
         } else if (f == "ln") {
-            r = std::log(v);
-        } else if (f == "log") {
-            r = std::log10(v);
+            r = v > 0 ? std::log(v) : NAN;
+        } else if (f == "log10") {
+            r = v > 0 ? std::log10(v) : NAN;
         } else {  // exp
             r = std::exp(v);
         }
-        if (std::isnan(r)) {
-            throw CalcError("argumento fuera de dominio en " + f);
+        if (std::isnan(r) || std::isinf(r)) {
+            throw CalcError("argumento fuera de dominio en " + name);
         }
-        (void)pi;
         return {r, {}};
     }
 
@@ -1029,7 +1209,7 @@ std::string lastArgumentText(std::string_view t) {
             if (--depth == 0) {
                 close = i;
             }
-        } else if (c == ',' && depth == 1) {
+        } else if ((c == ',' || c == ';') && depth == 1) {
             lastComma = i;
         }
     }
@@ -1064,7 +1244,7 @@ bool evaluateStatement(const std::string& t, Environment& env, LineResult& res) 
         Parser p(toks, 2, &env);
         Quantity q = p.parseExpression();
         if (p.peek().type != Tok::Comma) {
-            throw CalcError("uso: enviar(valor, \"Hoja1!D4\", unidad)");
+            throw CalcError("uso: enviar(valor; \"Hoja1!D4\"; unidad)");
         }
         p.next();
         std::string ref = p.parseCellRef();
@@ -1082,11 +1262,11 @@ bool evaluateStatement(const std::string& t, Environment& env, LineResult& res) 
             value = q.value / unit.value;
             end = up.position();
         } else if (!q.dim.isDimensionless()) {
-            throw CalcError("indica la unidad en que se envía: enviar(valor, \"" + ref + "\", " + formatDim(q.dim) +
+            throw CalcError("indica la unidad en que se envía: enviar(valor; \"" + ref + "\"; " + formatDim(q.dim) +
                             ")");
         }
         if (toks[end].type != Tok::RParen || toks[end + 1].type != Tok::End) {
-            throw CalcError("uso: enviar(valor, \"Hoja1!D4\", unidad)");
+            throw CalcError("uso: enviar(valor; \"Hoja1!D4\"; unidad)");
         }
         std::string where = env.cells->write(ref, value);
         res.result = "→ " + where + ": " + formatNumber(value) + (unitText.empty() ? "" : " " + unitText);

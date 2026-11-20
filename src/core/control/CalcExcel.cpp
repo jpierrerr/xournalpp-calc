@@ -147,8 +147,8 @@ void Control::excelPickCell(bool input) {
                 line += " =";
             }
         } else {
-            line = "enviar(" + choice->variable + ", \"" + choice->ref + "\"" +
-                   (choice->unit.empty() ? "" : ", " + choice->unit) + ")";
+            line = "enviar(" + choice->variable + "; \"" + choice->ref + "\"" +
+                   (choice->unit.empty() ? "" : "; " + choice->unit) + ")";
         }
         insertCalcLine(line);
     } catch (const std::exception& e) {

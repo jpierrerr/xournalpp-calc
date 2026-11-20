@@ -7,6 +7,7 @@
  */
 
 #include <cmath>
+#include <numbers>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -221,4 +222,68 @@ TEST(CalcEngine, primeAfterGreekLetters) {
     EXPECT_EQ(lines[3].result, "120 kPa");
     EXPECT_EQ(lines[4].kind, Kind::Evaluation) << lines[4].error;
     EXPECT_NE(lines[4].result.find("69.28"), std::string::npos) << lines[4].result;
+}
+
+TEST(CalcEngine, spanishFunctions) {
+    Environment env;
+    EXPECT_DOUBLE_EQ(evaluateExpression("RAIZ(16)", env).value, 4);
+    EXPECT_DOUBLE_EQ(evaluateExpression("raiz(16)", env).value, 4);
+    EXPECT_DOUBLE_EQ(evaluateExpression("Raíz(16)", env).value, 4);
+    EXPECT_NEAR(evaluateExpression("RAIZ3(27)", env).value, 3, 1e-12);
+    EXPECT_NEAR(evaluateExpression("RAIZ3(-8)", env).value, -2, 1e-12);
+    EXPECT_NEAR(evaluateExpression("SENO(30 deg)", env).value, 0.5, 1e-12);
+    EXPECT_NEAR(evaluateExpression("seno(30 deg)", env).value, 0.5, 1e-12);
+    EXPECT_NEAR(evaluateExpression("SEN(30 deg)", env).value, 0.5, 1e-12);
+    EXPECT_NEAR(evaluateExpression("COS(60 deg)", env).value, 0.5, 1e-12);
+    EXPECT_NEAR(evaluateExpression("TAN(45 deg)", env).value, 1, 1e-12);
+    EXPECT_NEAR(evaluateExpression("ASENO(0.5)", env).value, std::numbers::pi / 6, 1e-12);
+    EXPECT_NEAR(evaluateExpression("ATAN2(1; 0)", env).value, 0, 1e-12);  // Excel: ATAN2(x; y)
+    EXPECT_NEAR(evaluateExpression("ATAN2(0; 1)", env).value, std::numbers::pi / 2, 1e-12);
+    EXPECT_NEAR(evaluateExpression("atan2(1, 0)", env).value, std::numbers::pi / 2, 1e-12);  // old: atan2(y, x)
+    EXPECT_NEAR(evaluateExpression("LN(EXP(2))", env).value, 2, 1e-12);
+    EXPECT_NEAR(evaluateExpression("LOG10(1000)", env).value, 3, 1e-12);
+    EXPECT_NEAR(evaluateExpression("LOG(1000)", env).value, 3, 1e-12);
+    EXPECT_NEAR(evaluateExpression("LOG(8; 2)", env).value, 3, 1e-12);
+    EXPECT_EQ(formatQuantity(evaluateExpression("MAX(2 m; 30 cm; 1 m)", env)), "2 m");
+    EXPECT_EQ(formatQuantity(evaluateExpression("MIN(2 m; 30 cm)", env)), "0.3 m");
+    EXPECT_EQ(formatQuantity(evaluateExpression("ABS(-3 kN)", env)), "3 kN");
+    EXPECT_DOUBLE_EQ(evaluateExpression("REDONDEAR(2.675; 2)", env).value, 2.68);
+    EXPECT_DOUBLE_EQ(evaluateExpression("REDONDEAR(2.5)", env).value, 3);
+    EXPECT_DOUBLE_EQ(evaluateExpression("REDONDEAR(1234; -2)", env).value, 1200);
+    EXPECT_DOUBLE_EQ(evaluateExpression("REDONDEAR.MENOS(3.789; 1)", env).value, 3.7);
+    EXPECT_DOUBLE_EQ(evaluateExpression("REDONDEAR.MENOS(-3.789; 1)", env).value, -3.7);
+    EXPECT_DOUBLE_EQ(evaluateExpression("REDONDEAR.MAS(3.21; 1)", env).value, 3.3);
+    EXPECT_DOUBLE_EQ(evaluateExpression("redondear.más(-3.21)", env).value, -4);
+    EXPECT_DOUBLE_EQ(evaluateExpression("floor(-2.5)", env).value, -3);
+    EXPECT_DOUBLE_EQ(evaluateExpression("ceil(2.1)", env).value, 3);
+    EXPECT_THROW(evaluateExpression("REDONDEAR(2 m; 1)", env), CalcError);
+    EXPECT_THROW(evaluateExpression("LOG(-1)", env), CalcError);
+    EXPECT_THROW(evaluateExpression("REDONDEAR(2; 0.5)", env), CalcError);
+
+    // A variable written in other letters than the function is still a variable
+    evaluateLine("Max := 3", env);
+    EXPECT_DOUBLE_EQ(evaluateExpression("Max (1 + 1)", env).value, 6);
+    EXPECT_DOUBLE_EQ(evaluateExpression("MAX(1; 2)", env).value, 2);
+    // min alone is still the minute
+    EXPECT_DOUBLE_EQ(evaluateExpression("2 min", env).value, 120);
+}
+
+TEST(CalcEngine, functionCatalog) {
+    auto names = [](std::string_view p) {
+        std::string out;
+        for (const auto* f: functionsStartingWith(p)) {
+            out += std::string(out.empty() ? "" : " ") + f->name;
+        }
+        return out;
+    };
+    EXPECT_EQ(names("se"), "SENO");
+    EXPECT_EQ(names("RA"), "RAIZ RAIZ3");
+    EXPECT_EQ(names("raí"), "RAIZ RAIZ3");
+    EXPECT_EQ(names("redondear."), "REDONDEAR.MENOS REDONDEAR.MAS");
+    EXPECT_EQ(names("lo"), "LOG10 LOG");
+    EXPECT_EQ(names(""), "");
+    EXPECT_EQ(names("xyz"), "");
+    for (const auto& f: functionCatalog()) {
+        EXPECT_TRUE(functionId(f.name).has_value()) << f.name;
+    }
 }

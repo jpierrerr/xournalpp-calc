@@ -125,6 +125,30 @@ std::vector<LineResult> evaluateText(std::string_view text, Environment& env);
 /// Evaluate an expression and return its value (used by tests)
 Quantity evaluateExpression(std::string_view expr, const Environment& env);
 
+/**
+ * Functions of the calculation regions. They are named as in Excel in Spanish (RAIZ, SENO, REDONDEAR...), with ";"
+ * between the arguments, and are found without distinguishing upper and lower case (raiz = RAIZ). The English names
+ * of the first versions (sqrt, sin, round...) still work.
+ */
+struct FunctionInfo {
+    const char* name;         ///< as it is offered while typing, e.g. "SENO"
+    const char* syntax;       ///< e.g. "SENO(ángulo)"
+    const char* description;  ///< e.g. "Seno de un ángulo"
+};
+
+/// The functions offered while typing, in the order they are shown
+const std::vector<FunctionInfo>& functionCatalog();
+
+/// The functions of the catalog whose name starts with prefix (ignoring case and accents), e.g. "se" → SENO
+std::vector<const FunctionInfo*> functionsStartingWith(std::string_view prefix);
+
+/// Internal identifier of the function a name refers to ("SENO", "seno", "sin" → "sin"), nullopt if it is none
+std::optional<std::string> functionId(std::string_view name);
+
+/// Whether name followed by "(" calls a function: a name of a function that is not, written in other letters than a
+/// function, a variable of env ("Max (a + b)" multiplies a variable Max)
+bool callsFunction(const std::string& name, const Environment* env);
+
 /// Greek letter for a latin letter, using the Mathcad/Symbol font mapping (a→α, b→β, g→γ, q→θ, ...).
 /// Returns an empty string if there is no mapping.
 std::string greekForLatin(char c);

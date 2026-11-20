@@ -136,6 +136,94 @@ std::optional<std::string> excelStatement(std::string_view line) {
     return std::string(line.substr(i + 1, close - i - 1));
 }
 
+namespace {
+
+/// Position of the ")" that closes the "(" at open (text between quotes is skipped), npos if it is missing
+size_t matchingParenthesis(std::string_view s, size_t open) {
+    int depth = 0;
+    bool quoted = false;
+    for (size_t i = open; i < s.size(); i++) {
+        const char c = s[i];
+        if (c == '"') {
+            quoted = !quoted;
+        } else if (quoted) {
+            continue;
+        } else if (c == '(' || c == '[') {
+            depth++;
+        } else if ((c == ')' || c == ']') && --depth == 0) {
+            return i;
+        }
+    }
+    return std::string_view::npos;
+}
+
+/// The arguments of a call, split at the separators (";" or ",") that are not inside parentheses or quotes
+std::vector<std::string_view> splitArguments(std::string_view args) {
+    std::vector<std::string_view> out;
+    int depth = 0;
+    bool quoted = false;
+    size_t start = 0;
+    for (size_t i = 0; i < args.size(); i++) {
+        const char c = args[i];
+        if (c == '"') {
+            quoted = !quoted;
+        } else if (quoted) {
+            continue;
+        } else if (c == '(' || c == '[') {
+            depth++;
+        } else if (c == ')' || c == ']') {
+            depth--;
+        } else if ((c == ';' || c == ',') && depth == 0) {
+            out.push_back(args.substr(start, i - start));
+            start = i + 1;
+        }
+    }
+    out.push_back(args.substr(start));
+    return out;
+}
+
+/// A function call in math notation: SENO(x) → sen(x), RAIZ(x) → √x with a bar over x, ABS(x) → |x|,
+/// LOG(x; 2) → log₂(x). id: see functionId; name: as it is written; args: the text between the parentheses
+std::string functionMarkup(const std::string& id, std::string_view name, std::string_view args,
+                           const Environment* env) {
+    if (id == "sqrt" || id == "cbrt") {
+        return std::string(id == "sqrt" ? "√" : "∛") + "<span overline=\"single\">" + prettifyMarkup(args, env) +
+               "</span>";
+    }
+    if (id == "abs") {
+        return "|" + prettifyMarkup(args, env) + "|";
+    }
+    auto parts = splitArguments(args);
+    if (id == "log" && parts.size() == 2) {
+        return "log<sub>" + prettifyMarkup(parts[1], env) + "</sub>(" + prettifyMarkup(parts[0], env) + ")";
+    }
+    static const std::pair<const char*, const char*> NOTATION[] = {
+            {"sin", "sen"},   {"cos", "cos"},       {"tan", "tan"},       {"asin", "arcsen"},
+            {"acos", "arccos"}, {"atan", "arctan"}, {"ln", "ln"},         {"log10", "log"},
+            {"log", "log"},   {"exp", "exp"},       {"min", "min"},       {"max", "max"},
+            {"atan2", "ATAN2"}, {"round", "REDONDEAR"}, {"rounddown", "REDONDEAR.MENOS"},
+            {"roundup", "REDONDEAR.MAS"},
+    };
+    std::string shown = escape(name);
+    for (const auto& [i, n]: NOTATION) {
+        if (id == i) {
+            shown = n;
+            break;
+        }
+    }
+    // The arguments are separated by "; "
+    std::string out = shown + "(";
+    for (size_t k = 0; k < parts.size(); k++) {
+        if (k > 0) {
+            out += "; ";
+        }
+        out += prettifyMarkup(parts[k], env);
+    }
+    return out + ")";
+}
+
+}  // namespace
+
 std::string prettifyMarkup(std::string_view s, const Environment* env) {
     std::string out;
     size_t i = 0;
@@ -233,6 +321,30 @@ std::string prettifyMarkup(std::string_view s, const Environment* env) {
                     continue;
                 }
             }
+            {
+                // REDONDEAR.MENOS / REDONDEAR.MAS: the name goes on after the point
+                if (j + 1 < s.size() && s[j] == '.') {
+                    size_t k = j + 1;
+                    while (k < s.size() && isIdentByte(s, k)) {
+                        k++;
+                    }
+                    if (auto id = functionId(s.substr(i, k - i)); id && (*id == "rounddown" || *id == "roundup")) {
+                        j = k;
+                        ident = s.substr(i, j - i);
+                        open = j;
+                        while (open < s.size() && s[open] == ' ') {
+                            open++;
+                        }
+                    }
+                }
+                if (s.substr(open, 1) == "(" && callsFunction(std::string(ident), env)) {
+                    if (size_t close = matchingParenthesis(s, open); close != std::string_view::npos) {
+                        out += functionMarkup(*functionId(ident), ident, s.substr(open + 1, close - open - 1), env);
+                        i = close + 1;
+                        continue;
+                    }
+                }
+            }
             if (ident == "sqrt") {
                 out += "√";
             } else if (unitPower &&
@@ -281,7 +393,7 @@ std::optional<std::string> statementMarkup(const LineResult& l, const Environmen
     size_t open = src.find('(');
     size_t q1 = src.find('"');
     size_t q2 = q1 == std::string_view::npos ? q1 : src.find('"', q1 + 1);
-    size_t comma = q1 == std::string_view::npos ? q1 : src.rfind(',', q1);
+    size_t comma = q1 == std::string_view::npos ? q1 : src.find_last_of(",;", q1);
     size_t colon = l.result.rfind(": ");
     if (open == std::string_view::npos || q2 == std::string_view::npos || comma == std::string_view::npos ||
         comma < open || colon == std::string::npos) {

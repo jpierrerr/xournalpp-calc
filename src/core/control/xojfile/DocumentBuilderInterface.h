@@ -66,6 +66,7 @@ public:
     virtual void setTextLineHeight(double h) {}
     /// Values read from Excel cells by the current calculation region (xournalpp-calc extension)
     virtual void setTextCalcCells(std::string cells) {}
+    virtual void setTextFormat(std::string format) {}
     virtual void setTextContents(std::string contents) = 0;
     virtual void finalizeText() = 0;
     virtual void addImageLegacy(double left, double top, double right, double bottom,

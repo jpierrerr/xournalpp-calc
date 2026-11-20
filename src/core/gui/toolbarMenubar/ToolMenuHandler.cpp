@@ -31,6 +31,7 @@
 #include "ColorSelectorToolItem.h"       // for ColorSelectorToolItem
 #include "ColorToolItem.h"               // for ColorToolItem
 #include "ColorListToolItem.h"           // for ColorListToolItem
+#include "TextFormatPanel.h"             // for TextFormatToolItem
 #include "DrawingTypeComboToolButton.h"  // for DrawingTypeComboToolButton
 #include "FontButton.h"                  // for FontButton
 #include "PluginPlaceholderLabel.h"      // for PluginPlaceholderLabel
@@ -554,6 +555,7 @@ void ToolMenuHandler::initToolItems() {
 
     // xournalpp-calc: one button for the color and one for the size, each opening a list
     emplaceItem<ColorListToolItem>(this->control, *this->control->getActionDatabase());
+    emplaceItem<TextFormatToolItem>(this->control);
     emplaceItem<ComboToolButton>(
             "SIZE_LIST", Cat::TOOLS, this->iconNameHelper.iconName("thickness-medium"), _("Thickness (list)"),
             ComboToolButton::Entries{{_("Very Fine"), this->iconNameHelper.iconName("thickness-finer"), TOOL_SIZE_VERY_FINE},

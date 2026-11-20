@@ -639,7 +639,21 @@ auto MainWindow::windowMaximizedCallback(GObject* window, GParamSpec*, MainWindo
 
 void MainWindow::toolbarSelected(const std::string& id) {
     const auto& toolbars = toolbar->getModel()->getToolbars();
-    auto it = std::find_if(toolbars.begin(), toolbars.end(), [&](const auto& d) { return d->getId() == id; });
+    auto find = [&](const std::string& name) {
+        return std::find_if(toolbars.begin(), toolbars.end(), [&](const auto& d) { return d->getId() == name; });
+    };
+    auto it = find(id);
+    if (it == toolbars.end() && !this->selectedToolbar) {
+        // xournalpp-calc: the saved layout is gone (e.g. toolbar.ini deleted): use the original it was copied from,
+        // or the first one, rather than showing no toolbars at all
+        const std::string suffix = "_custom";
+        if (id.size() > suffix.size() && id.compare(id.size() - suffix.size(), suffix.size(), suffix) == 0) {
+            it = find(id.substr(0, id.size() - suffix.size()));
+        }
+        if (it == toolbars.end() && !toolbars.empty()) {
+            it = toolbars.begin();
+        }
+    }
     toolbarSelected(it == toolbars.end() ? nullptr : it->get());
 }
 

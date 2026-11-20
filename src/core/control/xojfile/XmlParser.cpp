@@ -491,6 +491,10 @@ void XmlParser::parseTextTag(const XmlParserHelper::AttributeMap& attributeMap) 
         cells && !cells->empty()) {
         this->builder.setTextCalcCells(std::string(*cells));
     }
+    if (const auto fmt = XmlParserHelper::getAttrib<std::string_view>(xoj::xml_attrs::TEXT_FORMAT_STR, attributeMap);
+        fmt && !fmt->empty()) {
+        this->builder.setTextFormat(std::string(*fmt));
+    }
 
     this->tempTimestamp = 0;
 }

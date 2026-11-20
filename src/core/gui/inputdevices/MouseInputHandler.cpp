@@ -6,7 +6,11 @@
 
 #include "control/ToolHandler.h"               // for ToolHandler
 #include "control/settings/SettingsEnums.h"    // for Button, BUTTON_MOUSE_M...
-#include "gui/XournalView.h"                   // for XournalView
+#include "control/Control.h"                 // for Control
+#include "control/tools/TextEditor.h"      // for TextEditor
+#include "gui/PageView.h"                   // for XojPageView
+#include "gui/XournalView.h"
+#include "gui/toolbarMenubar/TextFormatPanel.h"  // for showTextContextMenu                   // for XournalView
 #include "gui/XournalppCursor.h"               // for XournalppCursor
 #include "gui/inputdevices/InputEvents.h"      // for InputEvent, BUTTON_PRE...
 #include "gui/inputdevices/PenInputHandler.h"  // for PenInputHandler
@@ -25,6 +29,21 @@ MouseInputHandler::~MouseInputHandler() = default;
 auto MouseInputHandler::handleImpl(InputEvent const& event) -> bool {
     // Only handle events when there is no active gesture
     GtkXournal* xournal = inputContext->getXournal();
+
+    // xournalpp-calc: right click in the text being edited opens the format menu (as in a word processor)
+    if (event.type == BUTTON_PRESS_EVENT && event.button == 3) {
+        if (XojPageView* view = getPageAtCurrentPosition(event)) {
+            if (TextEditor* te = view->getTextEditor()) {
+                PositionInputData pos = getInputDataRelativeToCurrentPage(view, event);
+                double zoom = xournal->view->getZoom();
+                if (te->isEventInEditor(pos.x / zoom, pos.y / zoom)) {
+                    xoj::text::showTextContextMenu(inputContext->getView()->getControl(), GTK_WIDGET(xournal),
+                                                   event.absolute.x, event.absolute.y);
+                    return true;
+                }
+            }
+        }
+    }
 
     // Determine the pressed states of devices and associate them to the current event
     setPressedState(event);

@@ -107,6 +107,7 @@ private:
     void setTextCalc(bool calc) override;
     void setTextLineHeight(double h) override;
     void setTextCalcCells(std::string cells) override;
+    void setTextFormat(std::string format) override;
     void setTextContents(std::string contents) override;
     void finalizeText() override;
     void addImageLegacy(double left, double top, double right, double bottom,

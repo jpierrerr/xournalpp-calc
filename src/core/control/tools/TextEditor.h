@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <map>
 #include <optional>
 #include <set>
 #include <string>  // for string
@@ -107,9 +108,41 @@ public:
 
     void onViewCreation() const;  ///< Call upon creation of a view
 
+    // xournalpp-calc: formats of parts of the text, as in a word processor. With a selection they apply to it;
+    // without one, to what is typed next at the cursor
+    bool hasSelection() const;
+    std::optional<std::string> formatState(xoj::text::FormatKind kind) const;
+    void applyFormat(xoj::text::FormatKind kind, const std::optional<std::string>& value);
+    /// Bold, italic...: on if it is not on the whole selection, off otherwise
+    void toggleFormat(xoj::text::FormatKind kind, const std::string& value);
+    /// Remove the formats of the selection (of the whole text if nothing is selected)
+    void clearFormatting();
+    enum class CaseChange { SENTENCE, LOWER, UPPER, CAPITALIZE, TOGGLE };
+    /// Change the case of the selection (or of the word at the cursor)
+    void changeCase(CaseChange c);
+    /// Font and size of the selection; without selection, of the whole text
+    void setFormatFamily(const std::string& family);
+    void setFormatSize(double size);
+    void growFont(bool bigger);
+    std::string currentFamily() const;
+    double currentSize() const;
+
 private:
     void toggleOverwrite();
     void toggleBoldFace();
+    void toggleItalic() { toggleFormat(xoj::text::FormatKind::ITALIC, "1"); }
+    void toggleUnderline() { toggleFormat(xoj::text::FormatKind::UNDERLINE, "single"); }
+
+    /// The selection, or the cursor (start == end), in characters
+    std::pair<int, int> selectionOffsets() const;
+    void formatsChanged();
+    static void bufferInsertCallback(GtkTextBuffer* buffer, GtkTextIter* location, gchar* text, gint len,
+                                     TextEditor* te);
+    static void bufferDeleteCallback(GtkTextBuffer* buffer, GtkTextIter* start, GtkTextIter* end, TextEditor* te);
+    bool trackFormats = false;
+    /// Formats chosen without selection, for what is typed next at pendingPos
+    std::map<xoj::text::FormatKind, std::optional<std::string>> pendingFormats;
+    int pendingPos = -1;
     /// Ctrl+Up / Ctrl+Down: what is typed next becomes an exponent (superscript) or a subscript; pressing it
     /// again cancels
     void superscriptBeforeCursor() { pendingScript = pendingScript == 1 ? 0 : 1; }

@@ -12,6 +12,7 @@
 #pragma once
 
 #include <cstddef>   // for size_t
+#include <functional>
 #include <memory>    // for unique_ptr
 #include <optional>  // for optional
 #include <string>    // for string, allocator
@@ -302,6 +303,11 @@ public:
     /// xournalpp-calc: re-evaluate the calculation regions of the document (deferred to the main loop)
     void scheduleCalcUpdate();
     /// xournalpp-calc: when enabled, new text boxes are calculation regions
+    /// xournalpp-calc: the format at the cursor of the edited text may have changed (the format buttons follow it)
+    void fireTextFormatChanged();
+    int addTextFormatListener(std::function<void()> f);
+    void removeTextFormatListener(int id);
+
     void setCalcMode(bool enabled);
     bool isCalcMode() const { return calcMode; }
     /// xournalpp-calc: align new text boxes on the alignment grid
@@ -442,6 +448,9 @@ private:
     guint calcExcelWatchSource = 0;  ///< refreshes the values read from Excel every second
     std::optional<double> calcGridExactLine;
     bool calcMode = false;
+    std::vector<std::pair<int, std::function<void()>>> textFormatListeners;
+    int nextTextFormatListener = 1;
+    guint textFormatSource = 0;
     bool calcGrid = false;
     bool calcGridVisible = false;
     GtkWidget* greekPalette = nullptr;

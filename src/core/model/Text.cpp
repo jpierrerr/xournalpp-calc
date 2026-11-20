@@ -43,6 +43,7 @@ auto Text::cloneText() const -> std::unique_ptr<Text> {
     text->lineHeight = this->lineHeight;
     text->calcMarkup = this->calcMarkup;
     text->calcCells = this->calcCells;
+    text->formats = this->formats;
 
     return text;
 }
@@ -115,8 +116,17 @@ void Text::applyDisplayContent(PangoLayout* layout) const {
         pango_layout_set_markup(layout, this->calcMarkup.c_str(), static_cast<int>(this->calcMarkup.length()));
     } else {
         pango_layout_set_text(layout, this->text.c_str(), static_cast<int>(this->text.length()));
+        applyFormats(layout);
     }
     applyLineHeight(layout);
+}
+
+void Text::applyFormats(PangoLayout* layout, const std::string* text) const {
+    PangoAttrList* current = pango_layout_get_attributes(layout);
+    PangoAttrList* list = current ? pango_attr_list_copy(current) : pango_attr_list_new();
+    xoj::text::addToPango(this->formats, text ? *text : this->text, list, this->getFontSize());
+    pango_layout_set_attributes(layout, list);
+    pango_attr_list_unref(list);
 }
 
 void Text::setLineHeight(double h) {
@@ -224,6 +234,7 @@ void Text::serialize(ObjectOutputStream& out) const {
     out.writeInt(this->calc);
     out.writeDouble(this->lineHeight);
     out.writeString(this->calcCells);
+    out.writeString(xoj::text::serialize(this->formats));
 
     out.endObject();
 }
@@ -245,6 +256,7 @@ void Text::readSerialized(ObjectInputStream& in) {
     this->calc = in.readInt() != 0;
     this->lineHeight = in.readDouble();
     this->calcCells = in.readString();
+    this->formats = xoj::text::parse(in.readString());
     this->sizeCalculated = false;
 
     in.endObject();

@@ -194,6 +194,9 @@ Control::~Control() {
     if (this->calcUpdateSource) {
         g_source_remove(this->calcUpdateSource);
     }
+    if (this->textFormatSource) {
+        g_source_remove(this->textFormatSource);
+    }
     if (this->calcExcelWatchSource) {
         g_source_remove(this->calcExcelWatchSource);
     }
@@ -1198,6 +1201,34 @@ void Control::scheduleCalcUpdate() {
             this);
 }
 
+void Control::fireTextFormatChanged() {
+    if (this->textFormatSource || this->textFormatListeners.empty()) {
+        return;
+    }
+    this->textFormatSource = g_idle_add(
+            +[](gpointer data) -> gboolean {
+                auto* self = static_cast<Control*>(data);
+                self->textFormatSource = 0;
+                auto listeners = self->textFormatListeners;  // a listener may remove itself
+                for (auto& [id, f]: listeners) {
+                    f();
+                }
+                return G_SOURCE_REMOVE;
+            },
+            this);
+}
+
+int Control::addTextFormatListener(std::function<void()> f) {
+    int id = this->nextTextFormatListener++;
+    this->textFormatListeners.emplace_back(id, std::move(f));
+    return id;
+}
+
+void Control::removeTextFormatListener(int id) {
+    auto& l = this->textFormatListeners;
+    l.erase(std::remove_if(l.begin(), l.end(), [id](const auto& p) { return p.first == id; }), l.end());
+}
+
 void Control::setCalcMode(bool enabled) {
     this->calcMode = enabled;
     if (auto* te = getTextEditor(); te) {
@@ -1442,6 +1473,7 @@ void Control::toolChanged() {
     ToolType type = toolHandler->getToolType();
 
     this->actionDB->setActionState(Action::SELECT_TOOL, type);
+    this->fireTextFormatChanged();
 
     this->actionDB->enableAction(Action::TOOL_DRAW_LINE, toolHandler->hasCapability(TOOL_CAP_RULER));
     this->actionDB->enableAction(Action::TOOL_DRAW_RECTANGLE, toolHandler->hasCapability(TOOL_CAP_RECTANGLE));

@@ -23,6 +23,7 @@
 #include "Font.h"  // for XojFont
 #include "RectangularElement.h"
 #include "TextAlignment.h"
+#include "TextFormat.h"
 
 class ObjectInputStream;
 class ObjectOutputStream;
@@ -80,6 +81,15 @@ public:
     inline void setCalcCells(std::string c) { this->calcCells = std::move(c); }
     inline const std::string& getCalcCells() const { return calcCells; }
 
+    /// xournalpp-calc: formats of parts of the text (bold, colors...), see TextFormat.h
+    inline const xoj::text::Formats& getFormats() const { return formats; }
+    inline void setFormats(xoj::text::Formats f) {
+        this->formats = std::move(f);
+        sizeCalculated = false;
+    }
+    /// Pango attributes of the formats for the given text (the text of the element if nullptr)
+    void applyFormats(PangoLayout* layout, const std::string* text = nullptr) const;
+
     /// Put the content that is displayed (text, or the calculation results) into the layout
     void applyDisplayContent(PangoLayout* layout) const;
 
@@ -118,6 +128,7 @@ private:
     XojFont font;
 
     std::string text;
+    xoj::text::Formats formats;
 
     /**
      * The size of the Pango layout, without any affine transformation applied (so in Text element coordinates)

@@ -144,3 +144,17 @@ Arriba fila 2, Izquierda, Derecha, Abajo):
 Por defecto, junto al lápiz hay dos botones: el color actual (abre la lista de colores de la paleta y "Otro color…")
 y el grosor actual (abre muy fino … muy grueso). Son `COLOR_LIST` y `SIZE_LIST` en `toolbar.ini`; los botones sueltos
 de cada color (`COLOR(n)`) y de cada grosor siguen disponibles en *Personalizar*.
+
+## Formato de texto como en Word
+
+Con la herramienta de texto, el bloque de formato de la barra (`TEXT_FORMAT`) actúa sobre el texto que se edita:
+fuente y tamaño, agrandar y achicar (A▲ A▼), mayúsculas y minúsculas (Aa), borrar formato, negrita (Ctrl+B),
+cursiva (Ctrl+I), subrayado (Ctrl+U) con tipo simple, doble u ondulado, tachado, subíndice, superíndice, color de
+resaltado, color de fuente y alinear a la izquierda, centrar, a la derecha o justificar.
+
+Con texto seleccionado, el formato se aplica a la selección. Sin selección, se aplica a lo que se escriba después en
+el cursor (la fuente y el tamaño, sin selección, cambian todo el cuadro). Los botones muestran el formato del
+cursor. El formato se guarda en el archivo `.xopp` (atributo `jmFormat` del texto).
+
+Clic derecho dentro del texto que se edita: menú con una barra de formato corta y Cortar, Copiar, Pegar y
+Seleccionar todo.

@@ -5100,3 +5100,114 @@ msgstr "Colores (lista)"
 #: src/core/gui/dialog/ToolbarEditorDialog.cpp
 msgid "Thickness (list)"
 msgstr "Grosor (lista)"
+
+msgid "Bright green"
+msgstr "Verde brillante"
+
+msgid "Dark blue"
+msgstr "Azul oscuro"
+
+msgid "Dark gray"
+msgstr "Gris oscuro"
+
+msgid "Dark red"
+msgstr "Rojo oscuro"
+
+msgid "Dark yellow"
+msgstr "Amarillo oscuro"
+
+msgid "Light blue"
+msgstr "Azul claro"
+
+msgid "Light gray"
+msgstr "Gris claro"
+
+msgid "Light green"
+msgstr "Verde claro"
+
+msgid "Pink"
+msgstr "Rosa"
+
+msgid "Purple"
+msgstr "Morado"
+
+msgid "Teal"
+msgstr "Verde azulado"
+
+msgid "Turquoise"
+msgstr "Turquesa"
+
+msgid "Violet"
+msgstr "Violeta"
+
+msgid "Bold (Ctrl+B)"
+msgstr "Negrita (Ctrl+B)"
+
+msgid "Capitalize Each Word"
+msgstr "Poner En Mayúsculas Cada Palabra"
+
+msgid "Change case"
+msgstr "Cambiar mayúsculas y minúsculas"
+
+msgid "Clear all formatting"
+msgstr "Borrar todo el formato"
+
+msgid "Decrease font size"
+msgstr "Disminuir tamaño de fuente"
+
+msgid "Double underline"
+msgstr "Subrayado doble"
+
+msgid "Font color"
+msgstr "Color de fuente"
+
+msgid "Font size"
+msgstr "Tamaño de fuente"
+
+msgid "Increase font size"
+msgstr "Aumentar tamaño de fuente"
+
+msgid "Italic (Ctrl+I)"
+msgstr "Cursiva (Ctrl+I)"
+
+msgid "No color"
+msgstr "Sin color"
+
+msgid "Sentence case."
+msgstr "Tipo oración."
+
+msgid "Strikethrough"
+msgstr "Tachado"
+
+msgid "Subscript"
+msgstr "Subíndice"
+
+msgid "Superscript"
+msgstr "Superíndice"
+
+msgid "Text format (font, bold, colors, alignment)"
+msgstr "Formato de texto (fuente, negrita, colores, alineación)"
+
+msgid "Text highlight color"
+msgstr "Color de resaltado del texto"
+
+msgid "UPPERCASE"
+msgstr "MAYÚSCULAS"
+
+msgid "Underline (Ctrl+U)"
+msgstr "Subrayado (Ctrl+U)"
+
+msgid "Underline style"
+msgstr "Tipo de subrayado"
+
+msgid "Underline"
+msgstr "Subrayado"
+
+msgid "Wavy underline"
+msgstr "Subrayado ondulado"
+
+msgid "lowercase"
+msgstr "minúsculas"
+
+msgid "tOGGLE cASE"
+msgstr "tIPO iNVERSO"

@@ -146,6 +146,10 @@ TextEditor::TextEditor(Control* control, const PageRef& page, GtkWidget* xournal
 
     this->initializeEditionAt(x, y);
     g_signal_connect(this->buffer.get(), "paste-done", G_CALLBACK(bufferPasteDoneCallback), this);
+    // xournalpp-calc: keep the formats of parts of the text in place while it is edited
+    g_signal_connect_after(this->buffer.get(), "insert-text", G_CALLBACK(bufferInsertCallback), this);
+    g_signal_connect(this->buffer.get(), "delete-range", G_CALLBACK(bufferDeleteCallback), this);
+    this->trackFormats = true;
 
     {  // Get cursor blinking settings
         GtkSettings* settings = gtk_widget_get_settings(this->xournalWidget);
@@ -311,6 +315,7 @@ TextEditor::~TextEditor() {
 
     this->xournalWidget = nullptr;
     control->setCopyCutEnabled(false);
+    control->fireTextFormatChanged();  // the format buttons go insensitive
 
     this->contentsChanged(true);
 
@@ -960,21 +965,8 @@ void TextEditor::increaseFontSize() {
 }
 
 void TextEditor::toggleBoldFace() {
-    // get the current/used font
-    XojFont& font = textElement->getFont();
-    std::string fontName = font.getName();
-
-    std::size_t found = fontName.find(" Bold");
-
-    // toggle bold
-    if (found == std::string::npos) {
-        fontName = fontName + " Bold";
-    } else {
-        fontName = fontName.erase(found, 5);
-    }
-
-    font.setName(fontName);
-    afterFontChange();
+    // xournalpp-calc: bold for the selection (or what is typed next), as in a word processor
+    toggleFormat(xoj::text::FormatKind::BOLD, "1");
 }
 
 void TextEditor::selectAtCursor(TextEditor::SelectType ty) {
@@ -1509,6 +1501,8 @@ void TextEditor::setTextToPangoLayout(PangoLayout* pl) const {
 
         int pos = getByteOffsetOfCursor(this->buffer.get());
         xoj::util::PangoAttrListSPtr attrlist(pango_attr_list_new(), xoj::util::adopt);
+        xoj::text::addToPango(this->textElement->getFormats(), cloneToStdString(this->buffer.get()), attrlist.get(),
+                              this->textElement->getFontSize());
         pango_attr_list_splice(attrlist.get(), this->preeditAttrList.get(), pos, static_cast<int>(preed.length()));
 
         pango_layout_set_attributes(pl, attrlist.get());
@@ -1525,6 +1519,10 @@ Color TextEditor::getSelectionColor() const { return this->control->getSettings(
 
 void TextEditor::setSelectionAttributesToPangoLayout(PangoLayout* pl) const {
     xoj::util::PangoAttrListSPtr attrlist(pango_attr_list_new(), xoj::util::adopt);
+    if (!this->textElement->getFormats().empty()) {
+        xoj::text::addToPango(this->textElement->getFormats(), cloneToStdString(this->buffer.get()), attrlist.get(),
+                              this->textElement->getFontSize());
+    }
 
     GtkTextIter start;
     GtkTextIter end;
@@ -1604,6 +1602,7 @@ void TextEditor::repaintEditor(bool sizeChanged) {
     this->updateCursorBox();
     this->updateDraggableIcons();
     this->viewPool->dispatch(xoj::view::TextEditionView::FLAG_DIRTY_REGION, dirtyRange);
+    this->control->fireTextFormatChanged();
 }
 
 void TextEditor::repaintCursorAfterChange() {
@@ -1612,6 +1611,7 @@ void TextEditor::repaintCursorAfterChange() {
     this->updateCursorBox();
     dirtyRange = dirtyRange.unite(Range(m * xoj::util::Rectangle<double>(this->cursorBox)));
     this->viewPool->dispatch(xoj::view::TextEditionView::FLAG_DIRTY_REGION, dirtyRange);
+    this->control->fireTextFormatChanged();
 }
 
 void TextEditor::finalizeEdition() {
@@ -1772,4 +1772,245 @@ void TextEditor::initializeEditionAt(double x, double y) {
     this->layout = this->textElement->createPangoLayout();
     this->replaceBufferContent(this->textElement->getText());
     this->updateBoxes();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// xournalpp-calc: formats of parts of the text
+
+void TextEditor::bufferInsertCallback(GtkTextBuffer*, GtkTextIter* location, gchar* text, gint len, TextEditor* te) {
+    if (!te->trackFormats) {
+        return;
+    }
+    const int count = static_cast<int>(g_utf8_strlen(text, len));
+    const int pos = gtk_text_iter_get_offset(location) - count;
+    auto f = te->textElement->getFormats();
+    if (f.empty() && te->pendingFormats.empty()) {
+        return;
+    }
+    xoj::text::onInsert(f, pos, count);
+    if (!te->pendingFormats.empty()) {
+        if (pos == te->pendingPos) {
+            for (const auto& [kind, value]: te->pendingFormats) {
+                xoj::text::set(f, kind, pos, pos + count, value);
+            }
+            te->pendingPos = pos + count;
+        } else {
+            te->pendingFormats.clear();
+        }
+    }
+    te->textElement->setFormats(std::move(f));
+}
+
+void TextEditor::bufferDeleteCallback(GtkTextBuffer*, GtkTextIter* start, GtkTextIter* end, TextEditor* te) {
+    if (!te->trackFormats || te->textElement->getFormats().empty()) {
+        return;
+    }
+    auto f = te->textElement->getFormats();
+    xoj::text::onDelete(f, gtk_text_iter_get_offset(start), gtk_text_iter_get_offset(end));
+    te->textElement->setFormats(std::move(f));
+}
+
+bool TextEditor::hasSelection() const { return gtk_text_buffer_get_has_selection(this->buffer.get()); }
+
+std::pair<int, int> TextEditor::selectionOffsets() const {
+    GtkTextIter a, b;
+    gtk_text_buffer_get_selection_bounds(this->buffer.get(), &a, &b);
+    int s = gtk_text_iter_get_offset(&a);
+    int e = gtk_text_iter_get_offset(&b);
+    return {std::min(s, e), std::max(s, e)};
+}
+
+void TextEditor::formatsChanged() {
+    this->layoutStatus = LayoutStatus::NEEDS_COMPLETE_UPDATE;
+    this->computeVirtualCursorPosition();
+    this->repaintEditor(true);
+}
+
+auto TextEditor::formatState(xoj::text::FormatKind kind) const -> std::optional<std::string> {
+    auto [s, e] = selectionOffsets();
+    if (s == e) {
+        if (auto it = pendingFormats.find(kind); it != pendingFormats.end() && pendingPos == s) {
+            return it->second;
+        }
+    }
+    return xoj::text::valueAt(this->textElement->getFormats(), kind, s, e);
+}
+
+void TextEditor::applyFormat(xoj::text::FormatKind kind, const std::optional<std::string>& value) {
+    auto [s, e] = selectionOffsets();
+    if (s == e) {
+        if (pendingPos != s) {
+            pendingFormats.clear();
+        }
+        pendingFormats[kind] = value;
+        pendingPos = s;
+        this->control->fireTextFormatChanged();
+        return;
+    }
+    auto f = this->textElement->getFormats();
+    xoj::text::set(f, kind, s, e, value);
+    this->textElement->setFormats(std::move(f));
+    formatsChanged();
+}
+
+void TextEditor::toggleFormat(xoj::text::FormatKind kind, const std::string& value) {
+    auto cur = formatState(kind);
+    applyFormat(kind, cur && *cur == value ? std::nullopt : std::optional<std::string>(value));
+}
+
+void TextEditor::clearFormatting() {
+    auto [s, e] = selectionOffsets();
+    if (s == e) {
+        s = 0;
+        e = gtk_text_buffer_get_char_count(this->buffer.get());
+    }
+    pendingFormats.clear();
+    auto f = this->textElement->getFormats();
+    xoj::text::clear(f, s, e);
+    this->textElement->setFormats(std::move(f));
+    formatsChanged();
+}
+
+void TextEditor::changeCase(CaseChange c) {
+    GtkTextIter a, b;
+    if (!gtk_text_buffer_get_selection_bounds(this->buffer.get(), &a, &b)) {
+        // the word at the cursor
+        a = getIteratorAtCursor(this->buffer.get());
+        b = a;
+        if (!gtk_text_iter_starts_word(&a)) {
+            gtk_text_iter_backward_word_start(&a);
+        }
+        if (!gtk_text_iter_ends_word(&b)) {
+            gtk_text_iter_forward_word_end(&b);
+        }
+    }
+    const int s = gtk_text_iter_get_offset(&a);
+    const int e = gtk_text_iter_get_offset(&b);
+    if (e <= s) {
+        return;
+    }
+    auto old = xoj::util::OwnedCString::assumeOwnership(gtk_text_iter_get_text(&a, &b));
+    std::string src(old.get());
+    std::string out;
+    bool startOfSentence = true;
+    bool startOfWord = true;
+    for (const char* p = src.c_str(); *p; p = g_utf8_next_char(p)) {
+        gunichar ch = g_utf8_get_char(p);
+        gunichar r = ch;
+        switch (c) {
+            case CaseChange::LOWER:
+                r = g_unichar_tolower(ch);
+                break;
+            case CaseChange::UPPER:
+                r = g_unichar_toupper(ch);
+                break;
+            case CaseChange::CAPITALIZE:
+                r = startOfWord ? g_unichar_toupper(ch) : g_unichar_tolower(ch);
+                break;
+            case CaseChange::SENTENCE:
+                r = startOfSentence && g_unichar_isalpha(ch) ? g_unichar_toupper(ch) : g_unichar_tolower(ch);
+                break;
+            case CaseChange::TOGGLE:
+                r = g_unichar_isupper(ch) ? g_unichar_tolower(ch) : g_unichar_toupper(ch);
+                break;
+        }
+        if (g_unichar_isalpha(ch)) {
+            startOfSentence = false;
+        } else if (ch == '.' || ch == '!' || ch == '?' || ch == '\n') {
+            startOfSentence = true;
+        }
+        startOfWord = !g_unichar_isalnum(ch);
+        char buf[8];
+        out.append(buf, static_cast<size_t>(g_unichar_to_utf8(r, buf)));
+    }
+    if (out == src) {
+        return;
+    }
+    // Same number of characters: the formats stay where they are
+    const auto formats = this->textElement->getFormats();
+    this->trackFormats = false;
+    gtk_text_buffer_delete(this->buffer.get(), &a, &b);
+    gtk_text_buffer_insert(this->buffer.get(), &a, out.c_str(), -1);
+    this->trackFormats = true;
+    GtkTextIter ns, ne;
+    gtk_text_buffer_get_iter_at_offset(this->buffer.get(), &ns, s);
+    gtk_text_buffer_get_iter_at_offset(this->buffer.get(), &ne, s + static_cast<int>(g_utf8_strlen(out.c_str(), -1)));
+    gtk_text_buffer_select_range(this->buffer.get(), &ns, &ne);
+    if (g_utf8_strlen(out.c_str(), -1) == e - s) {
+        this->textElement->setFormats(formats);
+    }
+    this->contentsChanged();
+    formatsChanged();
+}
+
+std::string TextEditor::currentFamily() const {
+    if (auto v = formatState(xoj::text::FormatKind::FAMILY); v) {
+        return *v;
+    }
+    PangoFontDescription* desc = pango_font_description_from_string(this->textElement->getFontName().c_str());
+    std::string fam = pango_font_description_get_family(desc) ? pango_font_description_get_family(desc) : "Sans";
+    pango_font_description_free(desc);
+    return fam;
+}
+
+double TextEditor::currentSize() const {
+    if (auto v = formatState(xoj::text::FormatKind::SIZE); v) {
+        try {
+            return std::stod(*v);
+        } catch (...) {}
+    }
+    return this->textElement->getFontSize();
+}
+
+void TextEditor::setFormatFamily(const std::string& family) {
+    if (hasSelection()) {
+        applyFormat(xoj::text::FormatKind::FAMILY, family);
+        return;
+    }
+    XojFont font = this->textElement->getFont();
+    font.setName(family);
+    setFont(font);
+    this->control->fireTextFormatChanged();
+}
+
+void TextEditor::setFormatSize(double size) {
+    if (size <= 0) {
+        return;
+    }
+    if (hasSelection()) {
+        char buf[32];
+        g_ascii_formatd(buf, sizeof(buf), "%g", size);
+        applyFormat(xoj::text::FormatKind::SIZE, std::string(buf));
+        return;
+    }
+    XojFont font = this->textElement->getFont();
+    font.setSize(size);
+    setFont(font);
+    this->control->fireTextFormatChanged();
+}
+
+void TextEditor::growFont(bool bigger) {
+    static const double SIZES[] = {8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72};
+    double cur = currentSize();
+    double next = cur;
+    if (bigger) {
+        next = cur + 10;
+        for (double v: SIZES) {
+            if (v > cur + 0.01) {
+                next = v;
+                break;
+            }
+        }
+    } else {
+        next = std::max(1.0, cur - 1);
+        for (double v: SIZES) {
+            if (v < cur - 0.01) {
+                next = v;
+            }
+        }
+        if (cur <= SIZES[0]) {
+            next = std::max(1.0, cur - 1);
+        }
+    }
+    setFormatSize(next);
 }

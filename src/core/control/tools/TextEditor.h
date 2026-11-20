@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <optional>
+#include <set>
 #include <string>  // for string
 
 #include <gdk/gdk.h>      // for GdkEventKey
@@ -33,6 +35,7 @@ class Control;
 class TextEditorCallbacks;
 struct KeyEvent;
 class FlyingClickableIcon;
+class FunctionCompletion;
 class TextAlignment;
 
 namespace xoj::util {
@@ -115,6 +118,15 @@ private:
     void greekifyBeforeCursor();  ///< Mathcad-style Ctrl+G: replace the latin letter before the cursor by a Greek one
     /// xournalpp-calc: Enter, Tab and the arrows move to another box on the alignment grid. True if handled
     bool handleGridNavigation(const KeyEvent& event);
+    /// xournalpp-calc: list of functions offered while a name is typed in a calculation region (as in Excel)
+    void updateCompletion();
+    void hideCompletion();
+    /// Keys of the list of functions (arrows, Tab, Enter, Esc). True if handled
+    bool handleCompletionKey(const KeyEvent& event);
+    /// Replace the name typed before the cursor by the function and its "("
+    void acceptCompletion(const std::string& functionName);
+    /// The name being typed right before the cursor, with where it starts. Empty if functions are not offered there
+    std::string wordBeforeCursor(GtkTextIter* start) const;
     void increaseFontSize();
     void decreaseFontSize();
     void moveCursor(GtkMovementStep step, int count, bool extendSelection);
@@ -220,6 +232,9 @@ private:
 
     std::unique_ptr<FlyingClickableIcon> moveIcon;
     std::unique_ptr<FlyingClickableIcon> extendIcon;
+    std::unique_ptr<FunctionCompletion> completion;
+    /// Names of the variables of the document, to not highlight a function when a variable is typed (computed once)
+    mutable std::optional<std::set<std::string>> documentVariableNames;
 
     double currentWrapWidth;  ///< Wrap width. May differ from textElement->getWrap() while resizing the text area
 

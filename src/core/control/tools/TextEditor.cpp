@@ -10,13 +10,15 @@
 #include <gdk/gdkkeysyms.h>  // for GDK_KEY_B, GDK_KEY_ISO_Enter, GDK_...
 #include <glib-object.h>     // for g_object_get, g_object_unref, G_CA...
 
-#include "calc/CalcEngine.h"  // for greekForLatin
+#include "calc/CalcDocument.h"  // for documentVariables
+#include "calc/CalcEngine.h"    // for greekForLatin
 #include "calc/CalcGrid.h"    // for alignmentGrid
 #include "control/AudioController.h"
 #include "control/Control.h"  // for Control
 #include "control/actions/ActionDatabase.h"
 #include "control/settings/Settings.h"
 #include "gui/FlyingClickableIcon.h"
+#include "gui/FunctionCompletion.h"
 #include "gui/XournalppCursor.h"  // for XournalppCursor
 #include "model/Document.h"       // for Document
 #include "model/Font.h"           // for XojFont
@@ -505,6 +507,7 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
     gtk_text_buffer_end_user_action(te->buffer.get());
     te->contentsChanged();
     te->repaintEditor();
+    te->updateCompletion();
 }
 
 void TextEditor::setCalc(bool calc) {
@@ -624,6 +627,9 @@ auto TextEditor::imDeleteSurroundingCallback(GtkIMContext* context, gint offset,
 }
 
 auto TextEditor::onKeyPressEvent(const KeyEvent& event) -> bool {
+    if (handleCompletionKey(event)) {
+        return true;
+    }
     // xournalpp-calc: Ctrl+= inserts ≔. On Spanish keyboards "=" is Shift+0, and with Ctrl held some systems report
     // the key as "0" or ")", so all of them are accepted (Ctrl+Shift+0)
     if ((event.state & GDK_CONTROL_MASK) && !(event.state & GDK_MOD1_MASK)) {
@@ -662,6 +668,183 @@ auto TextEditor::onKeyPressEvent(const KeyEvent& event) -> bool {
     }
 
     return keyBindings.processEvent(this, event);
+}
+
+std::string TextEditor::wordBeforeCursor(GtkTextIter* startOut) const {
+    if (!this->textElement->isCalc() || gtk_text_buffer_get_has_selection(this->buffer.get()) ||
+        (this->preeditString && *this->preeditString.get())) {
+        return {};
+    }
+    GtkTextIter cursor = getIteratorAtCursor(this->buffer.get());
+    // Not in the middle of a name
+    const gunichar after = gtk_text_iter_get_char(&cursor);
+    if (g_unichar_isalnum(after) || after == '_') {
+        return {};
+    }
+    GtkTextIter start = cursor;
+    int length = 0;
+    while (length < 24) {
+        GtkTextIter prev = start;
+        if (!gtk_text_iter_backward_char(&prev)) {
+            break;
+        }
+        const gunichar c = gtk_text_iter_get_char(&prev);
+        if (!(g_unichar_isalnum(c) || c == '.' || c == '_')) {
+            break;
+        }
+        start = prev;
+        length++;
+    }
+    if (length == 0) {
+        return {};
+    }
+    const gunichar first = gtk_text_iter_get_char(&start);
+    auto word = xoj::util::OwnedCString::assumeOwnership(gtk_text_iter_get_text(&start, &cursor));
+    std::string w = word.get();
+    if (!g_unichar_isalpha(first) || w.find('_') != std::string::npos) {
+        return {};
+    }
+    // A unit after a number ("2 m", "(a + b) kN") is not a function
+    GtkTextIter before = start;
+    while (gtk_text_iter_backward_char(&before)) {
+        const gunichar c = gtk_text_iter_get_char(&before);
+        if (c == ' ' || c == '\t') {
+            continue;
+        }
+        if (g_unichar_isdigit(c) || c == '.' || c == ')' || c == ']') {
+            return {};
+        }
+        break;
+    }
+    // Not inside quotes (a cell reference or a file name)
+    GtkTextIter lineStart = start;
+    gtk_text_iter_set_line_offset(&lineStart, 0);
+    auto line = xoj::util::OwnedCString::assumeOwnership(gtk_text_iter_get_text(&lineStart, &start));
+    std::string_view l = line.get();
+    if (std::count(l.begin(), l.end(), '"') % 2 == 1) {
+        return {};
+    }
+    if (startOut) {
+        *startOut = start;
+    }
+    return w;
+}
+
+void TextEditor::updateCompletion() {
+    GtkTextIter start;
+    const std::string word = wordBeforeCursor(&start);
+    auto functions = word.empty() ? std::vector<const xoj::calc::FunctionInfo*>{} :
+                                    xoj::calc::functionsStartingWith(word);
+    if (functions.empty() || viewPool->empty()) {
+        hideCompletion();
+        return;
+    }
+    if (!this->completion) {
+        this->completion = std::make_unique<FunctionCompletion>(
+                control->getWindow(), [this](const xoj::calc::FunctionInfo& f) { acceptCompletion(f.name); });
+    }
+    // With one letter nothing is chosen by Tab or Enter (the arrows choose): "L" is often a variable, and Tab and
+    // Enter go to the next box. Neither when what is typed is a variable of the document
+    if (!this->documentVariableNames) {
+        std::set<std::string> names;
+        auto addDefinitions = [&](std::string_view text) {
+            size_t pos = 0;
+            while (pos <= text.size()) {
+                size_t end = text.find('\n', pos);
+                std::string_view lineText = text.substr(pos, end == std::string_view::npos ? std::string_view::npos :
+                                                                                             end - pos);
+                size_t def = std::min(lineText.find(":="), lineText.find("≔"));
+                if (def != std::string_view::npos) {
+                    std::string_view name = lineText.substr(0, def);
+                    while (!name.empty() && (name.front() == ' ' || name.front() == '\t')) {
+                        name.remove_prefix(1);
+                    }
+                    while (!name.empty() && (name.back() == ' ' || name.back() == '\t')) {
+                        name.remove_suffix(1);
+                    }
+                    names.emplace(name);
+                }
+                if (end == std::string_view::npos) {
+                    break;
+                }
+                pos = end + 1;
+            }
+        };
+        for (const auto& src: xoj::calc::documentSources(this->control->getDocument())) {
+            addDefinitions(src);
+        }
+        this->documentVariableNames = std::move(names);
+    }
+    std::string current = cloneToStdString(this->buffer.get());
+    const bool typedVariable = this->documentVariableNames->count(word) > 0 ||
+                               current.find(word + " :=") != std::string::npos ||
+                               current.find(word + ":=") != std::string::npos ||
+                               current.find(word + " ≔") != std::string::npos ||
+                               current.find(word + "≔") != std::string::npos;
+    const bool highlight = g_utf8_strlen(word.c_str(), -1) >= 2 && !typedVariable;
+
+    // Below the cursor
+    auto box = viewPool->front().toWidgetCoordinates(textElement->getTransformation() *
+                                                     xoj::util::Rectangle<double>(this->cursorBox));
+    this->completion->show(functions, {round_cast<int>(box.x), round_cast<int>(box.y + box.height) + 4}, highlight);
+}
+
+void TextEditor::hideCompletion() {
+    if (this->completion) {
+        this->completion->hide();
+    }
+}
+
+bool TextEditor::handleCompletionKey(const KeyEvent& event) {
+    if (!this->completion || !this->completion->isVisible()) {
+        return false;
+    }
+    constexpr auto MODIFIERS = GDK_SHIFT_MASK | GDK_CONTROL_MASK | GDK_MOD1_MASK | GDK_SUPER_MASK;
+    if ((event.state & MODIFIERS) != 0) {
+        return false;
+    }
+    switch (event.keyval) {
+        case GDK_KEY_Escape:
+            hideCompletion();
+            return true;
+        case GDK_KEY_Up:
+        case GDK_KEY_KP_Up:
+            this->completion->moveHighlight(-1);
+            return true;
+        case GDK_KEY_Down:
+        case GDK_KEY_KP_Down:
+            this->completion->moveHighlight(1);
+            return true;
+        case GDK_KEY_Tab:
+        case GDK_KEY_KP_Tab:
+        case GDK_KEY_Return:
+        case GDK_KEY_ISO_Enter:
+        case GDK_KEY_KP_Enter:
+            if (const auto* f = this->completion->highlighted()) {
+                acceptCompletion(f->name);
+                return true;
+            }
+            hideCompletion();
+            return false;
+        default:
+            return false;
+    }
+}
+
+void TextEditor::acceptCompletion(const std::string& functionName) {
+    hideCompletion();
+    GtkTextIter start;
+    if (wordBeforeCursor(&start).empty()) {
+        return;
+    }
+    GtkTextIter end = getIteratorAtCursor(this->buffer.get());
+    gtk_text_buffer_begin_user_action(this->buffer.get());
+    gtk_text_buffer_delete(this->buffer.get(), &start, &end);
+    std::string text = functionName + "(";
+    gtk_text_buffer_insert_at_cursor(this->buffer.get(), text.c_str(), -1);
+    gtk_text_buffer_end_user_action(this->buffer.get());
+    this->contentsChanged(true);
+    this->repaintEditor();
 }
 
 bool TextEditor::handleGridNavigation(const KeyEvent& event) {
@@ -860,6 +1043,7 @@ void TextEditor::selectAtCursor(TextEditor::SelectType ty) {
 }
 
 void TextEditor::moveCursor(GtkMovementStep step, int count, bool extendSelection) {
+    hideCompletion();
     resetImContext();
 
     GtkTextIter insert = getIteratorAtCursor(this->buffer.get());
@@ -979,6 +1163,7 @@ void TextEditor::markPos(double x, double y, bool extendSelection) {
 }
 
 void TextEditor::mousePressed(double x, double y) {
+    hideCompletion();
     this->mouseDown = true;
     // Todo select if SHIFT is pressed
     auto p = this->textElement->getTransformation().inverse() * xoj::util::Point<double>(x, y);
@@ -1110,6 +1295,7 @@ static auto find_whitepace_region(const GtkTextIter* center, GtkTextIter* start,
 }
 
 void TextEditor::deleteFromCursor(GtkDeleteType type, int count) {
+    hideCompletion();
 
     this->resetImContext();
 
@@ -1238,6 +1424,7 @@ void TextEditor::backspace() {
     if (gtk_text_buffer_backspace(this->buffer.get(), &insert, true, true)) {
         this->contentsChanged();
         this->repaintEditor();
+        this->updateCompletion();
     } else {
         gtk_widget_error_bell(this->xournalWidget);
     }
@@ -1428,6 +1615,7 @@ void TextEditor::repaintCursorAfterChange() {
 }
 
 void TextEditor::finalizeEdition() {
+    hideCompletion();
 
     auto* db = this->control->getActionDatabase();
     auto* th = this->control->getToolHandler();

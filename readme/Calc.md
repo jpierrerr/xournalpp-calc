@@ -23,8 +23,9 @@ Extensión de Xournal++ para hacer memorias de cálculo al estilo Mathcad sobre 
 | `# nota` | comentario | igual |
 
 - Operadores: `+ - * / ^`, paréntesis, multiplicación implícita (`2.5 m`, `1 kN/1 mm^2`). También `·`, `×`, `²`, `³`, `√`.
-- Funciones: `sqrt`, `cbrt`, `abs`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `ln`, `log`, `exp`, `min`, `max`, `round`, `floor`, `ceil`.
-- Ángulos: `sin(30 deg)`; los resultados de `asin`, `acos`, `atan` están en radianes (`θ = ? deg` para verlos en grados).
+- Funciones (como en Excel en español, `;` entre argumentos, sin distinguir mayúsculas): `RAIZ`, `RAIZ3`, `ABS`, `SENO`, `COS`, `TAN`, `ASENO`, `ACOS`, `ATAN`, `ATAN2(x; y)`, `LN`, `LOG10`, `LOG(x; base)`, `EXP`, `MIN`, `MAX`, `REDONDEAR(x; decimales)`, `REDONDEAR.MENOS`, `REDONDEAR.MAS`. Fuera de edición se ven en notación matemática: `sen`, `√x` con barra, `|x|`, `log₂`. Los nombres en inglés de versiones anteriores (`sqrt`, `sin`, `atan2(y, x)`, `round`, `floor`, `ceil`...) siguen funcionando.
+- Al escribir un nombre aparece un desplegable con las funciones que empiezan así (flechas para elegir, Tab/Enter/clic para escribirla, Esc para cerrarlo).
+- Ángulos: `SENO(30 deg)`; los resultados de `ASENO`, `ACOS`, `ATAN` están en radianes (`θ = ? deg` para verlos en grados).
 - Errores de unidades (sumar `MPa + m`) y variables no definidas se marcan en rojo junto a la línea.
 - Las variables del usuario tienen prioridad sobre las unidades (como en Mathcad): si defines `h := 50 cm`, `h` deja de ser "hora".
 

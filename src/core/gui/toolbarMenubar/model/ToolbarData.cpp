@@ -191,3 +191,11 @@ void ToolbarData::setItemNames(const std::string& toolbar, const std::vector<std
 }
 
 void ToolbarData::copyContentsFrom(const ToolbarData& other) { this->contents = other.contents; }
+
+auto ToolbarData::getEntryNames() const -> std::vector<std::string> {
+    std::vector<std::string> names;
+    for (const ToolbarEntry& e: this->contents) {
+        names.emplace_back(e.getName());
+    }
+    return names;
+}

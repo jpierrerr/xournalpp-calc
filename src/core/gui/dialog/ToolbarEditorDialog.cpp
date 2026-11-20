@@ -46,9 +46,62 @@ const std::array<BarDef, 8> BARS{{{"toolbarTop1", N_("Top, row 1")},
                                   {"toolbarBottom1", N_("Bottom, row 1")},
                                   {"toolbarBottom2", N_("Bottom, row 2")}}};
 
+constexpr gint GROUP_DRAG_BASE = 100000;
+
 GtkTargetEntry rowTarget{const_cast<gchar*>("JACKMATH_TOOLBAR_ROW"), GTK_TARGET_SAME_APP, 0};
 
 bool isRepeatable(const std::string& item) { return item == "SEPARATOR" || item == "SPACER"; }
+
+constexpr const char* HIDDEN_PREFIX = "jmHidden-";
+
+/// A bar seen as groups of tools between separators: gaps[k] comes before groups[k], gaps.back() after the last group
+struct Groups {
+    std::vector<std::vector<std::string>> groups;
+    std::vector<std::vector<std::string>> gaps;
+};
+
+Groups splitGroups(const std::vector<std::string>& items) {
+    Groups g;
+    g.gaps.emplace_back();
+    for (const auto& it: items) {
+        if (isRepeatable(it)) {
+            g.gaps.back().push_back(it);
+        } else {
+            if (g.gaps.size() == g.groups.size() + 1 && (g.groups.empty() || !g.gaps.back().empty())) {
+                g.groups.emplace_back();
+                g.gaps.emplace_back();
+            }
+            g.groups.back().push_back(it);
+        }
+    }
+    return g;
+}
+
+std::vector<std::string> joinGroups(const Groups& g) {
+    std::vector<std::string> items;
+    for (size_t k = 0; k < g.gaps.size(); k++) {
+        items.insert(items.end(), g.gaps[k].begin(), g.gaps[k].end());
+        if (k < g.groups.size()) {
+            items.insert(items.end(), g.groups[k].begin(), g.groups[k].end());
+        }
+    }
+    return items;
+}
+
+/// No separator at the ends of the bar or twice in a row (a spacer is kept)
+std::vector<std::string> tidy(const std::vector<std::string>& items) {
+    std::vector<std::string> out;
+    for (const auto& it: items) {
+        if (it == "SEPARATOR" && (out.empty() || isRepeatable(out.back()))) {
+            continue;
+        }
+        out.push_back(it);
+    }
+    while (!out.empty() && out.back() == "SEPARATOR") {
+        out.pop_back();
+    }
+    return out;
+}
 
 std::optional<size_t> colorIndex(const std::string& item) {
     if (!StringUtils::startsWith(item, "COLOR(") || !StringUtils::endsWith(item, ")")) {
@@ -79,6 +132,9 @@ struct ToolbarEditorDialog::Row {
     bool shown;
     int index;  ///< position in the bar for a shown tool; -2 for the heading above the shown tools
     std::string item;
+    int group = -1;           ///< group of a shown tool or of a group heading
+    bool groupHeader = false;  ///< the row of a whole group
+    std::string hiddenEntry;   ///< for a group taken out of the bars: where it is kept
 };
 
 void ToolbarEditorDialog::show(Control* control) {
@@ -123,7 +179,8 @@ ToolbarEditorDialog::ToolbarEditorDialog(Control* control): control(control) {
     g_signal_connect(list, "drag-data-received", G_CALLBACK(onDragDataReceived), this);
     g_signal_connect(list, "row-selected", G_CALLBACK(+[](GtkListBox*, GtkListBoxRow* r, ToolbarEditorDialog* self) {
                          auto* row = r ? static_cast<Row*>(g_object_get_data(G_OBJECT(r), "jm-row")) : nullptr;
-                         self->selected = row && row->shown ? row->index : -1;
+                         self->selected = row && row->shown && !row->groupHeader ? row->index : -1;
+                         self->selectedGroup = row && row->shown && row->groupHeader ? row->group : -1;
                      }),
                      this);
 
@@ -181,6 +238,7 @@ ToolbarEditorDialog::ToolbarEditorDialog(Control* control): control(control) {
                          if (const gchar* id = gtk_combo_box_get_active_id(c); id) {
                              self->currentBar = id;
                              self->selected = -1;
+                             self->selectedGroup = -1;
                              self->rebuildList();
                          }
                      }),
@@ -340,6 +398,7 @@ void ToolbarEditorDialog::rebuildList() {
 
     // Removing the selected row resets the selection: keep it
     const int keepSelected = selected;
+    const int keepGroup = selectedGroup;
     GList* children = gtk_container_get_children(GTK_CONTAINER(list));
     for (GList* c = children; c; c = c->next) {
         gtk_widget_destroy(GTK_WIDGET(c->data));
@@ -347,6 +406,7 @@ void ToolbarEditorDialog::rebuildList() {
     g_list_free(children);
     rows.clear();
     selected = keepSelected;
+    selectedGroup = keepGroup;
 
     const ToolbarData* d = control->getWindow()->getSelectedToolbar();
     std::string layout = d ? d->getName() : std::string();
@@ -366,26 +426,47 @@ void ToolbarEditorDialog::rebuildList() {
         return row;
     };
 
-    auto makeLine = [&](Row* r, const std::string& note) -> GtkWidget* {
+    auto groupTitle = [&](const std::vector<std::string>& g) {
+        std::string t;
+        for (size_t i = 0; i < g.size() && i < 3; i++) {
+            t += (i ? ", " : "") + displayName(g[i]);
+        }
+        if (g.size() > 3) {
+            t += ", …";
+        }
+        return FS(_F("Group: {1}") % t);
+    };
+
+    auto makeLine = [&](Row* r, const std::string& label, GtkWidget* icon, const std::string& note, int indent,
+                        bool bold) -> GtkWidget* {
         GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-        gtk_widget_set_margin_start(box, 4);
+        gtk_widget_set_margin_start(box, 4 + indent);
         gtk_widget_set_margin_end(box, 4);
-        gtk_widget_set_margin_top(box, 2);
+        gtk_widget_set_margin_top(box, bold ? 6 : 2);
         gtk_widget_set_margin_bottom(box, 2);
-        GtkWidget* handle = gtk_image_new_from_icon_name(r->shown ? "open-menu-symbolic" : "list-add-symbolic",
-                                                         GTK_ICON_SIZE_MENU);
+        GtkWidget* handle = gtk_image_new_from_icon_name("open-menu-symbolic", GTK_ICON_SIZE_MENU);
         gtk_widget_set_opacity(handle, r->shown ? 0.6 : 0.0);
         gtk_box_pack_start(GTK_BOX(box), handle, false, false, 0);
         GtkWidget* check = gtk_check_button_new();
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), r->shown);
-        gtk_widget_set_tooltip_text(check, r->shown ? _("Untick to hide it") : _("Tick to show it in this bar"));
+        if (r->groupHeader) {
+            gtk_widget_set_tooltip_text(check, r->shown ? _("Untick to take the whole group out of the bar")
+                                                        : _("Tick to put the whole group back at the end of this bar"));
+        } else {
+            gtk_widget_set_tooltip_text(check, r->shown ? _("Untick to hide it") : _("Tick to show it in this bar"));
+        }
         g_signal_connect(check, "toggled", G_CALLBACK(+[](GtkToggleButton* b, Row* row) {
                              row->dlg->toggleRow(*row, gtk_toggle_button_get_active(b));
                          }),
                          r);
         gtk_box_pack_start(GTK_BOX(box), check, false, false, 0);
-        gtk_box_pack_start(GTK_BOX(box), newIcon(r->item), false, false, 0);
-        GtkWidget* name = gtk_label_new(displayName(r->item).c_str());
+        if (icon) {
+            gtk_box_pack_start(GTK_BOX(box), icon, false, false, 0);
+        }
+        GtkWidget* name = gtk_label_new(nullptr);
+        gchar* esc = g_markup_escape_text(label.c_str(), -1);
+        gtk_label_set_markup(GTK_LABEL(name), bold ? (std::string("<b>") + esc + "</b>").c_str() : esc);
+        g_free(esc);
         gtk_label_set_xalign(GTK_LABEL(name), 0.0f);
         gtk_label_set_ellipsize(GTK_LABEL(name), PANGO_ELLIPSIZE_END);
         gtk_box_pack_start(GTK_BOX(box), name, true, true, 0);
@@ -397,7 +478,7 @@ void ToolbarEditorDialog::rebuildList() {
         if (!r->shown) {
             return box;
         }
-        // A shown tool can be dragged to another place of the list
+        // A shown tool or group can be dragged to another place of the list
         GtkWidget* ebox = gtk_event_box_new();
         gtk_event_box_set_visible_window(GTK_EVENT_BOX(ebox), false);  // let the row show it is selected
         gtk_container_add(GTK_CONTAINER(ebox), box);
@@ -405,9 +486,9 @@ void ToolbarEditorDialog::rebuildList() {
         gtk_drag_source_set_icon_name(ebox, "open-menu-symbolic");
         g_signal_connect(ebox, "drag-data-get",
                          G_CALLBACK(+[](GtkWidget*, GdkDragContext*, GtkSelectionData* sd, guint, guint, Row* row) {
-                             gint index = row->index;
+                             gint code = row->groupHeader ? GROUP_DRAG_BASE + row->group : row->index;
                              gtk_selection_data_set(sd, gtk_selection_data_get_target(sd), 8,
-                                                    reinterpret_cast<const guchar*>(&index), sizeof(index));
+                                                    reinterpret_cast<const guchar*>(&code), sizeof(code));
                          }),
                          r);
         return ebox;
@@ -416,13 +497,33 @@ void ToolbarEditorDialog::rebuildList() {
     const auto items = itemsOf(currentBar);
 
     auto top = std::make_unique<Row>(Row{this, false, -2, {}});
-    addRow(headingLabel(_("Shown in this bar (drag them or use Up/Down to change the order)"), true), std::move(top),
-           false);
-    std::vector<GtkWidget*> shownRows;
-    for (size_t i = 0; i < items.size(); i++) {
-        auto r = std::make_unique<Row>(Row{this, true, static_cast<int>(i), items[i]});
-        GtkWidget* line = makeLine(r.get(), {});
-        shownRows.push_back(addRow(line, std::move(r), true));
+    addRow(headingLabel(_("Shown in this bar: each group (between separators) can be taken out, moved or dragged "
+                          "as a whole, or tool by tool"),
+                        true),
+           std::move(top), false);
+
+    // Shown tools, by groups
+    std::vector<GtkWidget*> shownRows(items.size(), nullptr);
+    std::vector<GtkWidget*> groupRows;
+    {
+        int group = -1;
+        bool inGroup = false;
+        const Groups g = splitGroups(items);
+        for (size_t i = 0; i < items.size(); i++) {
+            const bool sep = isRepeatable(items[i]);
+            if (!sep && !inGroup) {
+                group++;
+                auto h = std::make_unique<Row>(Row{this, true, -1, {}, group, true});
+                GtkWidget* line = makeLine(h.get(), groupTitle(g.groups[static_cast<size_t>(group)]),
+                                           gtk_image_new_from_icon_name("view-list-symbolic", GTK_ICON_SIZE_MENU),
+                                           {}, 0, true);
+                groupRows.push_back(addRow(line, std::move(h), true));
+            }
+            inGroup = !sep;
+            auto r = std::make_unique<Row>(Row{this, true, static_cast<int>(i), items[i], sep ? -1 : group});
+            GtkWidget* line = makeLine(r.get(), displayName(items[i]), newIcon(items[i]), {}, sep ? 0 : 24, false);
+            shownRows[i] = addRow(line, std::move(r), true);
+        }
     }
     if (items.empty()) {
         GtkWidget* l = gtk_label_new(_("(empty: this bar is not shown)"));
@@ -430,7 +531,32 @@ void ToolbarEditorDialog::rebuildList() {
         addRow(l, nullptr, false);
     }
 
-    addRow(headingLabel(_("Not in this bar (tick one to add it at the end; if it is in another bar, it moves here)"), true), nullptr, false);
+    // Groups taken out earlier
+    std::vector<std::pair<std::string, std::vector<std::string>>> hidden;
+    if (d) {
+        for (const auto& e: d->getEntryNames()) {
+            if (StringUtils::startsWith(e, HIDDEN_PREFIX)) {
+                if (auto g = d->getItemNames(e); !g.empty()) {
+                    hidden.emplace_back(e, std::move(g));
+                }
+            }
+        }
+    }
+    if (!hidden.empty()) {
+        addRow(headingLabel(_("Groups taken out (tick one to put it back at the end of this bar)"), true), nullptr,
+               false);
+        for (auto& [entry, g]: hidden) {
+            auto r = std::make_unique<Row>(Row{this, false, -1, {}, -1, true, entry});
+            GtkWidget* line = makeLine(r.get(), groupTitle(g),
+                                       gtk_image_new_from_icon_name("view-list-symbolic", GTK_ICON_SIZE_MENU), {}, 0,
+                                       false);
+            addRow(line, std::move(r), false);
+        }
+    }
+
+    addRow(headingLabel(_("Not in this bar (tick one to add it at the end; if it is in another bar, it moves here)"),
+                        true),
+           nullptr, false);
 
     using Cat = AbstractToolItem::Category;
     const std::array<std::pair<Cat, const char*>, 9> order{{{Cat::TOOLS, N_("Tools")},
@@ -478,7 +604,7 @@ void ToolbarEditorDialog::rebuildList() {
                 }
             }
             auto r = std::make_unique<Row>(Row{this, false, -1, id});
-            GtkWidget* line = makeLine(r.get(), note);
+            GtkWidget* line = makeLine(r.get(), displayName(id), newIcon(id), note, 0, false);
             addRow(line, std::move(r), false);
         }
     }
@@ -486,35 +612,96 @@ void ToolbarEditorDialog::rebuildList() {
     gtk_widget_show_all(list);
     gtk_adjustment_set_upper(adj, std::max(gtk_adjustment_get_upper(adj), scrollPos + gtk_adjustment_get_page_size(adj)));
     gtk_adjustment_set_value(adj, scrollPos);
+    // Selecting would scroll to the row: do it without moving the list
     if (selected >= 0 && selected < static_cast<int>(shownRows.size())) {
-        // Selecting would scroll to the row: do it without moving the list
         gtk_list_box_select_row(GTK_LIST_BOX(list), GTK_LIST_BOX_ROW(shownRows[static_cast<size_t>(selected)]));
-        gtk_adjustment_set_value(adj, scrollPos);
+    } else if (selectedGroup >= 0 && selectedGroup < static_cast<int>(groupRows.size())) {
+        gtk_list_box_select_row(GTK_LIST_BOX(list), GTK_LIST_BOX_ROW(groupRows[static_cast<size_t>(selectedGroup)]));
     } else {
         selected = -1;
+        selectedGroup = -1;
+    }
+    gtk_adjustment_set_value(adj, scrollPos);
+}
+
+void ToolbarEditorDialog::takeOutOfOtherBars(const std::string& item) {
+    if (isRepeatable(item)) {
+        return;
+    }
+    // A tool is in one bar only
+    if (auto other = barOf(item); !other.empty() && other != currentBar) {
+        auto otherItems = itemsOf(other);
+        otherItems.erase(std::find(otherItems.begin(), otherItems.end(), item));
+        setItems(other, tidy(otherItems));
+    }
+    // ... and not kept in a group taken out
+    if (const ToolbarData* d = control->getWindow()->getSelectedToolbar(); d) {
+        for (const auto& e: d->getEntryNames()) {
+            if (StringUtils::startsWith(e, HIDDEN_PREFIX)) {
+                auto g = d->getItemNames(e);
+                if (auto it = std::find(g.begin(), g.end(), item); it != g.end()) {
+                    g.erase(it);
+                    setItems(e, g);
+                }
+            }
+        }
     }
 }
 
 void ToolbarEditorDialog::toggleRow(const Row& row, bool active) {
     auto items = itemsOf(currentBar);
-    if (row.shown && !active) {
+    if (row.groupHeader && row.shown && !active) {
+        // Take the whole group out; it is kept to be put back later
+        Groups g = splitGroups(items);
+        if (row.group >= 0 && row.group < static_cast<int>(g.groups.size())) {
+            auto taken = g.groups[static_cast<size_t>(row.group)];
+            g.groups.erase(g.groups.begin() + row.group);
+            // merge the separators around it
+            auto& before = g.gaps[static_cast<size_t>(row.group)];
+            auto& after = g.gaps[static_cast<size_t>(row.group) + 1];
+            before.insert(before.end(), after.begin(), after.end());
+            g.gaps.erase(g.gaps.begin() + row.group + 1);
+            setItems(currentBar, tidy(joinGroups(g)));
+            int n = 1;
+            const ToolbarData* d = control->getWindow()->getSelectedToolbar();
+            auto names = d ? d->getEntryNames() : std::vector<std::string>{};
+            std::string key;
+            do {
+                key = std::string(HIDDEN_PREFIX) + currentBar + "-" + std::to_string(n++);
+            } while (std::find(names.begin(), names.end(), key) != names.end() && d && !d->getItemNames(key).empty());
+            setItems(key, taken);
+        }
+        selected = -1;
+        selectedGroup = -1;
+    } else if (row.groupHeader && !row.shown && active) {
+        // Put a group taken out back, at the end of this bar
+        auto g = itemsOf(row.hiddenEntry);
+        setItems(row.hiddenEntry, {});
+        for (const auto& it: g) {
+            takeOutOfOtherBars(it);
+        }
+        items = itemsOf(currentBar);
+        if (!items.empty()) {
+            items.push_back("SEPARATOR");
+        }
+        items.insert(items.end(), g.begin(), g.end());
+        setItems(currentBar, tidy(items));
+        selected = -1;
+        selectedGroup = static_cast<int>(splitGroups(itemsOf(currentBar)).groups.size()) - 1;
+    } else if (row.shown && !active) {
         if (row.index >= 0 && row.index < static_cast<int>(items.size())) {
             items.erase(items.begin() + row.index);
             setItems(currentBar, items);
         }
         selected = -1;
+        selectedGroup = -1;
     } else if (!row.shown && active) {
-        if (!isRepeatable(row.item)) {
-            // A tool is in one bar only: take it out of the bar it was in
-            if (auto other = barOf(row.item); !other.empty() && other != currentBar) {
-                auto otherItems = itemsOf(other);
-                otherItems.erase(std::find(otherItems.begin(), otherItems.end(), row.item));
-                setItems(other, otherItems);
-            }
-        }
+        takeOutOfOtherBars(row.item);
+        items = itemsOf(currentBar);
         items.push_back(row.item);
         setItems(currentBar, items);
         selected = static_cast<int>(items.size()) - 1;
+        selectedGroup = -1;
     }
     scheduleRefresh();
 }
@@ -534,29 +721,71 @@ void ToolbarEditorDialog::moveVisible(int from, int to) {
     items.insert(items.begin() + to, item);
     setItems(currentBar, items);
     selected = to;
+    selectedGroup = -1;
+    scheduleRefresh();
+}
+
+void ToolbarEditorDialog::moveGroup(int from, int to) {
+    Groups g = splitGroups(itemsOf(currentBar));
+    const int n = static_cast<int>(g.groups.size());
+    if (from < 0 || from >= n) {
+        return;
+    }
+    to = std::clamp(to, 0, n - 1);
+    if (from == to) {
+        return;
+    }
+    auto moved = g.groups[static_cast<size_t>(from)];
+    g.groups.erase(g.groups.begin() + from);
+    g.groups.insert(g.groups.begin() + to, moved);
+    setItems(currentBar, joinGroups(g));
+    selected = -1;
+    selectedGroup = to;
     scheduleRefresh();
 }
 
 void ToolbarEditorDialog::moveSelected(int delta) {
-    if (selected < 0) {
-        return;
+    if (selectedGroup >= 0) {
+        moveGroup(selectedGroup, selectedGroup + delta);
+    } else if (selected >= 0) {
+        moveVisible(selected, selected + delta);
     }
-    moveVisible(selected, selected + delta);
 }
 
 void ToolbarEditorDialog::moveSelectedToBar() {
     const gchar* target = gtk_combo_box_get_active_id(GTK_COMBO_BOX(moveCombo));
     auto items = itemsOf(currentBar);
-    if (!target || selected < 0 || selected >= static_cast<int>(items.size()) || currentBar == target) {
+    if (!target || currentBar == target) {
         return;
     }
-    std::string item = items[static_cast<size_t>(selected)];
-    items.erase(items.begin() + selected);
+    std::vector<std::string> moving;
+    if (selectedGroup >= 0) {
+        Groups g = splitGroups(items);
+        if (selectedGroup >= static_cast<int>(g.groups.size())) {
+            return;
+        }
+        moving = g.groups[static_cast<size_t>(selectedGroup)];
+        g.groups.erase(g.groups.begin() + selectedGroup);
+        auto& before = g.gaps[static_cast<size_t>(selectedGroup)];
+        auto& after = g.gaps[static_cast<size_t>(selectedGroup) + 1];
+        before.insert(before.end(), after.begin(), after.end());
+        g.gaps.erase(g.gaps.begin() + selectedGroup + 1);
+        items = tidy(joinGroups(g));
+    } else if (selected >= 0 && selected < static_cast<int>(items.size())) {
+        moving.push_back(items[static_cast<size_t>(selected)]);
+        items.erase(items.begin() + selected);
+    } else {
+        return;
+    }
     auto targetItems = itemsOf(target);
-    targetItems.push_back(item);
+    if (moving.size() > 1 && !targetItems.empty()) {
+        targetItems.push_back("SEPARATOR");
+    }
+    targetItems.insert(targetItems.end(), moving.begin(), moving.end());
     setItems(currentBar, items);
     setItems(target, targetItems);
     selected = -1;
+    selectedGroup = -1;
     scheduleRefresh();
 }
 
@@ -565,19 +794,43 @@ void ToolbarEditorDialog::onDragDataReceived(GtkWidget*, GdkDragContext*, int, i
     if (gtk_selection_data_get_length(data) != sizeof(gint)) {
         return;
     }
-    gint from = *reinterpret_cast<const gint*>(gtk_selection_data_get_data(data));
+    gint code = *reinterpret_cast<const gint*>(gtk_selection_data_get_data(data));
+    Row* row = nullptr;
+    if (GtkListBoxRow* r = gtk_list_box_get_row_at_y(GTK_LIST_BOX(self->list), y); r) {
+        row = static_cast<Row*>(g_object_get_data(G_OBJECT(r), "jm-row"));
+    }
+    if (code >= GROUP_DRAG_BASE) {
+        const int n = static_cast<int>(splitGroups(self->itemsOf(self->currentBar)).groups.size());
+        int to = n - 1;
+        if (row && row->shown && row->group >= 0) {
+            to = row->group;
+        } else if (row && row->index == -2) {
+            to = 0;
+        }
+        self->moveGroup(code - GROUP_DRAG_BASE, to);
+        return;
+    }
     const int n = static_cast<int>(self->itemsOf(self->currentBar).size());
     int to = n - 1;
-    if (GtkListBoxRow* r = gtk_list_box_get_row_at_y(GTK_LIST_BOX(self->list), y); r) {
-        if (auto* row = static_cast<Row*>(g_object_get_data(G_OBJECT(r), "jm-row")); row) {
-            if (row->shown) {
-                to = row->index;
-            } else if (row->index == -2) {
-                to = 0;
+    if (row) {
+        if (row->shown && !row->groupHeader) {
+            to = row->index;
+        } else if (row->shown && row->groupHeader) {
+            // dropped on a group title: first place of that group
+            Groups g = splitGroups(self->itemsOf(self->currentBar));
+            int pos = 0;
+            for (int k = 0; k <= row->group && k < static_cast<int>(g.groups.size()); k++) {
+                pos += static_cast<int>(g.gaps[static_cast<size_t>(k)].size());
+                if (k < row->group) {
+                    pos += static_cast<int>(g.groups[static_cast<size_t>(k)].size());
+                }
             }
+            to = pos > code ? pos - 1 : pos;
+        } else if (row->index == -2) {
+            to = 0;
         }
     }
-    self->moveVisible(from, to);
+    self->moveVisible(code, to);
 }
 
 void ToolbarEditorDialog::restoreOriginal() {
@@ -627,6 +880,7 @@ void ToolbarEditorDialog::restoreOriginal() {
                                    win->getToolbarModel()->save(Util::getConfigFile(TOOLBAR_CONFIG));
                                }
                                selected = -1;
+                               selectedGroup = -1;
                                rebuildList();
                            });
 }

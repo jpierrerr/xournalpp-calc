@@ -5068,3 +5068,35 @@ msgstr "Se descartan los cambios hechos a esta barra."
 #: src/core/gui/dialog/ToolbarEditorDialog.cpp
 msgid "Restore"
 msgstr "Restaurar"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Group: {1}"
+msgstr "Grupo: {1}"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Untick to take the whole group out of the bar"
+msgstr "Desmarca para quitar todo el grupo de la barra"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Tick to put the whole group back at the end of this bar"
+msgstr "Marca para volver a poner todo el grupo al final de esta barra"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Shown in this bar: each group (between separators) can be taken out, moved or dragged as a whole, or tool by tool"
+msgstr "Visibles en esta barra: cada grupo (entre separadores) se puede quitar, mover o arrastrar completo, o herramienta por herramienta"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Groups taken out (tick one to put it back at the end of this bar)"
+msgstr "Grupos quitados (marca uno para volver a ponerlo al final de esta barra)"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Other color…"
+msgstr "Otro color…"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Colors (list)"
+msgstr "Colores (lista)"
+
+#: src/core/gui/dialog/ToolbarEditorDialog.cpp
+msgid "Thickness (list)"
+msgstr "Grosor (lista)"

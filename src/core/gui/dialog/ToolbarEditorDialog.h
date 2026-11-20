@@ -50,6 +50,8 @@ private:
     void moveSelected(int delta);
     void moveSelectedToBar();
     void moveVisible(int from, int to);
+    void moveGroup(int from, int to);
+    void takeOutOfOtherBars(const std::string& item);
     void restoreOriginal();
     void openDragEditor();
 
@@ -69,7 +71,8 @@ private:
     GtkWidget* list = nullptr;
     GtkWidget* layoutLabel = nullptr;
     std::string currentBar = "toolbarTop1";
-    int selected = -1;  ///< index in the bar of the selected (shown) tool
+    int selected = -1;       ///< index in the bar of the selected (shown) tool
+    int selectedGroup = -1;  ///< selected group of the bar
     guint refreshSource = 0;
     std::vector<std::unique_ptr<Row>> rows;
 

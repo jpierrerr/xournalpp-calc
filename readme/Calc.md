@@ -128,10 +128,19 @@ Las opciones de fondo (alinear a la malla, acople de giro, malla visible...) no 
 *Editar → Barras de herramientas → Personalizar* abre una ventana con una lista por cada barra (Arriba fila 1,
 Arriba fila 2, Izquierda, Derecha, Abajo):
 
-- Arriba están las herramientas visibles, en su orden. Desmarcar una la oculta. Se cambian de orden arrastrándolas o
+- Arriba están las herramientas visibles, en su orden, agrupadas como en la barra (cada grupo va entre separadores).
+  Cada grupo tiene su casilla: desmarcarla quita el grupo completo, que queda en "Grupos quitados" para volver a
+  ponerlo; seleccionado, el grupo se sube, se baja, se arrastra o se mueve a otra barra completo. Las herramientas se
+  siguen pudiendo manejar una por una. Desmarcar una herramienta la oculta. Se cambian de orden arrastrándolas o
   con **Subir**/**Bajar**; **Mover a** la pasa a otra barra.
 - Abajo están las que no están en esa barra, por grupos. Marcar una la pone al final de la barra; si estaba en otra
   barra, se mueve.
 - Los cambios se aplican de inmediato y se guardan en `toolbar.ini`. Una barra predefinida se copia la primera vez
   (queda como "... (personalizada)"); **Restaurar original** vuelve a la predefinida y borra la copia.
 - **Arrastrar a las barras...** abre el editor anterior de Xournal++ (arrastrar desde una ventana hasta las barras).
+
+## Color y grosor como listas
+
+Por defecto, junto al lápiz hay dos botones: el color actual (abre la lista de colores de la paleta y "Otro color…")
+y el grosor actual (abre muy fino … muy grueso). Son `COLOR_LIST` y `SIZE_LIST` en `toolbar.ini`; los botones sueltos
+de cada color (`COLOR(n)`) y de cada grosor siguen disponibles en *Personalizar*.

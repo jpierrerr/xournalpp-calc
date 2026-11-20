@@ -43,6 +43,8 @@ public:
 
     /// xournalpp-calc: names of the items of one bar (e.g. "toolbarTop1"), in order
     std::vector<std::string> getItemNames(const std::string& toolbar) const;
+    /// xournalpp-calc: names of all the bars/entries stored (also those that are not shown, like hidden groups)
+    std::vector<std::string> getEntryNames() const;
     /// xournalpp-calc: replace the items of one bar
     void setItemNames(const std::string& toolbar, const std::vector<std::string>& items);
     /// xournalpp-calc: replace all the bars with those of another toolbar configuration (keeps id, name)

@@ -30,6 +30,7 @@
 #include "AbstractToolItem.h"            // for AbstractToolItem
 #include "ColorSelectorToolItem.h"       // for ColorSelectorToolItem
 #include "ColorToolItem.h"               // for ColorToolItem
+#include "ColorListToolItem.h"           // for ColorListToolItem
 #include "DrawingTypeComboToolButton.h"  // for DrawingTypeComboToolButton
 #include "FontButton.h"                  // for FontButton
 #include "PluginPlaceholderLabel.h"      // for PluginPlaceholderLabel
@@ -550,6 +551,18 @@ void ToolMenuHandler::initToolItems() {
     emplaceCustomItemWithTarget("THICK", Cat::TOOLS, Action::TOOL_SIZE, TOOL_SIZE_THICK, "thickness-thick", _("Thick"));
     emplaceCustomItemWithTarget("VERY_THICK", Cat::TOOLS, Action::TOOL_SIZE, TOOL_SIZE_VERY_THICK, "thickness-thicker",
                                 _("Very Thick"));
+
+    // xournalpp-calc: one button for the color and one for the size, each opening a list
+    emplaceItem<ColorListToolItem>(this->control, *this->control->getActionDatabase());
+    emplaceItem<ComboToolButton>(
+            "SIZE_LIST", Cat::TOOLS, this->iconNameHelper.iconName("thickness-medium"), _("Thickness (list)"),
+            ComboToolButton::Entries{{_("Very Fine"), this->iconNameHelper.iconName("thickness-finer"), TOOL_SIZE_VERY_FINE},
+                                     {_("Fine"), this->iconNameHelper.iconName("thickness-fine"), TOOL_SIZE_FINE},
+                                     {_("Medium"), this->iconNameHelper.iconName("thickness-medium"), TOOL_SIZE_MEDIUM},
+                                     {_("Thick"), this->iconNameHelper.iconName("thickness-thick"), TOOL_SIZE_THICK},
+                                     {_("Very Thick"), this->iconNameHelper.iconName("thickness-thicker"),
+                                      TOOL_SIZE_VERY_THICK}},
+            this->control->getActionDatabase()->getAction(Action::TOOL_SIZE));
 
     emplaceItem<SeparatorItem>("SEPARATOR");
     emplaceItem<SpacerItem>("SPACER");

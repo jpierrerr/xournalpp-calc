@@ -410,6 +410,7 @@ const char* scriptChar(gunichar c, bool superscript) {
 
 void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextEditor* te) {
     gtk_text_buffer_begin_user_action(te->buffer.get());
+    std::string inserted;  ///< what was finally typed (str may point to a temporary below)
 
     bool hadSelection = gtk_text_buffer_get_has_selection(te->buffer.get());
     if (hadSelection) {
@@ -544,6 +545,7 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
             }
         }
 
+        inserted = str;
         if (skipInsert) {
             // nothing to insert
         } else if (!gtk_text_buffer_insert_interactive_at_cursor(te->buffer.get(), str, -1, true)) {
@@ -557,6 +559,23 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
     }
 
     gtk_text_buffer_end_user_action(te->buffer.get());
+
+    // xournalpp-calc: a definition (== → ≔, or ":=") typed in a plain text turns on the calculation mode: the text
+    // becomes a calculation region
+    if (!te->textElement->isCalc() && inserted == "=") {
+        GtkTextIter end = getIteratorAtCursor(te->buffer.get());
+        GtkTextIter start = end;
+        if (gtk_text_iter_backward_chars(&start, 2)) {
+            auto typed = xoj::util::OwnedCString::assumeOwnership(gtk_text_iter_get_text(&start, &end));
+            if (!strcmp(typed.get(), ":=")) {
+                inserted = "≔";
+            }
+        }
+    }
+    if (!te->textElement->isCalc() && inserted == "≔") {
+        te->control->getActionDatabase()->fireChangeActionState(Action::CALC_MODE, true);
+    }
+
     te->contentsChanged();
     te->repaintEditor();
     te->updateCompletion();

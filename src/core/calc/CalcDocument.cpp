@@ -17,6 +17,7 @@
 #include "model/XojPage.h"
 
 #include "ExcelLink.h"
+#include "MathLayout.h"
 #include "XlsxFile.h"
 
 namespace fs = std::filesystem;
@@ -429,7 +430,7 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
                 out += escape(l.source);
                 break;
             case LineResult::Kind::Definition:
-                out += prettifyMarkup(l.source, env) + note(l);
+                out += math::structuredMarkup(l.source, env) + note(l);
                 break;
             case LineResult::Kind::Evaluation: {
                 if (auto statement = statementMarkup(l, env)) {
@@ -438,7 +439,7 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
                 }
                 std::string_view prefix(l.display);
                 prefix.remove_suffix(std::min(prefix.size(), l.result.size()));
-                out += prettifyMarkup(prefix, env);
+                out += math::structuredMarkup(prefix, env);
                 // Comparisons: green when it holds, red when not
                 const bool holds = l.result.find("✓") != std::string::npos;
                 const bool fails = l.result.find("✗") != std::string::npos;
@@ -448,7 +449,7 @@ std::string buildMarkup(const std::vector<LineResult>& lines, const Environment*
                 break;
             }
             case LineResult::Kind::Error:
-                out += prettifyMarkup(l.source, env);
+                out += math::structuredMarkup(l.source, env);
                 out += std::string("   <span foreground=\"") + ERROR_COLOR + "\" size=\"smaller\">⚠ " +
                        escape(l.error) + "</span>";
                 break;

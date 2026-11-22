@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>  // for string
 #include <vector>
 
@@ -28,6 +29,10 @@
 class ObjectInputStream;
 class ObjectOutputStream;
 class XojPdfRectangle;
+namespace xoj::calc::math {
+class Formula;
+struct Style;
+}  // namespace xoj::calc::math
 
 class Text: public RectangularElement, public AudioContent {
 public:
@@ -89,6 +94,11 @@ public:
     }
     /// Pango attributes of the formats for the given text (the text of the element if nullptr)
     void applyFormats(PangoLayout* layout, const std::string* text = nullptr) const;
+
+    /// xournalpp-calc: a calculation region typeset in two dimensions (fractions, exponents, roots): as displayed,
+    /// or as written while it is edited
+    std::unique_ptr<xoj::calc::math::Formula> calcFormula() const;
+    xoj::calc::math::Style calcStyle() const;
 
     /// Put the content that is displayed (text, or the calculation results) into the layout
     void applyDisplayContent(PangoLayout* layout) const;

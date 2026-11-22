@@ -1,4 +1,4 @@
-# Ilustraciones del diseño estructural. Se ejecuta dentro de gen.py antes de part2.py.
+# Ilustraciones del diseño estructural (pasos 8.1 a 8.5). Se ejecuta dentro de generar_muro.py.
 CONC = "#3d3846ff"
 PRESS = "#1a5fb4ff"
 LOADC = "#c01c28ff"
@@ -49,7 +49,7 @@ def fig_vastago(pg, r0):
     pg.label(xb - 0.7 * k - 48, top - 2, "h = 6.0 m", 8)
     # texto explicativo a la derecha
     tx = X0 + 330
-    pg.label(tx, top + 10, "Figura 3. El vástago es un voladizo", 9, bold=True)
+    pg.label(tx, top + 10, "Figura 12. El vástago es un voladizo", 9, bold=True)
     pg.label(tx, top + 24, "empotrado en la base. El empuje de su", 9)
     pg.label(tx, top + 37, "propia altura tracciona la cara del", 9)
     pg.label(tx, top + 50, "relleno: ahí va el acero principal V1.", 9)
@@ -91,7 +91,7 @@ def fig_base(pg, r0):
         y += 150
     pg.label(x0 + 2, top - 16, "puntera", 8.5, SECT)
     pg.label(x0 + 3.0 * k, top - 14, "talón (3.4 m)", 8.5, SECT)
-    pg.label(X0, top + 2 * 150 - 22, "Figura 4. Presiones mayoradas bajo la base. Las líneas naranjas son las caras del vástago,", 9)
+    pg.label(X0, top + 2 * 150 - 22, "Figura 13. Presiones mayoradas bajo la base. Las líneas naranjas son las caras del vástago,", 9)
     pg.label(X0, top + 2 * 150 - 10, "donde se cortan la puntera y el talón como voladizos. En los dos casos e ≤ B/6 (trapecio).", 9)
 
 
@@ -126,7 +126,7 @@ def fig_puntera(pg, r0):
     pg.label(x0 + 10, top + th - 20, "P1 No.5 c/0.14 (tracción abajo)", 8.5, BAR)
     pg.label(x0, top + th / 2 - 5, "", 8)
     tx = X0 + 300
-    pg.label(tx, top + 60, "Figura 5. La puntera es un voladizo", 9, bold=True)
+    pg.label(tx, top + 60, "Figura 14. La puntera es un voladizo", 9, bold=True)
     pg.label(tx, top + 74, "que el suelo empuja hacia arriba.", 9)
     pg.label(tx, top + 87, "Momento en la cara del vástago:", 9)
     pg.label(tx, top + 100, "Mu = L²(2qa + qt)/6 − peso propio.", 9)
@@ -167,7 +167,7 @@ def fig_talon(pg, r0):
     # barra T1 arriba con gancho
     pg.stroke([(x0 - 60, top + 5), (x0 + L_ * k - 5, top + 5), (x0 + L_ * k - 5, top + th - 5)], 1.6, BAR)
     pg.label(x0 + 150, top + 9, "T1 No.8 c/0.14 (tracción arriba)", 8.5, BAR)
-    pg.label(X0, yb + 92, "Figura 6. El talón es un voladizo cargado hacia abajo por el suelo, su peso y Pv en el extremo;", 9)
+    pg.label(X0, yb + 92, "Figura 15. El talón es un voladizo cargado hacia abajo por el suelo, su peso y Pv en el extremo;", 9)
     pg.label(X0, yb + 104, "la reacción del suelo sube pero es menor. Por eso la tracción queda arriba y el acero va arriba.", 9)
 
 
@@ -199,5 +199,5 @@ def fig_dentellon(pg, r0):
     pg.label(x0 + bk * k + 10, top + hk * k / 2 + 12, "(cara frontal traccionada)", 8.5, BAR)
     pg.label(x0 + 10, top + hk * k + 6, "0.40 m", 8)
     pg.label(x0 + bk * k + 4, top + hk * k - 22, "hk = 0.80 m", 8)
-    pg.label(X0, top + hk * k + 30, "Figura 7. El dentellón es un voladizo corto colgado de la base. El pasivo del suelo frente a él", 9)
+    pg.label(X0, top + hk * k + 30, "Figura 16. El dentellón es un voladizo corto colgado de la base. El pasivo del suelo frente a él", 9)
     pg.label(X0, top + hk * k + 42, "lo empuja hacia el talón: la cara frontal queda traccionada y ahí trabaja la pata de K1.", 9)

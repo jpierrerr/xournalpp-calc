@@ -26,6 +26,7 @@ struct AlignGrid {
     double dy;  ///< vertical distance between dots
     double x0;  ///< a column of dots goes through x0
     double y0;  ///< a writing line goes through y0 (on ruled paper: the first ruled line)
+    double margin = 0;  ///< where lines of text start (0: no margin line, 2 squares from the edge)
 
     /// Distance between two writing lines: 2 rows of dots (= the distance between ruled lines)
     double linePitch() const { return 2 * dy; }

@@ -1316,7 +1316,7 @@ void Control::calcGridGoTo(const PageRef& page, double x, double line, double bo
                 auto bottomLine = [](const xoj::calc::AlignGrid& g, double height) {
                     return g.y0 + std::floor((height - g.dy - g.y0) / g.linePitch()) * g.linePitch();
                 };
-                auto leftMargin = [](const xoj::calc::AlignGrid& g) { return g.x0 > 0 ? g.x0 : 2 * g.dx; };
+                auto leftMargin = [](const xoj::calc::AlignGrid& g) { return g.margin > 0 ? g.margin : 2 * g.dx; };
 
                 XournalView* xournal = c->win->getXournal();
                 xournal->endTextAllPages();

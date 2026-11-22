@@ -873,6 +873,10 @@ std::string TextEditor::wordBeforeCursor(GtkTextIter* startOut) const {
     if (std::count(l.begin(), l.end(), '"') % 2 == 1) {
         return {};
     }
+    // Nor in the units requested for a result ("= ? kN·m")
+    if (l.find('?') != std::string_view::npos) {
+        return {};
+    }
     if (startOut) {
         *startOut = start;
     }

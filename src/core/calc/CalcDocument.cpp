@@ -40,8 +40,8 @@ std::string escape(std::string_view s) {
 }
 
 // Multi-byte characters that end an identifier (operators and superscripts)
-const char* const STOP_SEQUENCES[] = {"·", "×", "⋅", "∙", "÷", "−", "√", "≔", "⁰", "¹",
-                                      "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹", "⁻"};
+const char* const STOP_SEQUENCES[] = {"·", "×", "⋅", "∙", "÷", "−", "√", "≔", "≤", "≥", "≠", "±", "∓", "≈",
+                                      "⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹", "⁻"};
 
 bool stopsIdentifier(std::string_view s, size_t i) {
     for (const char* stop: STOP_SEQUENCES) {

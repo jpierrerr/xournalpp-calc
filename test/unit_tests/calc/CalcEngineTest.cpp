@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 
+#include "calc/CalcDocument.h"
 #include "calc/CalcEngine.h"
 
 using namespace xoj::calc;
@@ -286,4 +287,11 @@ TEST(CalcEngine, functionCatalog) {
     for (const auto& f: functionCatalog()) {
         EXPECT_TRUE(functionId(f.name).has_value()) << f.name;
     }
+}
+
+TEST(CalcEngine, comparisonAfterSubscriptIsNotSubscripted) {
+    // "FS_v≥3": only "v" is the subscript, "≥3" stays on the line
+    std::string m = xoj::calc::prettifyMarkup("FS_v≥3");
+    EXPECT_NE(m.find("<sub>v</sub>"), std::string::npos) << m;
+    EXPECT_EQ(m.find("≥3</sub>"), std::string::npos) << m;
 }

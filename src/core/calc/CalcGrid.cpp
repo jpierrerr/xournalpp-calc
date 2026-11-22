@@ -33,7 +33,19 @@ AlignGrid alignmentGrid(const PageType& background, double pageWidth, double pag
             if (!(step >= 1)) {  // also NaN: a tiny step would make the line searches endless
                 step = DEFAULT_STEP;
             }
-            return {step, step, 0, 0};
+            AlignGrid g{step, step, 0, 0};
+            // Graph paper with a vertical margin line: text starts one square to the right of it
+            double vLine = 0;
+            if (background.format == PageTypeFormat::Graph &&
+                config.loadValue(background_config_strings::CFG_V_LINE, vLine) && vLine != 0) {
+                if (vLine < 0) {
+                    vLine += pageWidth;
+                }
+                if (vLine > 0 && vLine < pageWidth / 2) {
+                    g.margin = g.snapX(vLine) + step;
+                }
+            }
+            return g;
         }
         case PageTypeFormat::Ruled:
         case PageTypeFormat::Lined: {
@@ -50,7 +62,7 @@ AlignGrid alignmentGrid(const PageType& background, double pageWidth, double pag
                     x0 += pageWidth;
                 }
             }
-            return {spacing / 2, spacing / 2, x0, RULED_HEADER};
+            return {spacing / 2, spacing / 2, x0, RULED_HEADER, x0};
         }
         default:
             return {DEFAULT_STEP, DEFAULT_STEP, 0, 0};

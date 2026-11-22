@@ -158,3 +158,14 @@ TEST(CalcMath, functionNames) {
     EXPECT_EQ(n->second, 7u);
     render("fn", "y:=SENO(x)+LOG10(a/b)+ASENO()", true, 8);
 }
+
+TEST(CalcMath, requestedUnitsStayOnTheLine) {
+    using xoj::calc::math::unitDivisionBefore;
+    // "M = ? kN·m/m": the "/" divides the requested units, it does not make a fraction
+    std::string t = "M = ? kN*m";
+    EXPECT_TRUE(unitDivisionBefore(t, t.size()));
+    t = "M = ?kN";
+    EXPECT_TRUE(unitDivisionBefore(t, t.size()));
+    t = "M = a*b";
+    EXPECT_FALSE(unitDivisionBefore(t, t.size()));
+}

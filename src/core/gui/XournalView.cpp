@@ -648,6 +648,11 @@ void XournalView::clearSelection() {
     EditSelection* sel = GTK_XOURNAL(widget)->selection;
     GTK_XOURNAL(widget)->selection = nullptr;
     delete sel;
+    if (sel) {
+        // xournalpp-calc: the elements are back on their layer. Pasted or moved calculation regions are evaluated
+        // only there (a pasted region has no results until then, and was shown empty)
+        control->scheduleCalcUpdate();
+    }
 
     control->setClipboardHandlerSelection(getSelection());
 

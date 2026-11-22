@@ -292,6 +292,10 @@ private:
                 sawUnit = true;
                 continue;
             }
+            // "= ? kN·m/m": the units requested for a result
+            if (sawUnit && n.tok == Tok::OTHER && src.substr(n.a, n.b - n.a) == "?") {
+                return true;
+            }
             return n.tok == Tok::NUM && sawUnit;
         }
         return false;

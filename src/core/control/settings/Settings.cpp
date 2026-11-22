@@ -4,7 +4,6 @@
 #include <cstdint>      // for uint32_t, int32_t
 #include <cstdio>       // for sscanf, size_t
 #include <cstdlib>      // for atoi
-#include <cstdlib>      // for atoi
 #include <cstring>      // for strcmp
 #include <exception>    // for exception
 #include <type_traits>  // for add_const<>::type
@@ -119,6 +118,7 @@ void Settings::loadDefault() {
 
     this->autoloadMostRecent = false;
     this->showStartScreen = true;
+    this->spellCheck = true;
     this->autoloadPdfXoj = true;
 
     this->stylusCursorType = STYLUS_CURSOR_DOT;
@@ -506,6 +506,8 @@ void Settings::parseItem(xmlDocPtr doc, xmlNodePtr cur) {
         this->presentationMode = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("showStartScreen")) == 0) {
         this->showStartScreen = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
+    } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("spellCheck")) == 0) {
+        this->spellCheck = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("autoloadMostRecent")) == 0) {
         this->autoloadMostRecent = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("autoloadPdfXoj")) == 0) {
@@ -1145,6 +1147,7 @@ void Settings::save() {
 
     SAVE_BOOL_PROP(autoloadMostRecent);
     SAVE_BOOL_PROP(showStartScreen);
+    SAVE_BOOL_PROP(spellCheck);
     SAVE_BOOL_PROP(autoloadPdfXoj);
     saveProperty("defaultSaveName", defaultSaveName.empty() ? "" : char_cast(defaultSaveName.c_str()), root);
     saveProperty("defaultPdfExportName", defaultPdfExportName.empty() ? "" : char_cast(defaultPdfExportName.c_str()),
@@ -1763,6 +1766,16 @@ void Settings::setAutoloadMostRecent(bool load) {
 }
 
 auto Settings::isShowStartScreen() const -> bool { return this->showStartScreen; }
+
+auto Settings::isSpellCheck() const -> bool { return this->spellCheck; }
+
+void Settings::setSpellCheck(bool enable) {
+    if (this->spellCheck == enable) {
+        return;
+    }
+    this->spellCheck = enable;
+    save();
+}
 
 void Settings::setShowStartScreen(bool show) {
     if (this->showStartScreen == show) {
@@ -2471,8 +2484,8 @@ auto Settings::getDeviceClassForDevice(GdkDevice* device) const -> InputDeviceTy
     return this->getDeviceClassForDevice(gdk_device_get_name(device), gdk_device_get_source(device));
 }
 
-auto Settings::getDeviceClassForDevice(const string& deviceName, GdkInputSource deviceSource) const
-        -> InputDeviceTypeOption {
+auto Settings::getDeviceClassForDevice(const string& deviceName,
+                                       GdkInputSource deviceSource) const -> InputDeviceTypeOption {
     auto search = inputDeviceClasses.find(deviceName);
     if (search != inputDeviceClasses.end()) {
         return search->second.first;

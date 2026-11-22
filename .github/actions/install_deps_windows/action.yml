@@ -34,6 +34,7 @@ runs:
           mingw-w64-${{inputs.msys_package_env}}-gobject-introspection-runtime
           mingw-w64-${{inputs.msys_package_env}}-lua-luarocks
           mingw-w64-${{inputs.msys_package_env}}-qpdf
+          mingw-w64-${{inputs.msys_package_env}}-hunspell
           mingw-w64-${{inputs.msys_package_env}}-zstd
     - shell: msys2 {0}
       run: |

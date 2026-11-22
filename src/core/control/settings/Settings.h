@@ -287,6 +287,9 @@ public:
     /// xournalpp-calc: show the start screen (new sheet formats, recent files) when no file is opened
     bool isShowStartScreen() const;
     void setShowStartScreen(bool show);
+    /// xournalpp-calc: underline misspelled words of the text being written
+    bool isSpellCheck() const;
+    void setSpellCheck(bool enable);
 
     bool isAutoloadPdfXoj() const;
     void setAutoloadPdfXoj(bool load);
@@ -921,6 +924,7 @@ private:
      */
     bool autoloadMostRecent{};
     bool showStartScreen{true};
+    bool spellCheck{true};
 
     /**
      * Automatically save documents for crash recovery each x minutes

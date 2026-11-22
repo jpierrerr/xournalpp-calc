@@ -16,6 +16,7 @@
 #include "control/layer/LayerController.h"              // for LayerController
 #include "control/settings/Settings.h"                  // for Settings
 #include "control/settings/SettingsEnums.h"             // for SCROLLBAR_HIDE_HO...
+#include "control/tools/SpellChecker.h"                 // for setDictionaryDir
 #include "control/zoom/ZoomControl.h"                   // for ZoomControl
 #include "gui/FloatingToolbox.h"                        // for FloatingToolbox
 #include "gui/GladeGui.h"                               // for GladeGui
@@ -627,6 +628,9 @@ void MainWindow::setMenubarVisible(bool visible) {
 }
 
 void MainWindow::createHeaderBar(GladeSearchpath* gladeSearchPath) {
+    // The spelling dictionary is shipped with the interface files (ui/dictionaries)
+    xoj::spell::setDictionaryDir(gladeSearchPath->getFirstSearchPath() / "dictionaries");
+
     // One light strip instead of the system title bar plus the menu bar: logo, menu, file name, window buttons
     GtkWidget* hb = gtk_header_bar_new();
     gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(hb), true);

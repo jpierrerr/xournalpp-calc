@@ -24,7 +24,7 @@
 #include "model/OverlayBase.h"
 #include "model/PageRef.h"  // for PageRef
 #include "model/Text.h"
-#include "util/Color.h"     // for Color
+#include "util/Color.h"  // for Color
 #include "util/Range.h"
 #include "util/raii/CStringWrapper.h"
 #include "util/raii/GObjectSPtr.h"
@@ -44,7 +44,7 @@ template <class T>
 class DispatchPool;
 template <class T>
 struct Point;
-};
+};  // namespace xoj::util
 
 namespace xoj::view {
 class TextEditionView;
@@ -127,6 +127,14 @@ public:
     std::string currentFamily() const;
     double currentSize() const;
 
+    /// xournalpp-calc: the misspelled word at a point (page coordinates), remembered for replaceMisspelled; empty if
+    /// the word there is correct
+    std::string misspelledWordAt(double x, double y);
+    /// Replace the word found by misspelledWordAt (with undo)
+    void replaceMisspelled(const std::string& word);
+    /// Draw the spelling marks again (after the dictionary or the setting changed)
+    void refreshSpelling();
+
 private:
     void toggleOverwrite();
     void toggleBoldFace();
@@ -143,6 +151,8 @@ private:
     /// Formats chosen without selection, for what is typed next at pendingPos
     std::map<xoj::text::FormatKind, std::optional<std::string>> pendingFormats;
     int pendingPos = -1;
+    int spellStart = -1;  ///< Word found by misspelledWordAt, in characters
+    int spellEnd = -1;
     /// Ctrl+Up / Ctrl+Down: what is typed next becomes an exponent (superscript) or a subscript; pressing it
     /// again cancels
     void superscriptBeforeCursor() { pendingScript = pendingScript == 1 ? 0 : 1; }

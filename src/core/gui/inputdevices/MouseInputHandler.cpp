@@ -4,17 +4,17 @@
 
 #include "MouseInputHandler.h"
 
-#include "control/ToolHandler.h"               // for ToolHandler
-#include "control/settings/SettingsEnums.h"    // for Button, BUTTON_MOUSE_M...
 #include "control/Control.h"                 // for Control
-#include "control/tools/TextEditor.h"      // for TextEditor
-#include "gui/PageView.h"                   // for XojPageView
+#include "control/ToolHandler.h"             // for ToolHandler
+#include "control/settings/SettingsEnums.h"  // for Button, BUTTON_MOUSE_M...
+#include "control/tools/TextEditor.h"        // for TextEditor
+#include "gui/PageView.h"                    // for XojPageView
 #include "gui/XournalView.h"
+#include "gui/XournalppCursor.h"                 // for XournalppCursor
+#include "gui/inputdevices/InputEvents.h"        // for InputEvent, BUTTON_PRE...
+#include "gui/inputdevices/PenInputHandler.h"    // for PenInputHandler
 #include "gui/toolbarMenubar/TextFormatPanel.h"  // for showTextContextMenu                   // for XournalView
-#include "gui/XournalppCursor.h"               // for XournalppCursor
-#include "gui/inputdevices/InputEvents.h"      // for InputEvent, BUTTON_PRE...
-#include "gui/inputdevices/PenInputHandler.h"  // for PenInputHandler
-#include "gui/widgets/XournalWidget.h"         // for GtkXournal
+#include "gui/widgets/XournalWidget.h"           // for GtkXournal
 
 #include "InputContext.h"  // for InputContext
 #include "InputUtils.h"    // for InputUtils
@@ -38,7 +38,8 @@ auto MouseInputHandler::handleImpl(InputEvent const& event) -> bool {
                 double zoom = xournal->view->getZoom();
                 if (te->isEventInEditor(pos.x / zoom, pos.y / zoom)) {
                     xoj::text::showTextContextMenu(inputContext->getView()->getControl(), GTK_WIDGET(xournal),
-                                                   event.absolute.x, event.absolute.y);
+                                                   event.absolute.x, event.absolute.y,
+                                                   te->misspelledWordAt(pos.x / zoom, pos.y / zoom));
                     return true;
                 }
             }

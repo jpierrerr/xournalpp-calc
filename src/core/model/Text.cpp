@@ -1,14 +1,13 @@
 #include "Text.h"
 
-#include "calc/MathLayout.h"
-
 #include <memory>
 #include <utility>  // for move
 
 #include <glib.h>  // for g_warning
 #include <pango/pangocairo.h>
 
-#include "model/AudioContent.h"  // for AudioContent
+#include "calc/MathLayout.h"
+#include "model/AudioContent.h"   // for AudioContent
 #include "model/Element.h"        // for ELEMENT_TEXT, Eleme...
 #include "model/Font.h"           // for XojFont
 #include "pdf/base/XojPdfPage.h"  // for XojPdfRectangle

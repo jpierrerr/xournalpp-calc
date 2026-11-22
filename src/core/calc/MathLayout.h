@@ -43,10 +43,10 @@ struct Caret {
 
 /// A box of the formula that can be filled (numerator, denominator, exponent, argument of a root...)
 struct Slot {
-    size_t start = 0;  ///< position of the start of its content in the text (bytes)
-    size_t end = 0;    ///< position of the end of its content
-    size_t outerStart = 0;  ///< where the structure (fraction, power...) starts
-    size_t outerEnd = 0;    ///< where it ends (after its last hidden character)
+    size_t start = 0;             ///< position of the start of its content in the text (bytes)
+    size_t end = 0;               ///< position of the end of its content
+    size_t outerStart = 0;        ///< where the structure (fraction, power...) starts
+    size_t outerEnd = 0;          ///< where it ends (after its last hidden character)
     bool structureEmpty = false;  ///< every box of the structure is empty
     bool exponent = false;
     /// While the box is empty, Backspace at its start deletes this (e.g. "^()" or "/()"); npos: nothing

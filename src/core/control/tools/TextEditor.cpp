@@ -618,8 +618,8 @@ const xoj::calc::math::Formula* TextEditor::getFormula() const {
     }
     std::string text = cloneToStdString(this->buffer.get());
     const auto st = this->textElement->calcStyle();
-    std::string key = text + '\0' + st.fontName + '\0' + std::to_string(st.fontSize) + '\0' +
-                      std::to_string(st.lineHeight);
+    std::string key =
+            text + '\0' + st.fontName + '\0' + std::to_string(st.fontSize) + '\0' + std::to_string(st.lineHeight);
     if (!this->formula || key != this->formulaKey) {
         this->formula = xoj::calc::math::Formula::forEditing(text, st);
         this->formulaKey = std::move(key);
@@ -652,7 +652,8 @@ bool TextEditor::tabInFormula() {
     // The outermost structure around the cursor
     std::optional<xoj::calc::math::Slot> outer;
     for (const auto& s: f->slots()) {
-        if (s.start <= cur && cur <= s.end && (!outer || s.outerEnd - s.outerStart > outer->outerEnd - outer->outerStart)) {
+        if (s.start <= cur && cur <= s.end &&
+            (!outer || s.outerEnd - s.outerStart > outer->outerEnd - outer->outerStart)) {
             outer = s;
         }
     }
@@ -1280,8 +1281,8 @@ void TextEditor::moveCursor(GtkMovementStep step, int count, bool extendSelectio
 
     if (formula) {
         newplace = getIteratorAtByteOffset(
-                this->buffer.get(), static_cast<int>(formula->nearestStop(
-                                            static_cast<size_t>(getByteOffsetOfIterator(newplace)))));
+                this->buffer.get(),
+                static_cast<int>(formula->nearestStop(static_cast<size_t>(getByteOffsetOfIterator(newplace)))));
     }
 
     // call moveCursorIterator() even if the cursor hasn't moved, since it cancels the selection
@@ -1482,8 +1483,7 @@ void TextEditor::deleteFromCursor(GtkDeleteType type, int count) {
     if (const auto* f = getFormula(); f && type == GTK_DELETE_CHARS && count > 0) {
         // The hidden parentheses of a formula are not deleted: the cursor goes into the next box
         const size_t cur = cursorByte();
-        if (cur < cloneToStdString(this->buffer.get()).size() && !f->visibleByte(cur) &&
-            f->step(cur, 1) != cur) {
+        if (cur < cloneToStdString(this->buffer.get()).size() && !f->visibleByte(cur) && f->step(cur, 1) != cur) {
             placeCursorAtByte(f->step(cur, 1));
             return;
         }

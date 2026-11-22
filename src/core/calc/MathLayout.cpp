@@ -189,10 +189,10 @@ struct Node {
     std::vector<std::unique_ptr<Node>> kids;  ///< ROW: items; structures: their boxes (ROW nodes)
 
     // Structures
-    size_t slash = NPOS;      ///< FRAC: position of "/"
+    size_t slash = NPOS;  ///< FRAC: position of "/"
     size_t denOuterStart = NPOS;
-    size_t nameStart = NPOS;  ///< FENCE of a function call: where the name of the function starts
-    std::string open, close;  ///< FENCE: delimiters (markup in display mode)
+    size_t nameStart = NPOS;    ///< FENCE of a function call: where the name of the function starts
+    std::string open, close;    ///< FENCE: delimiters (markup in display mode)
     bool hiddenDelims = false;  ///< FENCE: the parentheses in the text are hidden (|x| for ABS(x))
     bool visibleOpen = false, visibleClose = false;  ///< FENCE: the delimiters are characters of the text
     size_t openPos = NPOS, closePos = NPOS;
@@ -1086,9 +1086,9 @@ static LayoutContext makeContext(const Style& style, bool editing, std::string_v
 void Formula::layoutLines(const Style& style) {
     LayoutContext ctx = makeContext(style, editing, source);
     em = style.fontSize;
-    const double pitch = style.lineHeight > 0 ? style.lineHeight :
-                                                (style.naturalLineHeight > 0 ? style.naturalLineHeight :
-                                                                               ctx.asc0 + ctx.desc0);
+    const double pitch = style.lineHeight > 0 ?
+                                 style.lineHeight :
+                                 (style.naturalLineHeight > 0 ? style.naturalLineHeight : ctx.asc0 + ctx.desc0);
     double base = style.firstBaseline > 0 ? style.firstBaseline : ctx.asc0;
     w = 0;
     yTop = 0;
@@ -1217,8 +1217,8 @@ void Formula::registerCarets(const Node& n, int depth) {
                 if (k < n.b && (static_cast<unsigned char>(source[k]) & 0xC0) == 0x80) {
                     continue;
                 }
-                addCaret(k, Caret{n.x + layoutX(n.layout.get(), n.map[k - n.a]), n.base - n.asc, n.base + n.desc,
-                                  depth});
+                addCaret(k,
+                         Caret{n.x + layoutX(n.layout.get(), n.map[k - n.a]), n.base - n.asc, n.base + n.desc, depth});
             }
             return;
         }

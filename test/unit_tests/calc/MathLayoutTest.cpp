@@ -54,13 +54,13 @@ TEST(CalcMath, cursorStops) {
     const size_t caret = t.find('^');
     const size_t open = caret + 1;
     const size_t slash = t.find('/');
-    EXPECT_TRUE(f->isStop(caret));         // after L
-    EXPECT_FALSE(f->isStop(caret + 1));    // between ^ and (
-    EXPECT_TRUE(f->isStop(open + 1));      // start of the exponent
-    EXPECT_TRUE(f->isStop(slash));         // end of the numerator
-    EXPECT_FALSE(f->isStop(slash + 1));    // between / and (
-    EXPECT_TRUE(f->isStop(slash + 2));     // start of the denominator
-    EXPECT_TRUE(f->isStop(t.size()));      // after the fraction
+    EXPECT_TRUE(f->isStop(caret));       // after L
+    EXPECT_FALSE(f->isStop(caret + 1));  // between ^ and (
+    EXPECT_TRUE(f->isStop(open + 1));    // start of the exponent
+    EXPECT_TRUE(f->isStop(slash));       // end of the numerator
+    EXPECT_FALSE(f->isStop(slash + 1));  // between / and (
+    EXPECT_TRUE(f->isStop(slash + 2));   // start of the denominator
+    EXPECT_TRUE(f->isStop(t.size()));    // after the fraction
     EXPECT_EQ(f->step(caret, 1), open + 1);
     EXPECT_EQ(f->step(open + 1, -1), caret);
     EXPECT_EQ(f->step(slash, 1), slash + 2);
@@ -107,7 +107,8 @@ static void render(const std::string& name, const std::string& text, bool editin
     }
     std::unique_ptr<Formula> f = editing ? Formula::forEditing(text, style()) : Formula::forDisplay(text, style());
     const double scale = 4;
-    const int w = static_cast<int>((f->width() + 20) * scale), h = static_cast<int>((f->bottom() - f->top() + 20) * scale);
+    const int w = static_cast<int>((f->width() + 20) * scale),
+              h = static_cast<int>((f->bottom() - f->top() + 20) * scale);
     cairo_surface_t* surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
     cairo_t* cr = cairo_create(surf);
     cairo_set_source_rgb(cr, 1, 1, 1);
@@ -137,8 +138,9 @@ TEST(CalcMath, renderSamples) {
     render("e7", "x≔(-b+RAIZ(b^2-4*a*c))/(2*a)\nq≔5 kN/m\ny≔SENO(a/b)+ABS(x/2)", true, std::string::npos);
     render("d1", structuredMarkup("M := q*L^(2)/(8) = ", nullptr) + "<span foreground=\"#1a5fb4\">12.5 kN·m</span>",
            false);
-    render("d2", structuredMarkup("x := (-b+RAIZ(b^2-4*a*c))/(2*a)", nullptr) + "\n" +
-                         structuredMarkup("q := 5 kN/m", nullptr) + "\n" +
-                         structuredMarkup("y := SENO(a/b) + ABS(x/2) + RAIZ3(8)", nullptr),
+    render("d2",
+           structuredMarkup("x := (-b+RAIZ(b^2-4*a*c))/(2*a)", nullptr) + "\n" +
+                   structuredMarkup("q := 5 kN/m", nullptr) + "\n" +
+                   structuredMarkup("y := SENO(a/b) + ABS(x/2) + RAIZ3(8)", nullptr),
            false);
 }

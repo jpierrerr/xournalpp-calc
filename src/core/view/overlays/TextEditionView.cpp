@@ -1,7 +1,7 @@
 #include "TextEditionView.h"
 
-#include "control/tools/TextEditor.h"
 #include "calc/MathLayout.h"
+#include "control/tools/TextEditor.h"
 #include "model/Text.h"
 #include "util/Color.h"
 #include "util/Matrix.h"
@@ -90,8 +90,8 @@ void TextEditionView::draw(cairo_t* cr) const {
     const bool formula = this->textEditor->getFormula() != nullptr;
     const double top = formula ? boxes.effectiveBounds.y : 0;
     const double height = formula ? boxes.effectiveBounds.height : boxes.theoreticalSize.height;
-    cairo_rectangle(cr, -relativePadding.x, top - relativePadding.y, boxes.theoreticalSize.width + 2 * relativePadding.x,
-                    height + 2 * relativePadding.y);
+    cairo_rectangle(cr, -relativePadding.x, top - relativePadding.y,
+                    boxes.theoreticalSize.width + 2 * relativePadding.x, height + 2 * relativePadding.y);
     cairo_set_matrix(cr, &originalMatrix);  // Reset the matrix before stroking to have the right line width
     cairo_stroke(cr);
 

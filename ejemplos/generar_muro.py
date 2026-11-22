@@ -258,7 +258,10 @@ for i, (name, val, mn, chk) in enumerate(rows):
     p.text(r, col(24), chk)
 p.text(22, X0, "Conclusión: el muro del ejemplo no cumple la NSR-10 en volcamiento ni en deslizamiento. La guía lo rediseña",
        calc=False, size=10)
-p.text(23, X0, "con B = 5.20 m, puntera de 1.1 m y un dentellón de 0.40 × 0.80 m (paso 7).", calc=False, size=10)
+p.text(23, X0, "con B = 5.20 m, puntera de 1.1 m y un dentellón de 0.40 × 0.80 m: páginas 4 a 6. Diseño estructural: páginas 6 a 10.", calc=False, size=10)
+
+exec(open(__file__.replace('generar_muro.py', 'generar_muro_diseno.py'), encoding='utf-8').read())
+exec(open(__file__.replace('generar_muro.py', 'generar_muro_dibujo.py'), encoding='utf-8').read())
 
 doc = ('<?xml version="1.0" standalone="no"?>\n<xournal creator="xournalpp 1.3.8+dev" fileversion="5">\n'
        '<title>Xournal++ document - see https://xournalpp.github.io/</title>\n'

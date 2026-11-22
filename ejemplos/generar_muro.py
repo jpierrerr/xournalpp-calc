@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Genera la hoja completa del muro (Das Ej. 8.1 + NSR-10) como .xopp de Xournal JackMath."""
-import gzip, math, sys
+import gzip, math, re, sys
 from xml.sax.saxutils import escape
 
 W, H = 595.27559, 841.88976
@@ -48,6 +48,18 @@ class Page:
         for s in (+1, -1):
             a = ang + math.pi - s * 0.4
             self.stroke([q, (q[0] + head * math.cos(a), q[1] + head * math.sin(a))], width, color)
+
+    def gap(self, *rows):
+        """Inserta un renglón vacío antes de cada renglón dado (numeración original)."""
+        for r in sorted(rows, reverse=True):
+            lim = Y0 + r * LH - 0.5
+            def f(m):
+                it = m.group(0)
+                if 'lineHeight=' not in it:
+                    return it
+                y = float(re.search(r' y="([\d.]+)"', it).group(1))
+                return re.sub(r' y="[\d.]+"', f' y="{y + LH:.4f}"', it, 1) if y >= lim else it
+            self.items = [f(re.match(r'.*', it, re.S)) for it in self.items]
 
     def xml(self):
         return (f'<page width="{W}" height="{H}">\n'
@@ -114,8 +126,8 @@ p.stroke([P(4, 7.158), P(5.3, 7.387)], 1.2, SOIL)
 # plano AB
 p.stroke([P(4, 0), P(4, 7.158)], 1.0, "#c01c28ff", "dash")
 p.label(*P(4.08, 7.55), "A", 10, "#c01c28ff", True)
-p.label(*P(4.08, 0.05), "B", 10, "#c01c28ff", True)
-p.label(*P(-0.30, 0.05), "C", 10, "#c01c28ff", True)
+p.label(*P(3.85, -0.07), "B", 10, "#c01c28ff", True)
+p.label(*P(-0.25, -0.07), "C", 10, "#c01c28ff", True)
 # terreno frente al pie
 p.stroke([P(-1.2, 1.5), P(0.7 + 0.2 * 0.8 / 6, 1.5)], 1.2, SOIL)
 for i in range(6):
@@ -128,7 +140,7 @@ p.label(*P(2.0, 5.4), "Relleno", 8.5, SOIL)
 p.label(*P(2.0, 5.0), "γ1 = 18 kN/m³", 8.5, SOIL)
 p.label(*P(2.0, 4.6), "φ1 = 30°", 8.5, SOIL)
 # números de sección
-for n, (x, y) in {1: (1.08, 3.6), 2: (0.76, 2.2), 3: (1.9, 0.2), 4: (2.6, 3.0), 5: (3.0, 6.75)}.items():
+for n, (x, y) in {1: (1.08, 3.6), 2: (0.78, 1.4), 3: (1.9, 0.2), 4: (2.6, 3.0), 5: (3.5, 6.99)}.items():
     p.label(*P(x, y), str(n), 9, "#1a5fb4ff", True)
 # empuje Pa a H'/3, inclinado 10°
 h3 = 7.158 / 3
@@ -258,11 +270,14 @@ for i, (name, val, mn, chk) in enumerate(rows):
     p.text(r, col(24), chk)
 p.text(22, X0, "Conclusión: el muro del ejemplo no cumple la NSR-10 en volcamiento ni en deslizamiento. La guía lo rediseña",
        calc=False, size=10)
-p.text(23, X0, "con B = 5.20 m, puntera de 1.1 m y un dentellón de 0.40 × 0.80 m: páginas 4 a 6. Diseño estructural: páginas 6 a 10.", calc=False, size=10)
+p.text(23, X0, "con B = 5.20 m, puntera de 1.1 m y un dentellón de 0.40 × 0.80 m: páginas 4 a 6. Diseño estructural: páginas 6 a 12.", calc=False, size=10)
 
+exec(open(__file__.replace('generar_muro.py', 'generar_muro_figuras.py'), encoding='utf-8').read())
 exec(open(__file__.replace('generar_muro.py', 'generar_muro_diseno.py'), encoding='utf-8').read())
 exec(open(__file__.replace('generar_muro.py', 'generar_muro_dibujo.py'), encoding='utf-8').read())
 
+pages[2].gap(10)
+pages[0].items = [it for it in pages[0].items]
 doc = ('<?xml version="1.0" standalone="no"?>\n<xournal creator="xournalpp 1.3.8+dev" fileversion="5">\n'
        '<title>Xournal++ document - see https://xournalpp.github.io/</title>\n'
        + "\n".join(pg.xml() for pg in pages) + '\n</xournal>\n')

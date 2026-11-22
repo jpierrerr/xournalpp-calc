@@ -264,3 +264,31 @@ image.flying-icon.TR {
 .darkMode .jm-recent-row:hover { background-color: #2c323a; }
 .darkMode .jm-link { color: #aab8c6; }
 .jm-cards flowboxchild { padding: 0; }
+
+/* Xournal JackMath: toolbar as in the approved mock-up (airy buttons, rounded light highlight, roomy separators) */
+toolbar button {
+  padding: 4px;
+  border-radius: 6px;
+}
+toolbar button:checked,
+toolbar button:active {
+  background-color: #dfe6ee;
+  background-image: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+toolbar button:hover:not(:checked) {
+  background-color: #eef2f6;
+  background-image: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+toolbar separator:not(.spacer) {
+  margin: 4px 5px;
+  min-width: 1px;
+  background-color: #cfd5dc;
+}
+.darkMode toolbar button:checked,
+.darkMode toolbar button:active { background-color: #3a434e; }
+.darkMode toolbar button:hover:not(:checked) { background-color: #2f363f; }
+.darkMode toolbar separator:not(.spacer) { background-color: #4a525c; }

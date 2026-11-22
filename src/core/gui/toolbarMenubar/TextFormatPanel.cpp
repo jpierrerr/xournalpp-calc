@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "control/Control.h"
+#include "control/settings/Settings.h"
+#include "model/Font.h"
 #include "control/tools/TextEditor.h"
 #include "enums/Action.enum.h"
 #include "gui/MainWindow.h"
@@ -89,17 +91,20 @@ void setMarkup(GtkWidget* label, const std::string& markup) { gtk_label_set_mark
 void Panel::update() {
     TextEditor* te = editor();
     gtk_widget_set_sensitive(root, te != nullptr);
-    if (!te) {
-        return;
+    // Font and size: the one being edited, or else the one new text will get (never empty boxes)
+    std::string fam;
+    double fontSize = 0;
+    if (te) {
+        fam = te->currentFamily();
+        fontSize = te->currentSize();
+    } else {
+        const XojFont& f = control->getSettings()->getFont();
+        fam = f.getName();
+        fontSize = f.getSize();
     }
     updating = true;
-    for (auto& [w, kv]: toggles) {
-        auto v = te->formatState(kv.first);
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w), v && (kv.second.empty() || *v == kv.second));
-    }
     if (family) {
         GtkWidget* entry = gtk_bin_get_child(GTK_BIN(family));
-        std::string fam = te->currentFamily();
         if (fam != gtk_entry_get_text(GTK_ENTRY(entry))) {
             gtk_entry_set_text(GTK_ENTRY(entry), fam.c_str());
         }
@@ -107,10 +112,18 @@ void Panel::update() {
     if (size) {
         GtkWidget* entry = gtk_bin_get_child(GTK_BIN(size));
         char buf[32];
-        g_snprintf(buf, sizeof(buf), "%g", te->currentSize());
+        g_snprintf(buf, sizeof(buf), "%g", fontSize);
         if (std::string(buf) != gtk_entry_get_text(GTK_ENTRY(entry))) {
             gtk_entry_set_text(GTK_ENTRY(entry), buf);
         }
+    }
+    if (!te) {
+        updating = false;
+        return;
+    }
+    for (auto& [w, kv]: toggles) {
+        auto v = te->formatState(kv.first);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w), v && (kv.second.empty() || *v == kv.second));
     }
     updating = false;
 }

@@ -158,3 +158,28 @@ cursor. El formato se guarda en el archivo `.xopp` (atributo `jmFormat` del text
 
 Clic derecho dentro del texto que se edita: menú con una barra de formato corta y Cortar, Copiar, Pegar y
 Seleccionar todo.
+
+## Interfaz minimalista y pantalla de inicio
+
+Los iconos predeterminados son de línea fina y un solo color (tema "Lucide", se puede volver a "Color" en
+Preferencias). Los botones de JackMath, la navegación de páginas, el zoom y la alineación de texto tienen iconos
+propios en ese estilo (`xopp-calc-*`, `xopp-go-*`, `xopp-zoom-*`, `xopp-format-*`).
+
+La barra predeterminada ("Portrait") va en dos filas que llenan el ancho de la ventana:
+
+- Fila 1 (documento): nuevo, abrir, guardar | PDF, imprimir | deshacer, rehacer | cortar, copiar, pegar | páginas |
+  insertar y borrar hoja … formato de texto | región de cálculo, alinear a la malla, malla visible, griegas, Excel.
+- Fila 2 (herramientas): lápiz, color, grosor | borrador, resaltador | texto, LaTeX, imagen, enlace | formas,
+  relleno, escuadra, compás | selección, espacio vertical, mano | puntero láser, texto del PDF … imanes de giro y de
+  malla | herramienta predeterminada, pantalla completa.
+
+La grabación de audio ya no está en la barra predeterminada (se puede añadir con *Personalizar*). Al actualizar, una
+sola vez, una instalación anterior pasa a los iconos de línea y a esta barra (`jackmathUiVersion` en settings.xml);
+una copia personalizada de la barra se conserva y se puede volver a elegir en el menú.
+
+Al abrir el programa sin un archivo aparece la pantalla de inicio: formatos para una hoja nueva con vista previa
+(en blanco, cuadriculado, con línea vertical, renglones, hoja de parcial y el membrete propio; *Más formatos…*
+muestra los demás), archivos recientes con buscador y la opción de fijarlos arriba (`pinned-files.txt` en la carpeta
+de configuración), Abrir, Anotar un PDF, Guía de uso (abre `Guia-Xournal-JackMath.pdf` de la carpeta de
+configuración si existe) y Preferencias. Esc o *Nuevo* dejan la hoja en blanco. *Mostrar al iniciar* la desactiva
+(`showStartScreen`).

@@ -284,6 +284,10 @@ public:
     bool isAutoloadMostRecent() const;
     void setAutoloadMostRecent(bool load);
 
+    /// xournalpp-calc: show the start screen (new sheet formats, recent files) when no file is opened
+    bool isShowStartScreen() const;
+    void setShowStartScreen(bool show);
+
     bool isAutoloadPdfXoj() const;
     void setAutoloadPdfXoj(bool load);
 
@@ -699,6 +703,10 @@ private:
      */
     IconTheme iconTheme;
 
+    /// xournalpp-calc: interface defaults applied once to older settings files (see Settings::load)
+    static constexpr int JACKMATH_UI_VERSION = 1;
+    int jackmathUiVersion{};
+
     /**
      * Follow system's default theme variant or force one or the other
      */
@@ -912,6 +920,7 @@ private:
      * Automatically load most recent document on application startup (true/false)
      */
     bool autoloadMostRecent{};
+    bool showStartScreen{true};
 
     /**
      * Automatically save documents for crash recovery each x minutes

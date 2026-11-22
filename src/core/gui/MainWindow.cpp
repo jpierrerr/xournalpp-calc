@@ -21,6 +21,7 @@
 #include "gui/GladeGui.h"                               // for GladeGui
 #include "gui/PdfFloatingToolbox.h"                     // for PdfFloatingToolbox
 #include "gui/SearchBar.h"                              // for SearchBar
+#include "gui/StartScreen.h"  // for xoj::start::handleKey
 #include "gui/inputdevices/InputEvents.h"               // for INPUT_DEVICE_TOUC...
 #include "gui/menus/menubar/Menubar.h"                  // for Menubar
 #include "gui/menus/menubar/ToolbarSelectionSubmenu.h"  // for ToolbarSelectionSubmenu
@@ -114,7 +115,10 @@ MainWindow::MainWindow(GladeSearchpath* gladeSearchPath, Control* control, GtkAp
             this);
 
     // "watch over" all key events
-    auto keyPropagate = +[](GtkWidget* w, GdkEvent* e, gpointer) {
+    auto keyPropagate = +[](GtkWidget* w, GdkEvent* e, gpointer) -> gboolean {
+        if (xoj::start::handleKey((GdkEventKey*)(e))) {  // xournalpp-calc: Esc on the start screen
+            return true;
+        }
         return gtk_window_propagate_key_event(GTK_WINDOW(w), (GdkEventKey*)(e));
     };
     g_signal_connect(this->window, "key-press-event", G_CALLBACK(keyPropagate), nullptr);

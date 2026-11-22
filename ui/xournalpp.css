@@ -225,3 +225,42 @@ image.flying-icon.TL {
 image.flying-icon.TR {
     border-radius: 50% 50% 50% 0%;
 }
+
+/* Xournal JackMath: start screen (see src/core/gui/StartScreen.cpp) */
+.jm-start { background-color: #fafbfc; color: #2b3440; }
+.jm-start-nav { background-color: #f1f4f7; border-right: 1px solid #e1e6eb; padding: 22px 14px; }
+.jm-brand { margin: 0 6px 22px 6px; }
+.jm-brand-name { font-weight: bold; font-size: 15px; }
+.jm-dim { color: #8a97a6; font-size: 12px; }
+.jm-nav-item { padding: 8px 12px; border-radius: 8px; color: #3b4652; }
+.jm-nav-item:hover { background-color: #e6ebf0; }
+.jm-nav-item.active { background-color: #dfe6ee; font-weight: bold; }
+.jm-start-main { padding: 30px 40px; }
+.jm-h1 { font-size: 22px; font-weight: bold; }
+.jm-sub { color: #8a97a6; margin: 2px 0 22px 0; }
+.jm-section { margin: 8px 0 10px 0; }
+.jm-h2 { font-weight: bold; color: #3b4652; }
+.jm-link { color: #566d86; padding: 2px 6px; }
+.jm-cards { margin-bottom: 26px; }
+.jm-card { padding: 6px; border-radius: 8px; }
+.jm-card:hover { background-color: #e9eef3; }
+.jm-card-page { border: 1px solid #dbe1e7; border-radius: 4px; background-color: #ffffff; }
+.jm-card-label { font-size: 12px; color: #3b4652; }
+.jm-recent { background-color: #ffffff; border: 1px solid #e1e6eb; border-radius: 10px; }
+.jm-recent-row { padding: 9px 16px; border-bottom: 1px solid #eef1f4; }
+.jm-recent-row:hover { background-color: #f4f7fa; }
+.jm-recent-name { font-weight: 500; }
+.jm-pin { opacity: 0.35; padding: 2px; }
+.jm-pin.pinned, .jm-pin:hover { opacity: 1; }
+
+.darkMode .jm-start { background-color: #1f2328; color: #e3e6ea; }
+.darkMode .jm-start-nav { background-color: #262b31; border-right-color: #353b42; }
+.darkMode .jm-nav-item { color: #d7dce1; }
+.darkMode .jm-nav-item:hover, .darkMode .jm-nav-item.active { background-color: #343b44; }
+.darkMode .jm-h2, .darkMode .jm-card-label { color: #d7dce1; }
+.darkMode .jm-card:hover { background-color: #2c323a; }
+.darkMode .jm-recent { background-color: #262b31; border-color: #353b42; }
+.darkMode .jm-recent-row { border-bottom-color: #30363d; }
+.darkMode .jm-recent-row:hover { background-color: #2c323a; }
+.darkMode .jm-link { color: #aab8c6; }
+.jm-cards flowboxchild { padding: 0; }

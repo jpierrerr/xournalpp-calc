@@ -4,6 +4,7 @@
 #include <cstdint>      // for uint32_t, int32_t
 #include <cstdio>       // for sscanf, size_t
 #include <cstdlib>      // for atoi
+#include <cstdlib>      // for atoi
 #include <cstring>      // for strcmp
 #include <exception>    // for exception
 #include <type_traits>  // for add_const<>::type
@@ -117,11 +118,13 @@ void Settings::loadDefault() {
     this->menubarVisible = true;
 
     this->autoloadMostRecent = false;
+    this->showStartScreen = true;
     this->autoloadPdfXoj = true;
 
     this->stylusCursorType = STYLUS_CURSOR_DOT;
     this->eraserVisibility = ERASER_VISIBILITY_ALWAYS;
-    this->iconTheme = ICON_THEME_COLOR;
+    this->iconTheme = ICON_THEME_LUCIDE;  // xournalpp-calc: minimalist line icons by default
+    this->jackmathUiVersion = JACKMATH_UI_VERSION;
     this->themeVariant = THEME_VARIANT_USE_SYSTEM;
     this->highlightPosition = false;
     this->cursorHighlightColor = 0x80FFFF00;  // Yellow with 50% opacity
@@ -501,6 +504,8 @@ void Settings::parseItem(xmlDocPtr doc, xmlNodePtr cur) {
         this->numPairsOffset = g_ascii_strtoll(reinterpret_cast<const char*>(value), nullptr, 10);
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("presentationMode")) == 0) {
         this->presentationMode = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
+    } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("showStartScreen")) == 0) {
+        this->showStartScreen = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("autoloadMostRecent")) == 0) {
         this->autoloadMostRecent = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("autoloadPdfXoj")) == 0) {
@@ -511,6 +516,8 @@ void Settings::parseItem(xmlDocPtr doc, xmlNodePtr cur) {
         this->eraserVisibility = eraserVisibilityFromString(reinterpret_cast<const char*>(value));
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("iconTheme")) == 0) {
         this->iconTheme = iconThemeFromString(reinterpret_cast<const char*>(value));
+    } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("jackmathUiVersion")) == 0) {
+        this->jackmathUiVersion = std::atoi(reinterpret_cast<const char*>(value));
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("themeVariant")) == 0) {
         this->themeVariant = themeVariantFromString(reinterpret_cast<const char*>(value));
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("highlightPosition")) == 0) {
@@ -883,6 +890,7 @@ auto Settings::load() -> bool {
     cur = xmlDocGetRootElement(doc);
     cur = cur->xmlChildrenNode;
 
+    this->jackmathUiVersion = 0;  // a settings file without the key predates the JackMath interface
     while (cur != nullptr) {
         parseItem(doc, cur);
 
@@ -890,6 +898,16 @@ auto Settings::load() -> bool {
     }
 
     xmlFreeDoc(doc);
+
+    // xournalpp-calc: once, move existing installations to the new interface (line icons and the reorganized
+    // default toolbar). A customized copy of the default toolbar is kept and can still be chosen from the menu.
+    if (this->jackmathUiVersion < 1) {
+        this->iconTheme = ICON_THEME_LUCIDE;
+        if (this->selectedToolbar == std::string(DEFAULT_TOOLBAR) + "_custom") {
+            this->selectedToolbar = DEFAULT_TOOLBAR;
+        }
+    }
+    this->jackmathUiVersion = JACKMATH_UI_VERSION;
 
     loadButtonConfig();
     loadDeviceClasses();
@@ -1096,6 +1114,9 @@ void Settings::save() {
     xmlNode = saveProperty("iconTheme", iconThemeToString(this->iconTheme), root);
     ATTACH_COMMENT("The icon theme, allowed values are \"iconsColor\", \"iconsLucide\"");
 
+    xmlNode = saveProperty("jackmathUiVersion", this->jackmathUiVersion, root);
+    ATTACH_COMMENT("Xournal JackMath: version of the interface defaults already applied to this file");
+
     xmlNode = saveProperty("themeVariant", themeVariantToString(this->themeVariant), root);
     ATTACH_COMMENT("Dark/light mode, allowed values are \"useSystem\", \"forceLight\", \"forceDark\"");
 
@@ -1122,6 +1143,7 @@ void Settings::save() {
                    "\"both\"");
 
     SAVE_BOOL_PROP(autoloadMostRecent);
+    SAVE_BOOL_PROP(showStartScreen);
     SAVE_BOOL_PROP(autoloadPdfXoj);
     saveProperty("defaultSaveName", defaultSaveName.empty() ? "" : char_cast(defaultSaveName.c_str()), root);
     saveProperty("defaultPdfExportName", defaultPdfExportName.empty() ? "" : char_cast(defaultPdfExportName.c_str()),
@@ -1736,6 +1758,16 @@ void Settings::setAutoloadMostRecent(bool load) {
         return;
     }
     this->autoloadMostRecent = load;
+    save();
+}
+
+auto Settings::isShowStartScreen() const -> bool { return this->showStartScreen; }
+
+void Settings::setShowStartScreen(bool show) {
+    if (this->showStartScreen == show) {
+        return;
+    }
+    this->showStartScreen = show;
     save();
 }
 

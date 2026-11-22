@@ -31,7 +31,8 @@
 #include "control/xojfile/LoadHandler.h"     // for LoadHandler
 #include "control/xojfile/SaveHandler.h"     // for SaveHandler
 #include "gui/GladeSearchpath.h"             // for GladeSearchpath
-#include "gui/MainWindow.h"                  // for MainWindow
+#include "gui/MainWindow.h"
+#include "gui/StartScreen.h"  // for xoj::start::show
 #include "gui/XournalView.h"                 // for XournalView
 #include "model/Document.h"                  // for Document
 #include "undo/EmergencySaveRestore.h"       // for EmergencySaveRestore
@@ -498,10 +499,17 @@ void on_startup(GApplication* application, XMPtr app_data) {
         }
     }
 
+    // xournalpp-calc: without a file to open, show the start screen (formats for a new sheet, recent files)
+    const bool showStartScreen = p.empty() && app_data->control->getSettings()->isShowStartScreen();
+
     app_data->control->openFileWithoutSavingTheCurrentDocument(
             std::move(p), app_data->attachMode, app_data->openAtPageNumber - 1,
-            [ctrl = app_data->control.get(), app = GTK_APPLICATION(application)](bool) {
+            [ctrl = app_data->control.get(), app = GTK_APPLICATION(application), showStartScreen](bool) {
                 ctrl->getScheduler()->start();
+
+                if (showStartScreen) {
+                    xoj::start::show(ctrl);
+                }
 
                 checkForEmergencySave(ctrl);
 

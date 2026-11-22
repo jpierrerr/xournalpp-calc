@@ -5211,3 +5211,64 @@ msgstr "minúsculas"
 
 msgid "tOGGLE cASE"
 msgstr "tIPO iNVERSO"
+
+#: ../src/core/gui/StartScreen.cpp
+msgid "Today"
+msgstr "Hoy"
+
+msgid "Yesterday"
+msgstr "Ayer"
+
+msgid "Good morning"
+msgstr "Buenos días"
+
+msgid "Good afternoon"
+msgstr "Buenas tardes"
+
+msgid "Good evening"
+msgstr "Buenas noches"
+
+msgid "Unpin"
+msgstr "Desfijar"
+
+msgid "Pin to the top"
+msgstr "Fijar arriba"
+
+msgid "Calculation sheets by hand"
+msgstr "Hojas de cálculo a mano"
+
+msgid "Blank sheet as it is now (Esc)"
+msgstr "Hoja en blanco tal como está (Esc)"
+
+msgid "Open…"
+msgstr "Abrir…"
+
+msgid "Annotate a PDF…"
+msgstr "Anotar un PDF…"
+
+msgid "Recent"
+msgstr "Recientes"
+
+msgid "User guide"
+msgstr "Guía de uso"
+
+msgid "Show at startup"
+msgstr "Mostrar al iniciar"
+
+msgid "Choose a format to start a new sheet, or open a recent one."
+msgstr "Elige un formato para empezar una hoja nueva o abre una reciente."
+
+msgid "More formats…"
+msgstr "Más formatos…"
+
+msgid "Fewer formats"
+msgstr "Menos formatos"
+
+msgid "New sheet"
+msgstr "Hoja nueva"
+
+msgid "Search in recent files"
+msgstr "Buscar en recientes"
+
+msgid "No recent files yet."
+msgstr "Aún no hay archivos recientes."

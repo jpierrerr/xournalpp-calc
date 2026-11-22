@@ -388,7 +388,7 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
                            }),
                            false, false, 0);
         // Clear formatting
-        GtkWidget* clear = flatButton(gtk_image_new_from_icon_name("edit-clear-all-symbolic", GTK_ICON_SIZE_SMALL_TOOLBAR),
+        GtkWidget* clear = flatButton(gtk_image_new_from_icon_name("xopp-format-clear", GTK_ICON_SIZE_SMALL_TOOLBAR),
                                       _("Clear all formatting"));
         g_signal_connect(clear, "clicked", G_CALLBACK(+[](GtkButton*, Panel* p) {
                              if (auto* te = p->editor(); te) {
@@ -486,19 +486,19 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
     GtkWidget* alignRow = mini ? row2 : row2;
     gtk_box_pack_start(GTK_BOX(alignRow), separator(true), false, false, 0);
     gtk_box_pack_start(GTK_BOX(alignRow),
-                       actionButton("format-justify-left", _("Align text to the left"), Action::TEXT_ALIGNMENT,
+                       actionButton("xopp-format-justify-left", _("Align text to the left"), Action::TEXT_ALIGNMENT,
                                     xoj::util::makeGVariantSPtr(TextAlignment::LEFT)),
                        false, false, 0);
     gtk_box_pack_start(GTK_BOX(alignRow),
-                       actionButton("format-justify-center", _("Center text"), Action::TEXT_ALIGNMENT,
+                       actionButton("xopp-format-justify-center", _("Center text"), Action::TEXT_ALIGNMENT,
                                     xoj::util::makeGVariantSPtr(TextAlignment::CENTER)),
                        false, false, 0);
     gtk_box_pack_start(GTK_BOX(alignRow),
-                       actionButton("format-justify-right", _("Align text to the right"), Action::TEXT_ALIGNMENT,
+                       actionButton("xopp-format-justify-right", _("Align text to the right"), Action::TEXT_ALIGNMENT,
                                     xoj::util::makeGVariantSPtr(TextAlignment::RIGHT)),
                        false, false, 0);
     gtk_box_pack_start(GTK_BOX(alignRow),
-                       actionButton("format-justify-fill", _("Justify text"), Action::TEXT_JUSTIFY, {}), false, false,
+                       actionButton("xopp-format-justify-fill", _("Justify text"), Action::TEXT_JUSTIFY, {}), false, false,
                        0);
 
     GtkWidget* root = gtk_box_new(horizontal ? GTK_ORIENTATION_VERTICAL : GTK_ORIENTATION_VERTICAL, 0);
@@ -610,7 +610,7 @@ TextFormatToolItem::TextFormatToolItem(Control* control): AbstractToolItem("TEXT
 std::string TextFormatToolItem::getToolDisplayName() const { return _("Text format (font, bold, colors, alignment)"); }
 
 GtkWidget* TextFormatToolItem::getNewToolIcon() const {
-    return gtk_image_new_from_icon_name("format-text-bold", GTK_ICON_SIZE_SMALL_TOOLBAR);
+    return gtk_image_new_from_icon_name("xopp-format-text", GTK_ICON_SIZE_SMALL_TOOLBAR);
 }
 
 xoj::util::WidgetSPtr TextFormatToolItem::createItem(bool horizontal) {

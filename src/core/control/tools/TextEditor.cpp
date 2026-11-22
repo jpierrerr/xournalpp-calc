@@ -13,12 +13,13 @@
 
 #include "calc/CalcDocument.h"  // for documentVariables
 #include "calc/CalcEngine.h"    // for greekForLatin
-#include "calc/CalcGrid.h"    // for alignmentGrid
-#include "calc/MathLayout.h"  // for Formula
+#include "calc/CalcGrid.h"      // for alignmentGrid
+#include "calc/MathLayout.h"    // for Formula
 #include "control/AudioController.h"
 #include "control/Control.h"  // for Control
 #include "control/actions/ActionDatabase.h"
 #include "control/settings/Settings.h"
+#include "control/tools/SpellChecker.h"  // for misspelled, suggest
 #include "gui/FlyingClickableIcon.h"
 #include "gui/FunctionCompletion.h"
 #include "gui/XournalppCursor.h"  // for XournalppCursor
@@ -199,28 +200,28 @@ TextEditor::TextEditor(Control* control, const PageRef& page, GtkWidget* xournal
 #endif
 
         icon->addSignal(G_OBJECT(drag),
-                g_signal_connect(drag, "drag-update",
-                                 G_CALLBACK(+[](GtkGestureDrag*, gdouble offsetX, gdouble offsetY, gpointer p) {
-                                     // Warning: because the icon is moved, the parameters offsetX and offsetY
-                                     // are NOT relative to the starting point, but rather to the last update's
-                                     // position.
-                                     auto* self = static_cast<TextEditor*>(p);
-                                     if (!self->viewPool->empty()) {
-                                         // We use the first view as the main view
-                                         auto* text = self->getTextElement();
-                                         const auto zoom = self->viewPool->front().getZoom();
-                                         const xoj::util::Point<double> move(offsetX / zoom, offsetY / zoom);
-                                         auto newBox = self->previousBoundingBox;
-                                         newBox.translate(move.x, move.y);
-                                         if (newBox.minX > 0 && newBox.maxX < self->page->getWidth() &&
-                                             newBox.minY > 0 && newBox.maxY < self->page->getHeight()) {
-                                             // The text stays entirely in the page
-                                             text->move(move.x, move.y);
-                                             self->repaintEditor(true);
-                                         }
-                                     }
-                                 }),
-                                 this));
+                        g_signal_connect(drag, "drag-update",
+                                         G_CALLBACK(+[](GtkGestureDrag*, gdouble offsetX, gdouble offsetY, gpointer p) {
+                                             // Warning: because the icon is moved, the parameters offsetX and offsetY
+                                             // are NOT relative to the starting point, but rather to the last update's
+                                             // position.
+                                             auto* self = static_cast<TextEditor*>(p);
+                                             if (!self->viewPool->empty()) {
+                                                 // We use the first view as the main view
+                                                 auto* text = self->getTextElement();
+                                                 const auto zoom = self->viewPool->front().getZoom();
+                                                 const xoj::util::Point<double> move(offsetX / zoom, offsetY / zoom);
+                                                 auto newBox = self->previousBoundingBox;
+                                                 newBox.translate(move.x, move.y);
+                                                 if (newBox.minX > 0 && newBox.maxX < self->page->getWidth() &&
+                                                     newBox.minY > 0 && newBox.maxY < self->page->getHeight()) {
+                                                     // The text stays entirely in the page
+                                                     text->move(move.x, move.y);
+                                                     self->repaintEditor(true);
+                                                 }
+                                             }
+                                         }),
+                                         this));
         // Should we implement signals drag-end/cancel here?
         return icon;
     }();
@@ -861,8 +862,8 @@ std::string TextEditor::wordBeforeCursor(GtkTextIter* startOut) const {
 void TextEditor::updateCompletion() {
     GtkTextIter start;
     const std::string word = wordBeforeCursor(&start);
-    auto functions = word.empty() ? std::vector<const xoj::calc::FunctionInfo*>{} :
-                                    xoj::calc::functionsStartingWith(word);
+    auto functions =
+            word.empty() ? std::vector<const xoj::calc::FunctionInfo*>{} : xoj::calc::functionsStartingWith(word);
     if (functions.empty() || viewPool->empty()) {
         hideCompletion();
         return;
@@ -879,8 +880,8 @@ void TextEditor::updateCompletion() {
             size_t pos = 0;
             while (pos <= text.size()) {
                 size_t end = text.find('\n', pos);
-                std::string_view lineText = text.substr(pos, end == std::string_view::npos ? std::string_view::npos :
-                                                                                             end - pos);
+                std::string_view lineText =
+                        text.substr(pos, end == std::string_view::npos ? std::string_view::npos : end - pos);
                 size_t def = std::min(lineText.find(":="), lineText.find("≔"));
                 if (def != std::string_view::npos) {
                     std::string_view name = lineText.substr(0, def);
@@ -904,11 +905,10 @@ void TextEditor::updateCompletion() {
         this->documentVariableNames = std::move(names);
     }
     std::string current = cloneToStdString(this->buffer.get());
-    const bool typedVariable = this->documentVariableNames->count(word) > 0 ||
-                               current.find(word + " :=") != std::string::npos ||
-                               current.find(word + ":=") != std::string::npos ||
-                               current.find(word + " ≔") != std::string::npos ||
-                               current.find(word + "≔") != std::string::npos;
+    const bool typedVariable =
+            this->documentVariableNames->count(word) > 0 || current.find(word + " :=") != std::string::npos ||
+            current.find(word + ":=") != std::string::npos || current.find(word + " ≔") != std::string::npos ||
+            current.find(word + "≔") != std::string::npos;
     const bool highlight = g_utf8_strlen(word.c_str(), -1) >= 2 && !typedVariable;
 
     // Below the cursor
@@ -1758,8 +1758,68 @@ void TextEditor::setSelectionAttributesToPangoLayout(PangoLayout* pl) const {
         pango_attr_list_insert(attrlist.get(), attrib);  // attrlist takes ownership of attrib
     }
 
+    // xournalpp-calc: misspelled words get a red wavy line (not in calculation regions, nor the word being typed)
+    if (this->control->getSettings()->isSpellCheck() && !this->textElement->isCalc()) {
+        const std::string text = cloneToStdString(this->buffer.get());
+        const int cursor = getByteOffsetOfCursor(this->buffer.get());
+        for (auto [s, e]: xoj::spell::misspelled(text)) {
+            if (e == cursor && !hasSelection) {
+                continue;
+            }
+            PangoAttribute* line = pango_attr_underline_new(PANGO_UNDERLINE_ERROR);
+            line->start_index = static_cast<unsigned int>(s);
+            line->end_index = static_cast<unsigned int>(e);
+            pango_attr_list_insert(attrlist.get(), line);
+            PangoAttribute* color = pango_attr_underline_color_new(0xe000, 0x1800, 0x1800);
+            color->start_index = static_cast<unsigned int>(s);
+            color->end_index = static_cast<unsigned int>(e);
+            pango_attr_list_insert(attrlist.get(), color);
+        }
+    }
+
     pango_layout_set_attributes(pl, attrlist.get());
 }
+
+auto TextEditor::misspelledWordAt(double x, double y) -> std::string {
+    this->spellStart = this->spellEnd = -1;
+    if (!this->control->getSettings()->isSpellCheck() || this->textElement->isCalc()) {
+        return {};
+    }
+    auto p = this->textElement->getTransformation().inverse() * xoj::util::Point<double>(x, y);
+    GtkTextIter it;
+    findPos(&it, p.x, p.y);
+    const std::string text = cloneToStdString(this->buffer.get());
+    // byte offset of the clicked character
+    GtkTextIter start;
+    gtk_text_buffer_get_start_iter(this->buffer.get(), &start);
+    auto before = xoj::util::OwnedCString::assumeOwnership(gtk_text_iter_get_text(&start, &it));
+    const int byte = static_cast<int>(strlen(before.get()));
+    for (auto [s, e]: xoj::spell::misspelled(text)) {
+        if (byte >= s && byte <= e) {
+            this->spellStart = static_cast<int>(g_utf8_strlen(text.c_str(), s));
+            this->spellEnd = static_cast<int>(g_utf8_strlen(text.c_str(), e));
+            return text.substr(static_cast<size_t>(s), static_cast<size_t>(e - s));
+        }
+    }
+    return {};
+}
+
+void TextEditor::replaceMisspelled(const std::string& word) {
+    if (this->spellStart < 0 || this->spellEnd <= this->spellStart) {
+        return;
+    }
+    GtkTextIter a, b;
+    gtk_text_buffer_get_iter_at_offset(this->buffer.get(), &a, this->spellStart);
+    gtk_text_buffer_get_iter_at_offset(this->buffer.get(), &b, this->spellEnd);
+    gtk_text_buffer_delete(this->buffer.get(), &a, &b);
+    gtk_text_buffer_insert(this->buffer.get(), &a, word.c_str(), -1);
+    gtk_text_buffer_place_cursor(this->buffer.get(), &a);
+    this->spellStart = this->spellEnd = -1;
+    this->contentsChanged(true);
+    formatsChanged();
+}
+
+void TextEditor::refreshSpelling() { formatsChanged(); }
 
 void TextEditor::updateBoxes() {
     if (const auto* f = getFormula()) {

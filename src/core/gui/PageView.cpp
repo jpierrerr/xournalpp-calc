@@ -406,8 +406,10 @@ auto XojPageView::onButtonPressEvent(const PositionInputData& pos) -> bool {
                 this->overlayViews.emplace_back(
                         std::make_unique<xoj::view::PdfElementSelectionView>(sel, this, settings->getSelectionColor()));
             }
-        } else if (h->getToolType() == TOOL_SELECT_OBJECT && !pos.isShiftDown() && !xournal->getSelection() &&
-                   this->isTextDoubleClick(pos)) {
+        } else if (h->getToolType() == TOOL_SELECT_OBJECT && !pos.isShiftDown() && this->isTextDoubleClick(pos) &&
+                   !xournal->getSelection()) {
+            // (every press is counted, also the one that clears a selection: after Esc from a text the text is
+            // selected, and the double click must not need a third click)
             // xournalpp-calc: "Select object" (the tool after Esc): a double click on an empty spot draws a selection
             // rectangle, as with the text tool (it follows the pointer until the next click on a touchpad)
             this->startDoubleClickSelection(x, y);

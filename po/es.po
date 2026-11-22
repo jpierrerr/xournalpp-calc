@@ -5293,3 +5293,15 @@ msgstr "Imprimir…"
 
 msgid "New, open, save, export and print"
 msgstr "Nuevo, abrir, guardar, exportar e imprimir"
+
+msgid "No suggestions"
+msgstr "Sin sugerencias"
+
+msgid "Add to dictionary"
+msgstr "Agregar al diccionario"
+
+msgid "Ignore"
+msgstr "Ignorar"
+
+msgid "Check spelling"
+msgstr "Revisar ortografía"

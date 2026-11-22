@@ -9,6 +9,7 @@
 #include "control/Control.h"
 #include "control/ToolHandler.h"
 #include "control/settings/Settings.h"
+#include "control/tools/SpellChecker.h"  // for suggest, addToDictionary, ignore
 #include "control/tools/TextEditor.h"
 #include "enums/Action.enum.h"
 #include "gui/MainWindow.h"
@@ -673,7 +674,44 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
     return root;
 }
 
-void showTextContextMenu(Control* control, GtkWidget* parent, double x, double y) {
+/// A flat button of the text menu that closes it and runs fn with the text editor
+template <class Fn>
+GtkWidget* menuButton(GtkWidget* pop, Control* control, const std::string& text, const char* iconName, Fn fn,
+                      bool bold = false) {
+    GtkWidget* b = gtk_button_new();
+    gtk_button_set_relief(GTK_BUTTON(b), GTK_RELIEF_NONE);
+    GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    if (iconName) {
+        gtk_box_pack_start(GTK_BOX(row), gtk_image_new_from_icon_name(iconName, GTK_ICON_SIZE_MENU), false, false, 0);
+    }
+    GtkWidget* l = gtk_label_new(nullptr);
+    if (bold) {
+        char* m = g_markup_printf_escaped("<b>%s</b>", text.c_str());
+        gtk_label_set_markup(GTK_LABEL(l), m);
+        g_free(m);
+    } else {
+        gtk_label_set_text(GTK_LABEL(l), text.c_str());
+    }
+    gtk_label_set_xalign(GTK_LABEL(l), 0.0f);
+    gtk_box_pack_start(GTK_BOX(row), l, true, true, 0);
+    gtk_container_add(GTK_CONTAINER(b), row);
+    struct Data {
+        GtkWidget* pop;
+        Control* control;
+        Fn fn;
+    };
+    g_signal_connect_data(
+            b, "clicked", G_CALLBACK(+[](GtkButton*, Data* d) {
+                gtk_popover_popdown(GTK_POPOVER(d->pop));
+                if (auto* te = d->control->getTextEditor(); te) {
+                    d->fn(te);
+                }
+            }),
+            new Data{pop, control, fn}, +[](gpointer d, GClosure*) { delete static_cast<Data*>(d); }, GConnectFlags(0));
+    return b;
+}
+
+void showTextContextMenu(Control* control, GtkWidget* parent, double x, double y, const std::string& misspelled) {
     GtkWidget* pop = gtk_popover_new(parent);
     GdkRectangle r{static_cast<int>(x), static_cast<int>(y), 1, 1};
     gtk_popover_set_pointing_to(GTK_POPOVER(pop), &r);
@@ -681,6 +719,40 @@ void showTextContextMenu(Control* control, GtkWidget* parent, double x, double y
 
     GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
     gtk_container_set_border_width(GTK_CONTAINER(box), 4);
+
+    // xournalpp-calc: corrections for a misspelled word come first, as in a word processor
+    if (!misspelled.empty()) {
+        auto suggestions = xoj::spell::suggest(misspelled);
+        if (suggestions.empty()) {
+            GtkWidget* none = gtk_label_new(_("No suggestions"));
+            gtk_widget_set_sensitive(none, false);
+            gtk_widget_set_margin_top(none, 4);
+            gtk_widget_set_margin_bottom(none, 4);
+            gtk_box_pack_start(GTK_BOX(box), none, false, false, 0);
+        }
+        for (const auto& w: suggestions) {
+            gtk_box_pack_start(
+                    GTK_BOX(box),
+                    menuButton(
+                            pop, control, w, nullptr, [w](TextEditor* te) { te->replaceMisspelled(w); }, true),
+                    false, false, 0);
+        }
+        gtk_box_pack_start(GTK_BOX(box),
+                           menuButton(pop, control, _("Add to dictionary"), "list-add",
+                                      [misspelled](TextEditor* te) {
+                                          xoj::spell::addToDictionary(misspelled);
+                                          te->refreshSpelling();
+                                      }),
+                           false, false, 0);
+        gtk_box_pack_start(GTK_BOX(box),
+                           menuButton(pop, control, _("Ignore"), nullptr,
+                                      [misspelled](TextEditor* te) {
+                                          xoj::spell::ignore(misspelled);
+                                          te->refreshSpelling();
+                                      }),
+                           false, false, 0);
+        gtk_box_pack_start(GTK_BOX(box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), false, false, 2);
+    }
     gtk_box_pack_start(GTK_BOX(box), createFormatPanel(control, true, true), false, false, 0);
     gtk_box_pack_start(GTK_BOX(box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), false, false, 2);
 
@@ -719,6 +791,20 @@ void showTextContextMenu(Control* control, GtkWidget* parent, double x, double y
                          }),
                          control);
         gtk_box_pack_start(GTK_BOX(box), b, false, false, 0);
+    }
+    if (xoj::spell::available()) {
+        gtk_box_pack_start(GTK_BOX(box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), false, false, 2);
+        GtkWidget* check = gtk_check_button_new_with_label(_("Check spelling"));
+        gtk_widget_set_margin_start(check, 6);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), control->getSettings()->isSpellCheck());
+        g_signal_connect(check, "toggled", G_CALLBACK(+[](GtkToggleButton* b, Control* control) {
+                             control->getSettings()->setSpellCheck(gtk_toggle_button_get_active(b));
+                             if (auto* te = control->getTextEditor(); te) {
+                                 te->refreshSpelling();
+                             }
+                         }),
+                         control);
+        gtk_box_pack_start(GTK_BOX(box), check, false, false, 0);
     }
     gtk_widget_show_all(box);
     gtk_container_add(GTK_CONTAINER(pop), box);

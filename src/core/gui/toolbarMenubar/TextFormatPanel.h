@@ -28,7 +28,8 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini);
 void applyPendingFormat(TextEditor* editor);
 
 /// Right click in the text being edited: format buttons, cut, copy and paste. (x, y): in the coordinates of `parent`
-void showTextContextMenu(Control* control, GtkWidget* parent, double x, double y);
+/// misspelled: the word under the click when it is misspelled (corrections are offered first)
+void showTextContextMenu(Control* control, GtkWidget* parent, double x, double y, const std::string& misspelled = {});
 
 }  // namespace xoj::text
 

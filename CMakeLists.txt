@@ -204,6 +204,18 @@ else ()
     message(STATUS "Disable GtkSourceView TeX syntax highlighting")
 endif ()
 
+# xournalpp-calc: spell checking of texts, with Hunspell and the dictionary in ui/dictionaries
+option(ENABLE_SPELLCHECK "Check the spelling of texts (Hunspell)" ON)
+if (ENABLE_SPELLCHECK)
+    pkg_check_modules(Hunspell IMPORTED_TARGET hunspell)
+    if (Hunspell_FOUND)
+        message(STATUS "Enable spell checking (Hunspell ${Hunspell_VERSION})")
+    else ()
+        message(STATUS "Hunspell not found: spell checking disabled")
+        set(ENABLE_SPELLCHECK OFF)
+    endif ()
+endif ()
+
 option(ENABLE_FLOAT_FROM_CHARS "Use floating point std::from_chars for parsing doubles" ON)
 include(CheckCXXSourceCompiles)
 check_cxx_source_compiles([[
@@ -267,6 +279,7 @@ target_link_libraries(external_modules INTERFACE
         PkgConfig::ExternalModules
         $<$<TARGET_EXISTS:Lua::lua>:Lua::lua>
         $<$<TARGET_EXISTS:PkgConfig::GtkSourceView>:PkgConfig::GtkSourceView>
+        $<$<TARGET_EXISTS:PkgConfig::Hunspell>:PkgConfig::Hunspell>
         $<$<TARGET_EXISTS:PkgConfig::ExternalAudioModules>:PkgConfig::ExternalAudioModules>
         $<$<TARGET_EXISTS:X11::Xi>:X11::Xi>
         $<$<TARGET_EXISTS:X11::X11>:X11::X11>

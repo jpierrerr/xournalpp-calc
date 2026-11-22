@@ -195,3 +195,14 @@ configuración si existe) y Preferencias. Esc o *Nuevo* dejan la hoja en blanco.
 *Archivo* (en la barra de título) no abre una lista: vuelve a esta pantalla, como en Word. Ahí se suman *Volver*
 (o Esc), Guardar, Guardar como, Exportar a PDF, Imprimir y Salir; elegir un formato crea un documento nuevo (pregunta
 antes si se guarda el actual) y *Nuevo* crea uno en blanco.
+
+## Corrector de ortografía
+
+Mientras se escribe un texto, las palabras mal escritas se subrayan con una línea roja ondulada (no la palabra que se
+está escribiendo, ni las regiones de cálculo, ni símbolos y unidades como `kN`, `MPa`, `A_s` o `x2`). Clic derecho
+sobre una de ellas ofrece correcciones, *Agregar al diccionario* (queda en `diccionario-personal.txt` de la carpeta
+de configuración) e *Ignorar* (hasta cerrar el programa). *Revisar ortografía*, al final de ese menú, lo apaga o
+enciende (`spellCheck` en settings.xml).
+
+Usa Hunspell (opción de CMake `ENABLE_SPELLCHECK`, se apaga sola si no está; en MSYS2 el paquete
+`mingw-w64-ucrt-x86_64-hunspell`) y el diccionario de español de `ui/dictionaries` (RLA-ES, ver su README).

@@ -19,6 +19,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <cairo.h>
@@ -98,6 +99,8 @@ public:
     std::optional<Slot> slotAround(size_t pos) const;
     /// The boxes, in the order of the text
     const std::vector<Slot>& slots() const { return slotList; }
+    /// The name of a function (SENO, shown sen) that ends at pos (dir = -1) or starts at pos (dir = +1)
+    std::optional<std::pair<size_t, size_t>> functionNameAt(size_t pos, int dir) const;
     /// Whether the character starting at pos is drawn (not a hidden parenthesis or operator)
     bool visibleByte(size_t pos) const;
 
@@ -116,6 +119,7 @@ private:
     std::vector<Caret> carets;  ///< edit mode: for each byte position (depth -1: not a stop)
     std::vector<bool> visible;  ///< edit mode: for each byte, whether it is drawn
     std::vector<Slot> slotList;
+    std::vector<std::pair<size_t, size_t>> functionNames;
     double em = 12;
 };
 

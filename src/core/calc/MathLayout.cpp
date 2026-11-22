@@ -180,6 +180,7 @@ struct Node {
 
     // TEXT
     std::string text;  ///< display mode: markup
+    std::string fname;  ///< edit mode: a function name (SENO) shown as it is displayed (sen)
     Tok tok = Tok::OTHER;
 
     /// TEXT: source range. ROW: where its content starts and ends. Structures: the whole structure (b: after its last
@@ -248,6 +249,8 @@ bool isPlain(const Node& n) {
     }
     return false;
 }
+
+std::string functionNameMarkup(std::string_view name);
 
 class Parser {
 public:
@@ -458,6 +461,12 @@ private:
                 return;
             }
             items.push_back(text(t));
+            if (id) {
+                std::string shown = functionNameMarkup(src.substr(t.a, t.b - t.a));
+                if (shown.find_first_of("<&") == std::string::npos) {
+                    items.back()->fname = shown;
+                }
+            }
             i++;
             auto f = parseFence();
             f->nameStart = t.a;
@@ -540,7 +549,7 @@ private:
         std::vector<NodePtr> merged;
         for (auto& k: n.kids) {
             if (k->kind == Node::Kind::TEXT && !merged.empty() && merged.back()->kind == Node::Kind::TEXT &&
-                merged.back()->b == k->a) {
+                merged.back()->b == k->a && k->fname.empty() && merged.back()->fname.empty()) {
                 merged.back()->b = k->b;
                 continue;
             }
@@ -750,6 +759,15 @@ void layoutText(Node& n, const LayoutContext& ctx, double scale) {
         std::string_view s = ctx.src.substr(n.a, n.b - n.a);
         std::string out;
         n.map.assign(s.size() + 1, 0);
+        if (!n.fname.empty()) {
+            // A function: its name as it will be displayed, the cursor goes over it at once
+            n.map[s.size()] = static_cast<int>(n.fname.size());
+            pango_layout_set_text(n.layout.get(), n.fname.c_str(), static_cast<int>(n.fname.size()));
+            measure(n.layout.get(), n.w, n.asc, n.desc);
+            n.asc = std::max(n.asc, ctx.asc0 * scale);
+            n.desc = std::max(n.desc, ctx.desc0 * scale);
+            return;
+        }
         for (size_t k = 0; k < s.size(); k++) {
             n.map[k] = static_cast<int>(out.size());
             if (s[k] == '*') {
@@ -1213,9 +1231,15 @@ void Formula::registerCarets(const Node& n, int depth) {
             for (size_t k = n.a; k < n.b; k++) {
                 visible[k] = true;
             }
+            if (!n.fname.empty()) {
+                functionNames.emplace_back(n.a, n.b);
+            }
             for (size_t k = n.a; k <= n.b; k++) {
                 if (k < n.b && (static_cast<unsigned char>(source[k]) & 0xC0) == 0x80) {
                     continue;
+                }
+                if (!n.fname.empty() && k != n.a && k != n.b) {
+                    continue;  // inside the name of a function: not a cursor position
                 }
                 addCaret(k,
                          Caret{n.x + layoutX(n.layout.get(), n.map[k - n.a]), n.base - n.asc, n.base + n.desc, depth});
@@ -1371,6 +1395,15 @@ std::optional<size_t> Formula::vertical(size_t pos, int dir) const {
         }
     }
     return best;
+}
+
+std::optional<std::pair<size_t, size_t>> Formula::functionNameAt(size_t pos, int dir) const {
+    for (const auto& [a, b]: functionNames) {
+        if ((dir < 0 && pos == b) || (dir > 0 && pos == a)) {
+            return std::make_pair(a, b);
+        }
+    }
+    return std::nullopt;
 }
 
 std::optional<Slot> Formula::slotAround(size_t pos) const {

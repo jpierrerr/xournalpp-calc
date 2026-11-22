@@ -1502,6 +1502,16 @@ void TextEditor::deleteFromCursor(GtkDeleteType type, int count) {
     if (const auto* f = getFormula(); f && type == GTK_DELETE_CHARS && count > 0) {
         // The hidden parentheses of a formula are not deleted: the cursor goes into the next box
         const size_t cur = cursorByte();
+        if (auto name = f->functionNameAt(cur, 1)) {
+            GtkTextIter ia = getIteratorAtByteOffset(this->buffer.get(), static_cast<int>(name->first));
+            GtkTextIter ib = getIteratorAtByteOffset(this->buffer.get(), static_cast<int>(name->second));
+            gtk_text_buffer_begin_user_action(this->buffer.get());
+            gtk_text_buffer_delete(this->buffer.get(), &ia, &ib);
+            gtk_text_buffer_end_user_action(this->buffer.get());
+            this->contentsChanged(true);
+            this->repaintEditor();
+            return;
+        }
         if (cur < cloneToStdString(this->buffer.get()).size() && !f->visibleByte(cur) && f->step(cur, 1) != cur) {
             placeCursorAtByte(f->step(cur, 1));
             return;
@@ -1618,6 +1628,18 @@ void TextEditor::backspace() {
         return;
     }
 
+    if (const auto* f = getFormula(); f && f->functionNameAt(cursorByte(), -1)) {
+        // xournalpp-calc: the name of a function (shown sen for SENO) is deleted at once
+        auto [a, b] = *f->functionNameAt(cursorByte(), -1);
+        GtkTextIter ia = getIteratorAtByteOffset(this->buffer.get(), static_cast<int>(a));
+        GtkTextIter ib = getIteratorAtByteOffset(this->buffer.get(), static_cast<int>(b));
+        gtk_text_buffer_begin_user_action(this->buffer.get());
+        gtk_text_buffer_delete(this->buffer.get(), &ia, &ib);
+        gtk_text_buffer_end_user_action(this->buffer.get());
+        this->contentsChanged(true);
+        this->repaintEditor();
+        return;
+    }
     if (const auto* f = getFormula()) {
         // xournalpp-calc: before the cursor is a hidden parenthesis or operator of the formula. In an empty box
         // (exponent, denominator, root), the structure goes away ("^()", "/()"); otherwise the cursor leaves the box

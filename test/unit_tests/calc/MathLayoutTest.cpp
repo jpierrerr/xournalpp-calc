@@ -144,3 +144,17 @@ TEST(CalcMath, renderSamples) {
                    structuredMarkup("y := SENO(a/b) + ABS(x/2) + RAIZ3(8)", nullptr),
            false);
 }
+
+TEST(CalcMath, functionNames) {
+    std::string t = "y:=SENO(x)";
+    auto f = Formula::forEditing(t, style());
+    EXPECT_TRUE(f->isStop(3));    // before the name
+    EXPECT_FALSE(f->isStop(5));   // inside SENO
+    EXPECT_TRUE(f->isStop(7));    // after the name
+    EXPECT_EQ(f->step(3, 1), 7u);
+    auto n = f->functionNameAt(7, -1);
+    ASSERT_TRUE(n.has_value());
+    EXPECT_EQ(n->first, 3u);
+    EXPECT_EQ(n->second, 7u);
+    render("fn", "y:=SENO(x)+LOG10(a/b)+ASENO()", true, 8);
+}

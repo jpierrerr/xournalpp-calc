@@ -1,6 +1,7 @@
 #include "TextEditionView.h"
 
 #include "control/tools/TextEditor.h"
+#include "calc/MathLayout.h"
 #include "model/Text.h"
 #include "util/Color.h"
 #include "util/Matrix.h"
@@ -84,10 +85,13 @@ void TextEditionView::draw(cairo_t* cr) const {
         cairo_stroke(cr);
     }
 
-    // Hard box
+    // Hard box (a formula may go above the first line: a numerator)
     m.transformCairo(cr);
-    cairo_rectangle(cr, -relativePadding.x, -relativePadding.y, boxes.theoreticalSize.width + 2 * relativePadding.x,
-                    boxes.theoreticalSize.height + 2 * relativePadding.y);
+    const bool formula = this->textEditor->getFormula() != nullptr;
+    const double top = formula ? boxes.effectiveBounds.y : 0;
+    const double height = formula ? boxes.effectiveBounds.height : boxes.theoreticalSize.height;
+    cairo_rectangle(cr, -relativePadding.x, top - relativePadding.y, boxes.theoreticalSize.width + 2 * relativePadding.x,
+                    height + 2 * relativePadding.y);
     cairo_set_matrix(cr, &originalMatrix);  // Reset the matrix before stroking to have the right line width
     cairo_stroke(cr);
 
@@ -118,6 +122,13 @@ void TextEditionView::drawWithoutDrawingAids(cairo_t* cr) const {
 
     // From now on, coordinates are in textElement coordinates
     textElement->getTransformation().transformCairo(cr);
+
+    if (const auto* f = this->textEditor->getFormula()) {
+        // xournalpp-calc: a calculation region is edited as a formula, with its empty boxes
+        auto [selStart, selEnd] = this->textEditor->selectionBytes();
+        f->draw(cr, this->textEditor->cursorByte(), selStart, selEnd, this->textEditor->getSelectionColor());
+        return;
+    }
 
     // The data is owned by textEditor
     PangoLayout* layout = this->textEditor->getUpToDateLayout();

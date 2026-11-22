@@ -49,6 +49,9 @@ struct Point;
 namespace xoj::view {
 class TextEditionView;
 };
+namespace xoj::calc::math {
+class Formula;
+};
 
 class TextEditor: public OverlayBase {
 public:
@@ -88,6 +91,13 @@ public:
     void insertLine(const std::string& line);
 
     PangoLayout* getUpToDateLayout() const;
+
+    /// xournalpp-calc: a calculation region is edited as a formula (fractions, exponents, roots drawn in two
+    /// dimensions). nullptr for a normal text
+    const xoj::calc::math::Formula* getFormula() const;
+    /// Position of the cursor and the selection, in bytes of the text
+    size_t cursorByte() const;
+    std::pair<size_t, size_t> selectionBytes() const;
 
     const std::shared_ptr<xoj::util::DispatchPool<xoj::view::TextEditionView>>& getViewPool() const;
 
@@ -148,6 +158,11 @@ private:
     void superscriptBeforeCursor() { pendingScript = pendingScript == 1 ? 0 : 1; }
     void subscriptBeforeCursor() { pendingScript = pendingScript == -1 ? 0 : -1; }
     void insertDefinition();      ///< Ctrl+= : definition symbol ≔
+    /// Insert before + after at the cursor, leaving the cursor between them (e.g. "RAIZ(" and ")")
+    void insertAround(const std::string& before, const std::string& after);
+    void placeCursorAtByte(size_t byte, bool extendSelection = false);
+    /// Tab in a calculation region: to the next box of the formula. True if handled
+    bool tabInFormula();
     void greekifyBeforeCursor();  ///< Mathcad-style Ctrl+G: replace the latin letter before the cursor by a Greek one
     /// xournalpp-calc: Enter, Tab and the arrows move to another box on the alignment grid. True if handled
     bool handleGridNavigation(const KeyEvent& event);
@@ -266,6 +281,9 @@ private:
     std::unique_ptr<FlyingClickableIcon> moveIcon;
     std::unique_ptr<FlyingClickableIcon> extendIcon;
     std::unique_ptr<FunctionCompletion> completion;
+
+    mutable std::unique_ptr<xoj::calc::math::Formula> formula;
+    mutable std::string formulaKey;
     /// Names of the variables of the document, to not highlight a function when a variable is typed (computed once)
     mutable std::optional<std::set<std::string>> documentVariableNames;
 

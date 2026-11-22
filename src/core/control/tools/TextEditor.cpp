@@ -1,6 +1,7 @@
 #include "TextEditor.h"
 
 #include <algorithm>  // for count
+#include <cctype>
 #include <cmath>      // for ceil
 #include <cstring>    // for strcmp, size_t
 #include <memory>     // for allocator, make_unique, __shared_p...
@@ -13,6 +14,7 @@
 #include "calc/CalcDocument.h"  // for documentVariables
 #include "calc/CalcEngine.h"    // for greekForLatin
 #include "calc/CalcGrid.h"    // for alignmentGrid
+#include "calc/MathLayout.h"  // for Formula
 #include "control/AudioController.h"
 #include "control/Control.h"  // for Control
 #include "control/actions/ActionDatabase.h"
@@ -504,8 +506,52 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
             }
         }
 
-        if (!gtk_text_buffer_insert_interactive_at_cursor(te->buffer.get(), str, -1, true)) {
+        // xournalpp-calc: in a calculation region the formula is built as it is typed (as in the equation editor of a
+        // word processor): "^" opens the box of the exponent, "/" puts what is before it over a fraction bar and
+        // opens the denominator; a space at the end of an exponent leaves it
+        std::string afterCursor;
+        std::string opened;
+        bool skipInsert = false;
+        if (te->textElement->isCalc() && !hadSelection && scripted.empty()) {
+            const std::string text = cloneToStdString(te->buffer.get());
+            const size_t cur = te->cursorByte();
+            if (str[0] == '^') {
+                opened = std::string("^(") + (str + 1);
+                str = opened.c_str();
+                afterCursor = ")";
+            } else if (!strcmp(str, "/") && !xoj::calc::math::unitDivisionBefore(text, cur)) {
+                str = "/(";
+                afterCursor = ")";
+            } else if (!strcmp(str, "(")) {
+                // The parenthesis is closed at once (RAIZ(…), SENO(…)), unless it opens before something written
+                const unsigned char next = cur < text.size() ? static_cast<unsigned char>(text[cur]) : '\n';
+                if (!(std::isalnum(next) || next == '_' || next == '.' || next == '(' || next >= 0x80)) {
+                    afterCursor = ")";
+                }
+            } else if (!strcmp(str, ")") && cur < text.size() && text[cur] == ')') {
+                // Typing the parenthesis that is already there goes over it
+                te->placeCursorAtByte(cur + 1);
+                skipInsert = true;
+            } else if (!strcmp(str, " ")) {
+                if (const auto* f = te->getFormula()) {
+                    auto slot = f->slotAround(cur);
+                    if (slot && slot->exponent && cur == slot->end && slot->start != slot->end) {
+                        te->placeCursorAtByte(slot->outerEnd);
+                        skipInsert = true;
+                    }
+                }
+            }
+        }
+
+        if (skipInsert) {
+            // nothing to insert
+        } else if (!gtk_text_buffer_insert_interactive_at_cursor(te->buffer.get(), str, -1, true)) {
             gtk_widget_error_bell(te->xournalWidget);
+        } else if (!afterCursor.empty()) {
+            gtk_text_buffer_insert_at_cursor(te->buffer.get(), afterCursor.c_str(), -1);
+            GtkTextIter it = getIteratorAtCursor(te->buffer.get());
+            gtk_text_iter_backward_chars(&it, static_cast<int>(g_utf8_strlen(afterCursor.c_str(), -1)));
+            gtk_text_buffer_place_cursor(te->buffer.get(), &it);
         }
     }
 
@@ -550,6 +596,78 @@ void TextEditor::insertLine(const std::string& line) {
 }
 
 void TextEditor::insertDefinition() { insertText("≔"); }
+
+void TextEditor::insertAround(const std::string& before, const std::string& after) {
+    hideCompletion();
+    resetImContext();
+    gtk_text_buffer_begin_user_action(this->buffer.get());
+    gtk_text_buffer_delete_selection(this->buffer.get(), true, true);
+    gtk_text_buffer_insert_at_cursor(this->buffer.get(), (before + after).c_str(), -1);
+    GtkTextIter it = getIteratorAtCursor(this->buffer.get());
+    gtk_text_iter_backward_chars(&it, static_cast<int>(g_utf8_strlen(after.c_str(), -1)));
+    gtk_text_buffer_place_cursor(this->buffer.get(), &it);
+    gtk_text_buffer_end_user_action(this->buffer.get());
+    this->contentsChanged(true);
+    this->repaintEditor();
+}
+
+const xoj::calc::math::Formula* TextEditor::getFormula() const {
+    if (!this->textElement || !this->textElement->isCalc()) {
+        return nullptr;
+    }
+    std::string text = cloneToStdString(this->buffer.get());
+    const auto st = this->textElement->calcStyle();
+    std::string key = text + '\0' + st.fontName + '\0' + std::to_string(st.fontSize) + '\0' +
+                      std::to_string(st.lineHeight);
+    if (!this->formula || key != this->formulaKey) {
+        this->formula = xoj::calc::math::Formula::forEditing(text, st);
+        this->formulaKey = std::move(key);
+    }
+    return this->formula.get();
+}
+
+size_t TextEditor::cursorByte() const { return static_cast<size_t>(getByteOffsetOfCursor(this->buffer.get())); }
+
+std::pair<size_t, size_t> TextEditor::selectionBytes() const {
+    GtkTextIter start, end;
+    if (!gtk_text_buffer_get_selection_bounds(this->buffer.get(), &start, &end)) {
+        return {0, 0};
+    }
+    return {static_cast<size_t>(getByteOffsetOfIterator(start)), static_cast<size_t>(getByteOffsetOfIterator(end))};
+}
+
+void TextEditor::placeCursorAtByte(size_t byte, bool extendSelection) {
+    GtkTextIter it = getIteratorAtByteOffset(this->buffer.get(), static_cast<int>(byte));
+    moveCursorIterator(&it, extendSelection);
+    computeVirtualCursorPosition();
+}
+
+bool TextEditor::tabInFormula() {
+    const auto* f = getFormula();
+    if (!f) {
+        return false;
+    }
+    const size_t cur = cursorByte();
+    // The outermost structure around the cursor
+    std::optional<xoj::calc::math::Slot> outer;
+    for (const auto& s: f->slots()) {
+        if (s.start <= cur && cur <= s.end && (!outer || s.outerEnd - s.outerStart > outer->outerEnd - outer->outerStart)) {
+            outer = s;
+        }
+    }
+    if (!outer) {
+        return false;
+    }
+    hideCompletion();
+    for (const auto& s: f->slots()) {
+        if (s.start > cur && s.start < outer->outerEnd) {
+            placeCursorAtByte(s.end);
+            return true;
+        }
+    }
+    placeCursorAtByte(outer->outerEnd);
+    return true;
+}
 
 void TextEditor::greekifyBeforeCursor() {
     GtkTextIter end = getIteratorAtCursor(this->buffer.get());
@@ -641,6 +759,11 @@ auto TextEditor::onKeyPressEvent(const KeyEvent& event) -> bool {
         const guint k = event.keyval;
         if (k == GDK_KEY_equal || k == GDK_KEY_KP_Equal || k == GDK_KEY_0 || k == GDK_KEY_parenright) {
             insertDefinition();
+            return true;
+        }
+        // xournalpp-calc: Ctrl+R puts a square root with the cursor in it
+        if ((k == GDK_KEY_r || k == GDK_KEY_R) && !(event.state & GDK_SHIFT_MASK) && this->textElement->isCalc()) {
+            insertAround("RAIZ(", ")");
             return true;
         }
     }
@@ -845,8 +968,11 @@ void TextEditor::acceptCompletion(const std::string& functionName) {
     GtkTextIter end = getIteratorAtCursor(this->buffer.get());
     gtk_text_buffer_begin_user_action(this->buffer.get());
     gtk_text_buffer_delete(this->buffer.get(), &start, &end);
-    std::string text = functionName + "(";
+    std::string text = functionName + "()";
     gtk_text_buffer_insert_at_cursor(this->buffer.get(), text.c_str(), -1);
+    GtkTextIter inside = getIteratorAtCursor(this->buffer.get());
+    gtk_text_iter_backward_char(&inside);  // the cursor goes between the parentheses
+    gtk_text_buffer_place_cursor(this->buffer.get(), &inside);
     gtk_text_buffer_end_user_action(this->buffer.get());
     this->contentsChanged(true);
     this->repaintEditor();
@@ -860,11 +986,16 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
     if ((event.state & MODIFIERS) != 0) {
         return false;
     }
+    if ((event.keyval == GDK_KEY_Tab || event.keyval == GDK_KEY_KP_Tab) && tabInFormula()) {
+        return true;
+    }
+    const auto* formula = getFormula();
     if (!this->control->isCalcGrid()) {
         // Without the grid, the right arrow at the end of the text still leaves the box (and shows its results)
         const bool right = event.keyval == GDK_KEY_Right || event.keyval == GDK_KEY_KP_Right;
         GtkTextIter cursor = getIteratorAtCursor(this->buffer.get());
-        if (right && gtk_text_iter_is_end(&cursor) && !gtk_text_buffer_get_has_selection(this->buffer.get())) {
+        const bool atEnd = formula ? formula->step(cursorByte(), 1) == cursorByte() : gtk_text_iter_is_end(&cursor);
+        if (right && atEnd && !gtk_text_buffer_get_has_selection(this->buffer.get())) {
             this->control->calcLeaveTextBox();
             return true;
         }
@@ -888,8 +1019,14 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
     const int cursorLine = gtk_text_iter_get_line(&cursor);
 
     // Arrows inside a box with text move the cursor; they leave the box only from its edges
-    if (!empty && ((left && !gtk_text_iter_is_start(&cursor)) || (right && !gtk_text_iter_is_end(&cursor)) ||
-                   (up && cursorLine > 0) || (down && cursorLine < nLines - 1))) {
+    if (formula && !empty) {
+        const size_t cur = cursorByte();
+        if ((left && formula->step(cur, -1) != cur) || (right && formula->step(cur, 1) != cur) ||
+            (up && formula->vertical(cur, -1)) || (down && formula->vertical(cur, 1))) {
+            return false;
+        }
+    } else if (!empty && ((left && !gtk_text_iter_is_start(&cursor)) || (right && !gtk_text_iter_is_end(&cursor)) ||
+                          (up && cursorLine > 0) || (down && cursorLine < nLines - 1))) {
         return false;
     }
 
@@ -899,7 +1036,11 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
     const double lh = t->getLineHeight() > 0 ? t->getLineHeight() : grid.pitchFor(t->naturalLineHeight());
     const auto& origin = t->getOrigin();
     const double firstLine = grid.snapRow(origin.y + t->firstBaseline() + xoj::calc::BASELINE_LIFT);
-    const double lastLine = firstLine + (nLines - 1) * lh;
+    double lastLine = firstLine + (nLines - 1) * lh;
+    if (formula) {
+        // Lines with fractions are taller
+        lastLine = grid.snapRow(origin.y + formula->lastBaseline() + xoj::calc::BASELINE_LIFT);
+    }
     const double x = grid.snapX(origin.x);
     // Leave one empty square of the grid after the box
     auto ahead = [&]() {
@@ -910,6 +1051,10 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
     double nx = x, line = firstLine;
     if (tab) {
         line = lastLine + lh;
+        // Below the denominators of the last line
+        while (formula && lh > 0 && line - 0.7 * lh < origin.y + formula->bottom()) {
+            line += lh;
+        }
     } else if (enter || right) {
         // The next box starts one square to the right (past the right edge: on the next line)
         nx = empty ? x + grid.dx : ahead();
@@ -920,6 +1065,9 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
         line = firstLine - grid.dy;
     } else {  // down
         line = lastLine + grid.dy;
+        while (formula && grid.dy > 0 && line - 0.7 * lh < origin.y + formula->bottom()) {
+            line += grid.dy;
+        }
     }
     if ((enter || right) && !empty) {
         // Start after the box as it will be displayed (with the results, for a calculation region)
@@ -1043,6 +1191,26 @@ void TextEditor::moveCursor(GtkMovementStep step, int count, bool extendSelectio
 
     bool updateVirtualCursor = true;
 
+    // xournalpp-calc: in a formula the cursor goes through its boxes and skips the hidden parentheses
+    const auto* formula = getFormula();
+    if (formula && (step == GTK_MOVEMENT_LOGICAL_POSITIONS || step == GTK_MOVEMENT_VISUAL_POSITIONS ||
+                    step == GTK_MOVEMENT_DISPLAY_LINES)) {
+        size_t p = cursorByte();
+        const int dir = count < 0 ? -1 : 1;
+        for (int k = 0; k < std::abs(count); k++) {
+            if (step == GTK_MOVEMENT_DISPLAY_LINES) {
+                if (auto v = formula->vertical(p, dir)) {
+                    p = *v;
+                }
+            } else {
+                p = formula->step(p, dir);
+            }
+        }
+        newplace = getIteratorAtByteOffset(this->buffer.get(), static_cast<int>(p));
+        step = GTK_MOVEMENT_BUFFER_ENDS;
+        count = 0;  // nothing more below
+    }
+
     switch (step) {
         case GTK_MOVEMENT_LOGICAL_POSITIONS:  // not used!?
             gtk_text_iter_forward_visible_cursor_positions(&newplace, count);
@@ -1110,6 +1278,12 @@ void TextEditor::moveCursor(GtkMovementStep step, int count, bool extendSelectio
             break;
     }
 
+    if (formula) {
+        newplace = getIteratorAtByteOffset(
+                this->buffer.get(), static_cast<int>(formula->nearestStop(
+                                            static_cast<size_t>(getByteOffsetOfIterator(newplace)))));
+    }
+
     // call moveCursorIterator() even if the cursor hasn't moved, since it cancels the selection
     moveCursorIterator(&newplace, extendSelection);
 
@@ -1123,6 +1297,10 @@ void TextEditor::moveCursor(GtkMovementStep step, int count, bool extendSelectio
 }
 
 void TextEditor::findPos(GtkTextIter* iter, double xPos, double yPos) const {
+    if (const auto* f = getFormula()) {
+        *iter = getIteratorAtByteOffset(this->buffer.get(), static_cast<int>(f->hit(xPos, yPos)));
+        return;
+    }
     int index = 0;
     int trailing = 0;
     pango_layout_xy_to_index(this->getUpToDateLayout(), round_cast<int>(xPos * PANGO_SCALE),
@@ -1301,6 +1479,16 @@ void TextEditor::deleteFromCursor(GtkDeleteType type, int count) {
         }
     }
 
+    if (const auto* f = getFormula(); f && type == GTK_DELETE_CHARS && count > 0) {
+        // The hidden parentheses of a formula are not deleted: the cursor goes into the next box
+        const size_t cur = cursorByte();
+        if (cur < cloneToStdString(this->buffer.get()).size() && !f->visibleByte(cur) &&
+            f->step(cur, 1) != cur) {
+            placeCursorAtByte(f->step(cur, 1));
+            return;
+        }
+    }
+
     GtkTextIter insert = getIteratorAtCursor(this->buffer.get());
 
     GtkTextIter start = insert;
@@ -1409,6 +1597,38 @@ void TextEditor::backspace() {
         this->contentsChanged();
         this->repaintEditor();
         return;
+    }
+
+    if (const auto* f = getFormula()) {
+        // xournalpp-calc: before the cursor is a hidden parenthesis or operator of the formula. In an empty box
+        // (exponent, denominator, root), the structure goes away ("^()", "/()"); otherwise the cursor leaves the box
+        const size_t cur = cursorByte();
+        size_t prev = cur;
+        const std::string text = cloneToStdString(this->buffer.get());
+        if (prev > 0) {
+            prev--;
+            while (prev > 0 && (static_cast<unsigned char>(text[prev]) & 0xC0) == 0x80) {
+                prev--;
+            }
+        }
+        if (cur > 0 && !f->visibleByte(prev)) {
+            for (const auto& s: f->slots()) {
+                if (s.start == cur && s.end == cur && s.delStart != std::string::npos) {
+                    GtkTextIter a = getIteratorAtByteOffset(this->buffer.get(), static_cast<int>(s.delStart));
+                    GtkTextIter b = getIteratorAtByteOffset(this->buffer.get(), static_cast<int>(s.delEnd));
+                    gtk_text_buffer_begin_user_action(this->buffer.get());
+                    gtk_text_buffer_delete(this->buffer.get(), &a, &b);
+                    gtk_text_buffer_end_user_action(this->buffer.get());
+                    this->contentsChanged(true);
+                    this->repaintEditor();
+                    return;
+                }
+            }
+            if (f->step(cur, -1) != cur) {
+                placeCursorAtByte(f->step(cur, -1));
+                return;
+            }
+        }
     }
 
     GtkTextIter insert = getIteratorAtCursor(this->buffer.get());
@@ -1542,6 +1762,12 @@ void TextEditor::setSelectionAttributesToPangoLayout(PangoLayout* pl) const {
 }
 
 void TextEditor::updateBoxes() {
+    if (const auto* f = getFormula()) {
+        this->boxes.theoreticalSize = {f->width(), f->bottom()};
+        this->boxes.effectiveBounds = {0, f->top(), f->width(), f->bottom() - f->top()};
+        this->previousBoundingBox = Range(this->textElement->getTransformation() * this->boxes.effectiveBounds);
+        return;
+    }
     /*
      * NB: we cannot rely on Text::calcSize directly, since it would not take the size changes due to the IM
      * preeditString into account.
@@ -1577,6 +1803,12 @@ auto TextEditor::getCursorBox() const -> const Range& { return this->cursorBox; 
 bool TextEditor::isCursorVisible() const { return cursorVisible; }
 
 auto TextEditor::computeCursorBox() const -> Range {
+    if (const auto* f = getFormula()) {
+        const auto c = f->caretAt(cursorByte());
+        Range res(c.x, c.top);
+        res.addPoint(c.x, c.bottom);
+        return res;
+    }
     // Compute the bounding box of the active grapheme (i.e. the one just after the cursor)
     int offset = getByteOffsetOfCursor(this->buffer.get());
     if (this->preeditString && this->preeditCursor != 0) {

@@ -1,5 +1,7 @@
 #include "Text.h"
 
+#include "calc/MathLayout.h"
+
 #include <memory>
 #include <utility>  // for move
 
@@ -165,7 +167,34 @@ double Text::firstBaseline() const {
     return static_cast<double>(pango_layout_get_baseline(layout.get())) / PANGO_SCALE;
 }
 
+xoj::calc::math::Style Text::calcStyle() const {
+    xoj::calc::math::Style st;
+    st.fontName = getFontName();
+    st.fontSize = getFontSize();
+    st.firstBaseline = firstBaseline();
+    st.lineHeight = lineHeight;
+    st.naturalLineHeight = naturalLineHeight();
+    return st;
+}
+
+std::unique_ptr<xoj::calc::math::Formula> Text::calcFormula() const {
+    if (!this->inEditing && !this->calcMarkup.empty()) {
+        return xoj::calc::math::Formula::forDisplay(this->calcMarkup, calcStyle());
+    }
+    return xoj::calc::math::Formula::forEditing(this->text, calcStyle());
+}
+
 void Text::calcSize() const {
+    if (this->calc) {
+        auto f = calcFormula();
+        this->naturalSize = {f->width(), f->bottom()};
+        this->effectiveBounds = {0, f->top(), f->width(), f->bottom() - f->top()};
+        const auto& matrix = this->getTransformation();
+        this->boundingBox = matrix * this->effectiveBounds;
+        this->snappedBounds = matrix * xoj::util::Rectangle<double>{{0, 0}, this->naturalSize};
+        this->sizeCalculated = true;
+        return;
+    }
     auto layout = createPangoLayout();
     applyDisplayContent(layout.get());
 

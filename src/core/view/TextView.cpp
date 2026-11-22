@@ -3,6 +3,7 @@
 #include <algorithm>  // for max
 #include <cstddef>    // for size_t
 
+#include "calc/MathLayout.h"
 #include "model/Text.h"           // for Text
 #include "util/Color.h"           // for cairo_set_source_rgbi
 #include "util/Matrix.h"          // for Matrix
@@ -45,6 +46,12 @@ void TextView::draw(const Context& ctx) const {
     }
 
     text->getTransformation().transformCairo(ctx.cr);
+
+    if (text->isCalc()) {
+        // xournalpp-calc: fractions, exponents and roots drawn in two dimensions
+        text->calcFormula()->draw(ctx.cr);
+        return;
+    }
 
     auto layout = initPango(ctx.cr, text);
     text->applyDisplayContent(layout.get());

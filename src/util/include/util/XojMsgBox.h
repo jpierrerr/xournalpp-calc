@@ -44,11 +44,17 @@ private:
     CallbackPolicy policy;
 
 public:
+    /// xournalpp-calc: SUGGESTED is the highlighted (blue) button, DESTRUCTIVE the red one
+    enum class ButtonStyle { NORMAL, SUGGESTED, DESTRUCTIVE };
     struct Button {
-        Button(std::string l, int r): label(std::move(l)), response(r) {}
+        Button(std::string l, int r, ButtonStyle s = ButtonStyle::NORMAL): label(std::move(l)), response(r), style(s) {}
         std::string label;
         int response;
+        ButtonStyle style;
     };
+
+    /// xournalpp-calc: the icon shown at the left of a question
+    enum class Icon { QUESTION, SAVE, WARNING };
 
     /**
      * Set window for messages without window
@@ -57,6 +63,12 @@ public:
 
     static void askQuestion(GtkWindow* win, const std::string& maintext, const std::string& secondarytext,
                             const std::vector<Button>& buttons, xoj::util::move_only_function<void(int)> callback);
+    static void askQuestion(GtkWindow* win, const std::string& maintext, const std::string& secondarytext,
+                            const std::vector<Button>& buttons, xoj::util::move_only_function<void(int)> callback,
+                            Icon icon);
+
+    /// xournalpp-calc: light title bar with the logo, icon at the left, bold title, rounded buttons on the right
+    static void applyStyle(GtkDialog* dialog, GtkMessageType type, Icon icon = Icon::QUESTION);
     /**
      * @brief same as askQuestion() but the string maintext is not escaped for Pango markups
      */

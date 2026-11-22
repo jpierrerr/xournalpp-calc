@@ -5305,3 +5305,9 @@ msgstr "Ignorar"
 
 msgid "Check spelling"
 msgstr "Revisar ortografía"
+
+msgid "Save the document?"
+msgstr "¿Guardar el documento?"
+
+msgid "If you discard it, the changes since it was last saved are lost."
+msgstr "Si lo descartas, se pierden los cambios hechos desde la última vez que se guardó."

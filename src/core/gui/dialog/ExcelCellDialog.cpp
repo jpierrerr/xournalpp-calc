@@ -6,6 +6,7 @@
 
 #include "calc/ExcelLink.h"
 #include "calc/XlsxFile.h"
+#include "util/XojMsgBox.h"  // for applyStyle
 
 namespace fs = std::filesystem;
 using namespace xoj::calc;
@@ -363,6 +364,7 @@ std::optional<ExcelCellChoice> pickExcelCell(GtkWindow* parent, const fs::path& 
         GtkWidget* msg = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
                                                 "No se pudo leer el libro de Excel");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(msg), "%s", e.what());
+        XojMsgBox::applyStyle(GTK_DIALOG(msg), GTK_MESSAGE_ERROR);
         gtk_dialog_run(GTK_DIALOG(msg));
         gtk_widget_destroy(msg);
         return std::nullopt;

@@ -2556,26 +2556,33 @@ void Control::close(std::function<void(bool)> callback, const bool allowDestroy,
         const bool saveAs = fileRemoved || path.empty();
         const auto saveLabel = saveAs ? _("Save As...") : _("Save");
 
+        // xournalpp-calc: a title with the question, the reason below; Discard in red, Save highlighted on the right
         enum { SAVE = 1, DISCARD, CANCEL };
-        std::vector<XojMsgBox::Button> buttons = {{saveLabel, SAVE}, {_("Discard"), DISCARD}};
+        using Style = XojMsgBox::ButtonStyle;
+        std::vector<XojMsgBox::Button> buttons = {{_("Discard"), DISCARD, Style::DESTRUCTIVE}};
         if (allowCancel) {
             buttons.emplace_back(_("Cancel"), CANCEL);
         }
-        XojMsgBox::askQuestion(getGtkWindow(), message, std::string(), std::move(buttons),
-                               [ctrl = this, saveAs, allowDestroy, callback = std::move(callback)](int response) {
-                                   auto execAfter = [allowDestroy, ctrl, cb = std::move(callback)](bool saved) {
-                                       if (saved && allowDestroy) {
-                                           ctrl->closeDocument();
-                                       }
-                                       cb(saved);
-                                   };
-                                   if (response == SAVE) {
-                                       ctrl->saveImpl(saveAs, std::move(execAfter));
-                                       return;
-                                   }
-                                   bool safeToClose = response == DISCARD;
-                                   execAfter(safeToClose);
-                               });
+        buttons.emplace_back(saveLabel, SAVE, Style::SUGGESTED);
+        const std::string details =
+                std::string(message) + " " + _("If you discard it, the changes since it was last saved are lost.");
+        XojMsgBox::askQuestion(
+                getGtkWindow(), _("Save the document?"), details, std::move(buttons),
+                [ctrl = this, saveAs, allowDestroy, callback = std::move(callback)](int response) {
+                    auto execAfter = [allowDestroy, ctrl, cb = std::move(callback)](bool saved) {
+                        if (saved && allowDestroy) {
+                            ctrl->closeDocument();
+                        }
+                        cb(saved);
+                    };
+                    if (response == SAVE) {
+                        ctrl->saveImpl(saveAs, std::move(execAfter));
+                        return;
+                    }
+                    bool safeToClose = response == DISCARD;
+                    execAfter(safeToClose);
+                },
+                XojMsgBox::Icon::SAVE);
     } else {
         if (allowDestroy) {
             this->closeDocument();

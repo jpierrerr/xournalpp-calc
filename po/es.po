@@ -1837,7 +1837,7 @@ msgstr "Agrega una capa sobre la capa activa"
 
 #: ../src/core/gui/toolbarMenubar/ToolPageLayer.cpp:176
 msgid "Add a layer below the active layer"
-msgstr "Agrega una capa debajo de la capa activa"
+msgstr "Agregar una capa debajo de la activa"
 
 #: ../src/core/gui/toolbarMenubar/ToolPageLayer.cpp:203
 msgid "Layer"
@@ -4457,15 +4457,15 @@ msgstr "P_ágina anotada anterior"
 
 #: ../ui/mainmenubar.xml:444
 msgid "New Page _Before"
-msgstr "Nueva Página _Antes"
+msgstr "Nueva página _antes"
 
 #: ../ui/mainmenubar.xml:448
 msgid "New Page _After"
-msgstr "Nueva Página _Después"
+msgstr "Nueva página _después"
 
 #: ../ui/mainmenubar.xml:453
 msgid "New Page at _End"
-msgstr "Nueva Página al _Final"
+msgstr "Nueva página al _final"
 
 #: ../ui/mainmenubar.xml:457
 msgid "Duplicate Page"
@@ -4473,11 +4473,11 @@ msgstr "Duplicar página"
 
 #: ../ui/mainmenubar.xml:461
 msgid "Move Page _Up"
-msgstr ""
+msgstr "Mover página _arriba"
 
 #: ../ui/mainmenubar.xml:465
 msgid "Move Page _Down"
-msgstr ""
+msgstr "Mover página a_bajo"
 
 #: ../ui/mainmenubar.xml:469
 msgid "Append New PDF Pages"
@@ -4493,11 +4493,11 @@ msgstr "_Eliminar Página"
 
 #: ../ui/mainmenubar.xml:484
 msgid "Add a _Layer above the active layer"
-msgstr "Agrega una _Layer sobre la capa activa"
+msgstr "Agregar una _capa sobre la activa"
 
 #: ../ui/mainmenubar.xml:493
 msgid "Delete Layer"
-msgstr "Eliminar Capa"
+msgstr "Eliminar capa"
 
 #: ../ui/mainmenubar.xml:498
 msgid "Merge Layer Down"
@@ -4505,7 +4505,7 @@ msgstr "Combinar capa con la inferior"
 
 #: ../ui/mainmenubar.xml:503
 msgid "Rename Layer"
-msgstr "Renombrar Capa"
+msgstr "Renombrar capa"
 
 #: ../ui/mainmenubar.xml:510
 msgid "Paper _Format"
@@ -4545,11 +4545,11 @@ msgstr "_Texto"
 
 #: ../ui/mainmenubar.xml:562
 msgid "_Link"
-msgstr ""
+msgstr "_Enlace"
 
 #: ../ui/mainmenubar.xml:568
 msgid "LaTe_X"
-msgstr ""
+msgstr "LaTe_X"
 
 #: ../ui/mainmenubar.xml:574
 msgid "_Image"

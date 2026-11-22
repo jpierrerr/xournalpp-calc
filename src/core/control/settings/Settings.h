@@ -291,6 +291,10 @@ public:
     bool isSpellCheck() const;
     void setSpellCheck(bool enable);
 
+    /// xournalpp-calc: units in which results are shown, e.g. "kN; kN·m" (see xoj::calc::setPreferredUnits)
+    const std::string& getCalcPreferredUnits() const;
+    void setCalcPreferredUnits(const std::string& units);
+
     bool isAutoloadPdfXoj() const;
     void setAutoloadPdfXoj(bool load);
 
@@ -925,6 +929,7 @@ private:
     bool autoloadMostRecent{};
     bool showStartScreen{true};
     bool spellCheck{true};
+    std::string calcPreferredUnits{"kN; kN·m"};
 
     /**
      * Automatically save documents for crash recovery each x minutes

@@ -1,5 +1,7 @@
 #include "SettingsDialog.h"
 
+#include "calc/CalcEngine.h"  // for setPreferredUnits
+
 #include <algorithm>    // for max
 #include <cstddef>      // for NULL, size_t
 #include <type_traits>  // for __underlying_type_im...
@@ -71,6 +73,29 @@ SettingsDialog::SettingsDialog(GladeSearchpath* gladeSearchPath, Settings* setti
     deviceTestingArea = std::make_unique<DeviceTestingArea>(gladeSearchPath, container, this->settings);
 
     gtk_box_append(GTK_BOX(builder.get("latexTabBox")), this->latexPanel.getPanel());
+
+    // xournalpp-calc: a tab with the options of the calculations
+    {
+        GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+        gtk_container_set_border_width(GTK_CONTAINER(box), 18);
+        GtkWidget* title = gtk_label_new(nullptr);
+        gtk_label_set_markup(GTK_LABEL(title), "<b>Unidades de los resultados</b>");
+        gtk_widget_set_halign(title, GTK_ALIGN_START);
+        GtkWidget* help = gtk_label_new(
+                "Los resultados se muestran en estas unidades cuando la dimensión coincide (sin escribir \"? unidad\"). "
+                "Sepáralas con punto y coma. Ejemplo: kN; kN·m; kPa; kN/m\n"
+                "Las demás magnitudes se muestran en unidades del SI con prefijo automático.");
+        gtk_label_set_line_wrap(GTK_LABEL(help), true);
+        gtk_label_set_xalign(GTK_LABEL(help), 0);
+        gtk_widget_set_halign(help, GTK_ALIGN_START);
+        this->calcUnitsEntry = gtk_entry_new();
+        gtk_entry_set_placeholder_text(GTK_ENTRY(this->calcUnitsEntry), "kN; kN·m");
+        gtk_box_append(GTK_BOX(box), title);
+        gtk_box_append(GTK_BOX(box), help);
+        gtk_box_append(GTK_BOX(box), this->calcUnitsEntry);
+        gtk_widget_show_all(box);
+        gtk_notebook_append_page(GTK_NOTEBOOK(builder.get("notebook1")), box, gtk_label_new("Cálculo (JackMath)"));
+    }
     gtk_box_append(GTK_BOX(builder.get("paletteTabBox")), this->paletteTab.getPanel());
 
     g_signal_connect(GTK_RANGE(builder.get("zoomCallibSlider")), "value-changed",
@@ -346,6 +371,9 @@ void SettingsDialog::showStabilizerPreprocessorOptions(StrokeStabilizer::Preproc
 }
 
 void SettingsDialog::load() {
+    if (this->calcUnitsEntry) {
+        gtk_entry_set_text(GTK_ENTRY(this->calcUnitsEntry), settings->getCalcPreferredUnits().c_str());
+    }
     loadCheckbox("cbSettingPresureSensitivity", settings->isPressureSensitivity());
     loadCheckbox("cbEnableZoomGestures", settings->isZoomGesturesEnabled());
     loadCheckbox("cbForceZoomToFitOnLoad", settings->getForceZoomToFitOnLoad());
@@ -749,6 +777,13 @@ void SettingsDialog::load() {
 
 void SettingsDialog::save() {
     settings->transactionStart();
+
+    if (this->calcUnitsEntry) {
+        std::string units = gtk_entry_get_text(GTK_ENTRY(this->calcUnitsEntry));
+        settings->setCalcPreferredUnits(units);
+        xoj::calc::setPreferredUnits(units);
+        this->control->scheduleCalcUpdate();
+    }
 
     settings->setPressureSensitivity(getCheckbox("cbSettingPresureSensitivity"));
     settings->setMinimumPressure(getSlider("scaleMinimumPressure"));

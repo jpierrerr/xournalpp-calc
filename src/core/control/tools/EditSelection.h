@@ -415,6 +415,8 @@ private:  // DATA
 
     /// xournalpp-calc: grid anchor, relative to the top left corner of snappedBounds (see setGridAnchor)
     std::optional<std::pair<double, double>> gridAnchor;
+    /// xournalpp-calc: first line of the top left text of the selection, relative to snappedBounds (while moving)
+    std::optional<std::pair<double, double>> textAnchor;
 
 private:  // HANDLER
     /**

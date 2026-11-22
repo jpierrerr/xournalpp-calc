@@ -95,6 +95,7 @@
 #include "settings/RecolorParameters.h"                          // for RecolorParameters
 #include "undo/AddUndoAction.h"                                  // for AddU...
 #include "undo/InsertDeletePageUndoAction.h"                     // for Inse...
+#include "undo/TextBoxUndoAction.h"  // for TextBoxUndoAction
 #include "undo/InsertUndoAction.h"                               // for Inse...
 #include "undo/MoveSelectionToLayerUndoAction.h"                 // for Move...
 #include "undo/PageSizeChangeUndoAction.h"                       // for PageSizeChangeUndoAction
@@ -146,6 +147,7 @@ Control::Control(GApplication* gtkApp, GladeSearchpath* gladeSearchPath): gtkApp
         this->settings = new Settings(std::move(name));
     }
     this->settings->load();
+    xoj::calc::setPreferredUnits(this->settings->getCalcPreferredUnits());
     this->loadPaletteFromSettings();
 
     this->pageTypes = new PageTypeHandler(gladeSearchPath);
@@ -1392,6 +1394,140 @@ void Control::calcGridGoTo(const PageRef& page, double x, double line, double bo
                 return G_SOURCE_REMOVE;
             },
             new Target{this, page, x, line, boxX, boxY}, +[](gpointer data) { delete static_cast<Target*>(data); });
+}
+
+void Control::calcSplitOverflow(const PageRef& page, const Text* text) {
+    struct Target {
+        Control* ctrl;
+        PageRef page;
+        const Text* text;
+    };
+    g_idle_add_full(
+            G_PRIORITY_DEFAULT_IDLE,
+            +[](gpointer data) -> gboolean {
+                auto* t = static_cast<Target*>(data);
+                Control* c = t->ctrl;
+                if (!c->win || c->win->getXournal()->getTextEditor()) {
+                    return G_SOURCE_REMOVE;  // closed, or a text is being edited again
+                }
+                Document* doc = c->doc;
+                PageRef page = t->page;
+                doc->lock_shared();
+                const size_t idx = doc->indexOf(page);
+                Text* region = nullptr;
+                Layer* layer = idx == npos ? nullptr : page->getSelectedLayer();
+                if (layer) {
+                    for (auto&& e: layer->getElements()) {
+                        if (e.get() == t->text) {
+                            region = dynamic_cast<Text*>(e.get());
+                            break;
+                        }
+                    }
+                }
+                doc->unlock_shared();
+                if (!region || !region->isCalc()) {
+                    return G_SOURCE_REMOVE;
+                }
+                const auto grid =
+                        xoj::calc::alignmentGrid(page->getBackgroundType(), page->getWidth(), page->getHeight());
+                const double limit = page->getHeight() - grid.dy;
+                {
+                    const auto& bb = region->getBoundingBox();
+                    if (bb.y + bb.height <= limit + 1e-6) {
+                        return G_SOURCE_REMOVE;
+                    }
+                }
+                // Lines of the region, and how many of them fit on the page
+                const std::string src = region->getText();
+                std::vector<std::string> lines;
+                for (size_t a = 0;;) {
+                    size_t b = src.find('\n', a);
+                    lines.emplace_back(src.substr(a, b == std::string::npos ? std::string::npos : b - a));
+                    if (b == std::string::npos) {
+                        break;
+                    }
+                    a = b + 1;
+                }
+                auto join = [&](size_t from, size_t to) {
+                    std::string s;
+                    for (size_t i = from; i < to; i++) {
+                        s += (i > from ? "\n" : "") + lines[i];
+                    }
+                    return s;
+                };
+                size_t fit = 0;
+                for (size_t k = 1; k < lines.size(); k++) {
+                    auto probe = region->cloneText();
+                    probe->setText(join(0, k));
+                    probe->setCalcMarkup({});
+                    const auto& bb = probe->getBoundingBox();
+                    if (bb.y + bb.height > limit + 1e-6) {
+                        break;
+                    }
+                    fit = k;
+                }
+                if (fit == 0) {
+                    return G_SOURCE_REMOVE;  // not even its first line fits (or a single line): left as it is
+                }
+
+                // The next page (a new one with the same background, if it is the last one)
+                doc->lock_shared();
+                const size_t count = doc->getPageCount();
+                doc->unlock_shared();
+                if (idx + 1 >= count) {
+                    const auto& bg = page->getBackgroundType();
+                    if (bg.isPdfPage() || bg.isImagePage()) {
+                        return G_SOURCE_REMOVE;
+                    }
+                    auto newPage = std::make_shared<XojPage>(page->getWidth(), page->getHeight());
+                    newPage->setBackgroundType(bg);
+                    newPage->setBackgroundColor(page->getBackgroundColor());
+                    c->insertPage(newPage, idx + 1, false);
+                }
+                doc->lock_shared();
+                PageRef next = doc->getPage(idx + 1);
+                doc->unlock_shared();
+                if (!next) {
+                    return G_SOURCE_REMOVE;
+                }
+                const auto nextGrid =
+                        xoj::calc::alignmentGrid(next->getBackgroundType(), next->getWidth(), next->getHeight());
+                const double topLine = nextGrid.y0 > 0 ? nextGrid.y0 : nextGrid.linePitch();
+
+                // The region keeps the lines that fit; the others go to a new region at the top of the next page
+                auto rest = region->cloneText();
+                rest->setText(join(fit, lines.size()));
+                rest->setCalcMarkup({});
+                rest->setCalcCells({});
+                rest->setInEditing(false);
+                const double newY = topLine - rest->firstBaseline() - xoj::calc::BASELINE_LIFT;
+                rest->move(0, newY - rest->getOrigin().y);
+                auto kept = region->cloneText();
+                kept->setText(join(0, fit));
+                kept->setCalcMarkup({});
+                kept->setInEditing(false);
+                Text* keptPtr = kept.get();
+                Text* restPtr = rest.get();
+
+                doc->lock();
+                auto [orig, pos] = layer->removeElement(region);
+                layer->addElement(std::move(kept));
+                Layer* nextLayer = next->getSelectedLayer();
+                nextLayer->addElement(std::move(rest));
+                doc->unlock();
+
+                if (orig) {
+                    page->fireElementChanged(orig.get());
+                    c->undoRedo->addUndoAction(
+                            std::make_unique<TextBoxUndoAction>(page, layer, keptPtr, std::move(orig)));
+                }
+                c->undoRedo->addUndoAction(std::make_unique<InsertUndoAction>(next, nextLayer, restPtr));
+                page->fireElementChanged(keptPtr);
+                next->fireElementChanged(restPtr);
+                c->scheduleCalcUpdate();
+                return G_SOURCE_REMOVE;
+            },
+            new Target{this, page, text}, +[](gpointer data) { delete static_cast<Target*>(data); });
 }
 
 void Control::showGreekPalette() {

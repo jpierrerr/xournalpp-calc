@@ -11,7 +11,8 @@
 
 #include <gdk/gdk.h>  // for gdk_cairo_set_sour...
 
-#include "calc/CalcGrid.h"                         // for alignmentGrid
+#include "calc/CalcGrid.h"
+#include "model/Text.h"  // for Text                         // for alignmentGrid
 #include "control/Control.h"                       // for Control
 #include "control/settings/Settings.h"             // for Settings
 #include "control/tools/CursorSelectionType.h"     // for CURSOR_SELECTION_NONE
@@ -534,6 +535,28 @@ void EditSelection::mouseDown(CursorSelectionType type, double x, double y) {
     cairo_matrix_transform_point(&this->cmatrix, &x, &y);
     this->relMousePosRotX = x / zoom - this->snappedBounds.x;
     this->relMousePosRotY = y / zoom - this->snappedBounds.y;
+
+    // xournalpp-calc: a selection with texts is aligned by the first line of its top left text (its baseline goes on
+    // a writing line of the grid, its left side on a column)
+    this->textAnchor.reset();
+    if (type == CURSOR_SELECTION_MOVE) {
+        const Text* best = nullptr;
+        for (const Element* e: this->getElementsView()) {
+            if (e->getType() != ELEMENT_TEXT) {
+                continue;
+            }
+            const auto* t = dynamic_cast<const Text*>(e);
+            if (t && (!best || t->getOrigin().y < best->getOrigin().y - 1 ||
+                      (std::abs(t->getOrigin().y - best->getOrigin().y) <= 1 && t->getOrigin().x < best->getOrigin().x))) {
+                best = t;
+            }
+        }
+        if (best) {
+            this->textAnchor = std::make_pair(best->getOrigin().x - this->snappedBounds.x,
+                                              best->getOrigin().y + best->firstBaseline() +
+                                                      xoj::calc::BASELINE_LIFT - this->snappedBounds.y);
+        }
+    }
 }
 
 void EditSelection::mouseMove(double mouseX, double mouseY, bool alt) {
@@ -574,7 +597,14 @@ void EditSelection::mouseMove(double mouseX, double mouseY, bool alt) {
         // xournalpp-calc: with "Align to grid", put the anchor point (where the selection was started) on a dot of
         // the alignment grid instead
         if (Control* ctrl = this->view->getXournal()->getControl();
-            this->gridAnchor && this->rotation == 0 && ctrl->isCalcGrid() && !alt) {
+            this->textAnchor && this->rotation == 0 && ctrl->isCalcGrid() && !alt) {
+            const PageRef pg = this->view->getPage();
+            const auto grid = xoj::calc::alignmentGrid(pg->getBackgroundType(), pg->getWidth(), pg->getHeight());
+            const double ax = this->snappedBounds.x + this->textAnchor->first;
+            const double ay = this->snappedBounds.y + this->textAnchor->second;
+            p = Point(cx + grid.snapX(ax + dx) - ax, cy + grid.snapY(ay + dy) - ay);
+        } else if (Control* ctrl = this->view->getXournal()->getControl();
+                   this->gridAnchor && this->rotation == 0 && ctrl->isCalcGrid() && !alt) {
             const PageRef pg = this->view->getPage();
             const auto grid = xoj::calc::alignmentGrid(pg->getBackgroundType(), pg->getWidth(), pg->getHeight());
             const double ax = this->snappedBounds.x + this->gridAnchor->first;

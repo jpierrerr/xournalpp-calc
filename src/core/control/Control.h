@@ -61,6 +61,7 @@ class EditSelection;
 class Element;
 class Layer;
 class Stroke;
+class Text;
 class MainWindow;
 class ObjectInputStream;
 class ScrollHandler;
@@ -318,6 +319,9 @@ public:
     /// If (boxX, boxY) is a point of the box being closed, x is instead the first dot one square after that box, as
     /// displayed once recalculated (a calculation region grows with its results).
     void calcGridGoTo(const PageRef& page, double x, double line, double boxX = -1, double boxY = -1);
+    /// xournalpp-calc: the lines of a calculation region that go past the bottom of its page continue in a region at
+    /// the top of the next page (created if needed). Deferred to the main loop
+    void calcSplitOverflow(const PageRef& page, const Text* text);
     /// xournalpp-calc: finish editing the text box (after the key event that asks for it)
     void calcLeaveTextBox();
     /// xournalpp-calc: recalculate if the document uses Excel, so that changes made in Excel show up at once

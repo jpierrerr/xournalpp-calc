@@ -408,6 +408,36 @@ const char* scriptChar(gunichar c, bool superscript) {
 }
 }  // namespace
 
+namespace {
+/// Whether text is a name that can be defined, with spaces around it ("A_s ", "φ′1", "FS_v")
+bool isDefinableName(const char* text) {
+    std::string_view t(text ? text : "");
+    while (!t.empty() && (t.front() == ' ' || t.front() == '\t')) {
+        t.remove_prefix(1);
+    }
+    while (!t.empty() && (t.back() == ' ' || t.back() == '\t')) {
+        t.remove_suffix(1);
+    }
+    if (t.empty()) {
+        return false;
+    }
+    const gchar* p = t.data();
+    const gchar* end = t.data() + t.size();
+    bool first = true;
+    while (p < end) {
+        gunichar c = g_utf8_get_char(p);
+        const bool ok = g_unichar_isalpha(c) || c == '_' || (!first && (g_unichar_isdigit(c) || c == '\'' ||
+                                                                          c == 0x2032 || c == 0xB4 || c == '.'));
+        if (!ok) {
+            return false;
+        }
+        first = false;
+        p = g_utf8_next_char(p);
+    }
+    return true;
+}
+}  // namespace
+
 void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextEditor* te) {
     gtk_text_buffer_begin_user_action(te->buffer.get());
     std::string inserted;  ///< what was finally typed (str may point to a temporary below)
@@ -495,7 +525,17 @@ void TextEditor::iMCommitCallback(GtkIMContext* context, const gchar* str, TextE
                 } else if (pair('+', '=') || (pair('=', '+') && !afterColon)) {
                     symbol = "≥";
                 } else if (pair('=', '=')) {
-                    symbol = "≔";  // definition
+                    // A definition only after a name ("A_s =="): after an expression ("M_R/M_o ==") the second "="
+                    // is a slip of the finger and is left out
+                    GtkTextIter lineStart = start;
+                    gtk_text_iter_set_line_offset(&lineStart, 0);
+                    auto before = xoj::util::OwnedCString::assumeOwnership(
+                            gtk_text_iter_get_text(&lineStart, &start));
+                    if (isDefinableName(before.get())) {
+                        symbol = "≔";
+                    } else {
+                        symbol = "=";
+                    }
                 } else if (pair('+', '+')) {
                     symbol = ">";
                 } else if (pair('-', '-')) {
@@ -1074,15 +1114,44 @@ bool TextEditor::handleGridNavigation(const KeyEvent& event) {
 
     double nx = x, line = firstLine;
     if (tab) {
+        // Back to the start of the row of boxes this box belongs to (the first box written on its line, to its left),
+        // below the lowest of them
+        double rowBottom = 0;
+        {
+            std::shared_lock lock(*this->control->getDocument());
+            for (auto&& e: this->page->getSelectedLayer()->getElements()) {
+                if (e->getType() != ELEMENT_TEXT || e.get() == t) {
+                    continue;
+                }
+                auto* other = dynamic_cast<Text*>(e.get());
+                if (!other) {
+                    continue;
+                }
+                const double otherFirst =
+                        grid.snapRow(other->getOrigin().y + other->firstBaseline() + xoj::calc::BASELINE_LIFT);
+                const double ox = grid.snapX(other->getOrigin().x);
+                if (std::abs(otherFirst - firstLine) < grid.dy / 2) {
+                    nx = std::min(nx, ox);
+                    {
+                        const auto& bb = other->getBoundingBox();
+                        rowBottom = std::max(rowBottom, bb.y + bb.height);
+                    }
+                }
+            }
+        }
         line = lastLine + lh;
         // Below the denominators of the last line
         while (formula && lh > 0 && line - 0.7 * lh < origin.y + formula->bottom()) {
             line += lh;
         }
+        while (lh > 0 && line - 0.7 * lh < rowBottom) {
+            line += lh;
+        }
     } else if (enter || right) {
         // The next box starts one square to the right (past the right edge: on the next line)
         nx = empty ? x + grid.dx : ahead();
-        line = empty ? firstLine : lastLine;
+        // At the height of the first line of the box (also after a box of several lines)
+        line = firstLine;
     } else if (left) {
         nx = x - grid.dx;
     } else if (up) {  // the arrows move one row of dots
@@ -1727,6 +1796,25 @@ void TextEditor::pasteFromClipboard() {
 }
 
 void TextEditor::bufferPasteDoneCallback(GtkTextBuffer* buffer, GtkClipboard* clipboard, TextEditor* te) {
+    // xournalpp-calc: pasted definitions ("b := 30 cm") turn a plain text into a calculation region, as when they are
+    // typed
+    if (!te->textElement->isCalc()) {
+        const std::string text = cloneToStdString(buffer);
+        size_t pos = 0;
+        while (pos <= text.size()) {
+            size_t end = text.find('\n', pos);
+            std::string_view line(text.data() + pos, (end == std::string::npos ? text.size() : end) - pos);
+            size_t def = std::min(line.find(":="), line.find("≔"));
+            if (def != std::string_view::npos && isDefinableName(std::string(line.substr(0, def)).c_str())) {
+                te->control->getActionDatabase()->fireChangeActionState(Action::CALC_MODE, true);
+                break;
+            }
+            if (end == std::string::npos) {
+                break;
+            }
+            pos = end + 1;
+        }
+    }
     te->contentsChanged(true);
     te->repaintEditor();
 
@@ -2000,6 +2088,9 @@ void TextEditor::finalizeEdition() {
         doc->unlock();
 
         this->page->fireElementChanged(ptr);
+        if (ptr->isCalc()) {
+            this->control->calcSplitOverflow(this->page, ptr);
+        }
 
         if (orig) [[likely]] {
             xoj_assert(orig.get() == this->originalTextElement);
@@ -2020,6 +2111,9 @@ void TextEditor::finalizeEdition() {
         this->viewPool->dispatchAndClear(xoj::view::TextEditionView::FINALIZATION_REQUEST, this->previousBoundingBox);
         this->page->fireElementChanged(ptr);
         undo->addUndoAction(std::make_unique<InsertUndoAction>(page, layer, ptr));
+        if (ptr->isCalc()) {
+            this->control->calcSplitOverflow(this->page, ptr);
+        }
     }
 }
 

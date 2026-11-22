@@ -295,3 +295,15 @@ TEST(CalcEngine, comparisonAfterSubscriptIsNotSubscripted) {
     EXPECT_NE(m.find("<sub>v</sub>"), std::string::npos) << m;
     EXPECT_EQ(m.find("≥3</sub>"), std::string::npos) << m;
 }
+
+TEST(CalcEngine, preferredUnits) {
+    Environment env;
+    auto understood = setPreferredUnits("kN; kN*m, nada_raro");
+    ASSERT_EQ(understood.size(), 2u);
+    EXPECT_EQ(formatQuantity(evaluateExpression("2500 N", env)), "2.5 kN");
+    EXPECT_EQ(formatQuantity(evaluateExpression("3 kN * 2 m", env)), "6 kN·m");
+    EXPECT_EQ(formatQuantity(evaluateExpression("2 m", env)), "2 m");
+    setPreferredUnits("");
+    EXPECT_EQ(formatQuantity(evaluateExpression("2500 N", env)), "2.5 kN");
+    EXPECT_EQ(formatQuantity(evaluateExpression("2 m", env)), "2 m");
+}

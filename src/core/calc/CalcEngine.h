@@ -69,8 +69,15 @@ std::string formatNumber(double v);
 /// Format a dimension with SI units, e.g. "kg·m²/s²"; empty for dimensionless
 std::string formatDim(const Dim& d);
 
-/// Format a quantity in automatically chosen SI units, e.g. "750 N·m"
+/// Format a quantity in automatically chosen SI units, e.g. "750 N·m", or in a preferred unit of its dimension
 std::string formatQuantity(const Quantity& q);
+
+/**
+ * Units in which results are shown when no unit is requested with "?" (set in the preferences), e.g. "kN; kN·m":
+ * a force is then shown in kN (1128.9 kN, not 1.129 MN). Separated by ";" or ",". Units that are not understood are
+ * ignored. Returns the units that were understood
+ */
+std::vector<std::string> setPreferredUnits(std::string_view spec);
 
 /**
  * Link with cells of a spreadsheet (Excel): implemented outside of the engine (see ExcelLink.h), so that the engine

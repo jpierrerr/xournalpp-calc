@@ -351,9 +351,59 @@ static std::string dimName(const Dim& d) {
     return formatDim(d);
 }
 
+namespace {
+std::vector<std::pair<std::string, Quantity>>& preferredUnits() {
+    static std::vector<std::pair<std::string, Quantity>> units;
+    return units;
+}
+}  // namespace
+
+std::vector<std::string> setPreferredUnits(std::string_view spec) {
+    auto& units = preferredUnits();
+    units.clear();
+    std::vector<std::string> understood;
+    size_t start = 0;
+    while (start <= spec.size()) {
+        size_t end = spec.find_first_of(";,", start);
+        if (end == std::string_view::npos) {
+            end = spec.size();
+        }
+        std::string_view item = spec.substr(start, end - start);
+        while (!item.empty() && (item.front() == ' ' || item.front() == '\t')) {
+            item.remove_prefix(1);
+        }
+        while (!item.empty() && (item.back() == ' ' || item.back() == '\t')) {
+            item.remove_suffix(1);
+        }
+        if (!item.empty()) {
+            try {
+                Environment none;
+                Quantity u = evaluateExpression(item, none);
+                if (!u.dim.isDimensionless() && u.value > 0) {
+                    std::string shown(item);
+                    for (size_t p; (p = shown.find('*')) != std::string::npos;) {
+                        shown.replace(p, 1, "·");
+                    }
+                    units.emplace_back(shown, u);
+                    understood.emplace_back(item);
+                }
+            } catch (const std::exception&) {
+                // not a unit: ignored
+            }
+        }
+        start = end + 1;
+    }
+    return understood;
+}
+
 std::string formatQuantity(const Quantity& q) {
     if (q.dim.isDimensionless()) {
         return formatNumber(q.value);
+    }
+    for (const auto& [name, unit]: preferredUnits()) {
+        if (unit.dim == q.dim) {
+            return formatNumber(q.value / unit.value) + " " + name;
+        }
     }
     if (const DisplayUnit* du = findDisplayUnit(q.dim)) {
         double v = q.value;

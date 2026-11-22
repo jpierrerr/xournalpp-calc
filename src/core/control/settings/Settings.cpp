@@ -119,6 +119,7 @@ void Settings::loadDefault() {
     this->autoloadMostRecent = false;
     this->showStartScreen = true;
     this->spellCheck = true;
+    this->calcPreferredUnits = "kN; kN·m";
     this->autoloadPdfXoj = true;
 
     this->stylusCursorType = STYLUS_CURSOR_DOT;
@@ -508,6 +509,8 @@ void Settings::parseItem(xmlDocPtr doc, xmlNodePtr cur) {
         this->showStartScreen = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("spellCheck")) == 0) {
         this->spellCheck = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
+    } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("calcPreferredUnits")) == 0) {
+        this->calcPreferredUnits = reinterpret_cast<const char*>(value);
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("autoloadMostRecent")) == 0) {
         this->autoloadMostRecent = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("autoloadPdfXoj")) == 0) {
@@ -1148,6 +1151,7 @@ void Settings::save() {
     SAVE_BOOL_PROP(autoloadMostRecent);
     SAVE_BOOL_PROP(showStartScreen);
     SAVE_BOOL_PROP(spellCheck);
+    SAVE_STRING_PROP(calcPreferredUnits);
     SAVE_BOOL_PROP(autoloadPdfXoj);
     saveProperty("defaultSaveName", defaultSaveName.empty() ? "" : char_cast(defaultSaveName.c_str()), root);
     saveProperty("defaultPdfExportName", defaultPdfExportName.empty() ? "" : char_cast(defaultPdfExportName.c_str()),
@@ -1768,6 +1772,16 @@ void Settings::setAutoloadMostRecent(bool load) {
 auto Settings::isShowStartScreen() const -> bool { return this->showStartScreen; }
 
 auto Settings::isSpellCheck() const -> bool { return this->spellCheck; }
+
+auto Settings::getCalcPreferredUnits() const -> const std::string& { return this->calcPreferredUnits; }
+
+void Settings::setCalcPreferredUnits(const std::string& units) {
+    if (this->calcPreferredUnits == units) {
+        return;
+    }
+    this->calcPreferredUnits = units;
+    save();
+}
 
 void Settings::setSpellCheck(bool enable) {
     if (this->spellCheck == enable) {

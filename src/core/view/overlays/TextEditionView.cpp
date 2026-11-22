@@ -93,6 +93,13 @@ void TextEditionView::draw(cairo_t* cr) const {
     cairo_rectangle(cr, -relativePadding.x, top - relativePadding.y,
                     boxes.theoreticalSize.width + 2 * relativePadding.x, height + 2 * relativePadding.y);
     cairo_set_matrix(cr, &originalMatrix);  // Reset the matrix before stroking to have the right line width
+    if (this->textEditor->getTextElement()->isCalc()) {
+        // xournalpp-calc: a calculation region has a blue frame, a plain text a grey one (one sees the mode)
+        cairo_set_source_rgb(cr, 0x1c / 255.0, 0x71 / 255.0, 0xd8 / 255.0);
+        cairo_set_line_width(cr, 1.5 * BORDER_WIDTH_IN_PIXELS / zoom);
+    } else {
+        cairo_set_source_rgb(cr, 0.60, 0.60, 0.59);
+    }
     cairo_stroke(cr);
 
     // Draw the text itself

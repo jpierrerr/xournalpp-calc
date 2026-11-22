@@ -107,4 +107,6 @@ private:
     SettingsDialogPaletteTab paletteTab;
 
     std::function<void()> callback;
+
+    GtkWidget* calcUnitsEntry = nullptr;  ///< xournalpp-calc: units in which results are shown
 };

@@ -1124,7 +1124,9 @@ void Formula::layoutLines(const Style& style) {
             const double need = prev.desc + row.asc + 0.12 * em;
             double d = pitch;
             if (need > pitch) {
-                d = style.lineHeight > 0 ? std::ceil(need / pitch - 1e-6) * pitch : need;
+                // On the grid, in steps of half a line (one square): a line with a fraction takes 3 squares, not 4
+                const double step = pitch / 2;
+                d = style.lineHeight > 0 ? std::max(pitch, std::ceil(need / step - 1e-6) * step) : need;
             }
             base += d;
         }

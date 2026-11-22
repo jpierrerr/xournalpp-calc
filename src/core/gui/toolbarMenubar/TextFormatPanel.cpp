@@ -2,16 +2,19 @@
 
 #include <algorithm>
 #include <array>
+#include <map>
 #include <memory>
 #include <vector>
 
 #include "control/Control.h"
+#include "control/ToolHandler.h"
 #include "control/settings/Settings.h"
-#include "model/Font.h"
 #include "control/tools/TextEditor.h"
 #include "enums/Action.enum.h"
 #include "gui/MainWindow.h"
 #include "gui/XournalView.h"
+#include "model/Font.h"
+#include "model/Text.h"
 #include "model/TextAlignment.h"
 #include "model/TextFormat.h"
 #include "util/i18n.h"
@@ -60,6 +63,34 @@ const std::array<ColorChoice, 15> FONT_COLORS{{{"#000000", N_("Black")},
 
 const std::array<double, 16> SIZES{8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72};
 
+/// The next size of the list, up or down
+double nextSize(double s, bool up) {
+    if (up) {
+        for (double v: SIZES) {
+            if (v > s + 0.01) {
+                return v;
+            }
+        }
+        return SIZES.back();
+    }
+    for (auto it = SIZES.rbegin(); it != SIZES.rend(); ++it) {
+        if (*it < s - 0.01) {
+            return *it;
+        }
+    }
+    return SIZES.front();
+}
+
+}  // namespace
+namespace xoj::text {
+void applyPendingFormat(TextEditor* te);
+}
+namespace {
+
+/// Format chosen while no text is being edited: given to the next new (empty) text
+std::map<FormatKind, std::string> pendingFormats;
+const TextEditor* pendingAppliedTo = nullptr;
+
 /// Everything a panel needs; freed with the panel
 struct Panel {
     Control* control = nullptr;
@@ -76,6 +107,42 @@ struct Panel {
 
     TextEditor* editor() const { return control->getTextEditor(); }
 
+    /// Without a text being edited, a choice is kept for the next new text and the text tool is taken
+    void takeTextTool() const {
+        if (control->getToolHandler()->getToolType() != TOOL_TEXT) {
+            control->selectTool(TOOL_TEXT);
+        }
+    }
+    void pendingToggle(FormatKind k, const std::string& value) const {
+        std::string v = value.empty() && k == FormatKind::UNDERLINE ? "single" : value;
+        auto it = pendingFormats.find(k);
+        if (it != pendingFormats.end() && (value.empty() || it->second == v)) {
+            pendingFormats.erase(it);
+        } else {
+            pendingFormats[k] = v;
+        }
+        takeTextTool();
+    }
+    void pendingSet(FormatKind k, const std::optional<std::string>& v) const {
+        if (v) {
+            pendingFormats[k] = *v;
+        } else {
+            pendingFormats.erase(k);
+        }
+        takeTextTool();
+    }
+    void pendingFont(const char* family, double size) const {
+        XojFont f = control->getSettings()->getFont();
+        if (family && *family) {
+            f.setName(family);
+        }
+        if (size > 0) {
+            f.setSize(size);
+        }
+        control->fontChanged(f);
+        takeTextTool();
+    }
+
     /// Give the keyboard back to the page, so that typing goes on in the text
     void refocus() const {
         if (auto* win = control->getWindow(); win) {
@@ -90,7 +157,10 @@ void setMarkup(GtkWidget* label, const std::string& markup) { gtk_label_set_mark
 
 void Panel::update() {
     TextEditor* te = editor();
-    gtk_widget_set_sensitive(root, te != nullptr);
+    gtk_widget_set_sensitive(root, true);  // without a text, choices are kept for the next one
+    if (te) {
+        xoj::text::applyPendingFormat(te);
+    }
     // Font and size: the one being edited, or else the one new text will get (never empty boxes)
     std::string fam;
     double fontSize = 0;
@@ -118,6 +188,11 @@ void Panel::update() {
         }
     }
     if (!te) {
+        for (auto& [w, kv]: toggles) {
+            auto it = pendingFormats.find(kv.first);
+            bool on = it != pendingFormats.end() && (kv.second.empty() || it->second == kv.second);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w), on);
+        }
         updating = false;
         return;
     }
@@ -214,7 +289,8 @@ GtkWidget* listMenuButton(Panel* p, GtkWidget* face, const std::vector<std::stri
         g_object_set_data(G_OBJECT(b), "jm-pick", reinterpret_cast<gpointer>(pick));
         g_object_set_data(G_OBJECT(b), "jm-pop", pop);
         g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, Panel* p) {
-                             auto f = reinterpret_cast<void (*)(Panel*, int)>(g_object_get_data(G_OBJECT(b), "jm-pick"));
+                             auto f =
+                                     reinterpret_cast<void (*)(Panel*, int)>(g_object_get_data(G_OBJECT(b), "jm-pick"));
                              gtk_popover_popdown(GTK_POPOVER(g_object_get_data(G_OBJECT(b), "jm-pop")));
                              f(p, GPOINTER_TO_INT(g_object_get_data(G_OBJECT(b), "jm-index")));
                          }),
@@ -236,9 +312,13 @@ void addToggle(Panel* p, GtkWidget* box, const std::string& markup, const char* 
                          if (p->updating) {
                              return;
                          }
+                         auto kind =
+                                 static_cast<FormatKind>(GPOINTER_TO_INT(g_object_get_data(G_OBJECT(b), "jm-kind")));
+                         const char* value = static_cast<const char*>(g_object_get_data(G_OBJECT(b), "jm-value"));
                          if (auto* te = p->editor(); te) {
-                             te->toggleFormat(static_cast<FormatKind>(GPOINTER_TO_INT(g_object_get_data(G_OBJECT(b), "jm-kind"))),
-                                              static_cast<const char*>(g_object_get_data(G_OBJECT(b), "jm-value")));
+                             te->toggleFormat(kind, value);
+                         } else {
+                             p->pendingToggle(kind, value);
                          }
                          p->refocus();
                          p->update();
@@ -261,9 +341,7 @@ GtkWidget* actionButton(const char* icon, const char* tooltip, Action a, const x
     return b;
 }
 
-void setHighlightFace(Panel* p) {
-    setMarkup(p->highlightLabel, "<span background=\"" + p->highlight + "\">ab</span>");
-}
+void setHighlightFace(Panel* p) { setMarkup(p->highlightLabel, "<span background=\"" + p->highlight + "\">ab</span>"); }
 void setColorFace(Panel* p) {
     setMarkup(p->colorLabel, "<span foreground=\"" + p->fontColor + "\" underline=\"single\" underline_color=\"" +
                                      p->fontColor + "\"><b>A</b></span>");
@@ -297,6 +375,18 @@ GtkWidget* fillFamilies(GtkWidget* combo) {
 
 namespace xoj::text {
 
+void applyPendingFormat(TextEditor* te) {
+    if (!te || te == pendingAppliedTo) {
+        return;
+    }
+    pendingAppliedTo = te;
+    if (auto* t = te->getTextElement(); t && t->getText().empty()) {
+        for (const auto& [k, v]: pendingFormats) {
+            te->applyFormat(k, v);
+        }
+    }
+}
+
 GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
     auto* p = new Panel();
     p->control = control;
@@ -320,12 +410,15 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
         if (p->updating) {
             return;
         }
-        if (gtk_combo_box_get_active(GTK_COMBO_BOX(p->family)) < 0 && !gtk_widget_has_focus(gtk_bin_get_child(GTK_BIN(p->family)))) {
+        if (gtk_combo_box_get_active(GTK_COMBO_BOX(p->family)) < 0 &&
+            !gtk_widget_has_focus(gtk_bin_get_child(GTK_BIN(p->family)))) {
             return;
         }
         const char* t = gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(p->family))));
         if (auto* te = p->editor(); te && t && *t) {
             te->setFormatFamily(t);
+        } else if (!te && t && *t) {
+            p->pendingFont(t, 0);
         }
         p->refocus();
     };
@@ -333,21 +426,26 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
         if (p->updating) {
             return;
         }
-        if (gtk_combo_box_get_active(GTK_COMBO_BOX(p->size)) < 0 && !gtk_widget_has_focus(gtk_bin_get_child(GTK_BIN(p->size)))) {
+        if (gtk_combo_box_get_active(GTK_COMBO_BOX(p->size)) < 0 &&
+            !gtk_widget_has_focus(gtk_bin_get_child(GTK_BIN(p->size)))) {
             return;
         }
         const char* t = gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(p->size))));
         double v = g_ascii_strtod(t, nullptr);
         if (auto* te = p->editor(); te && v > 0) {
             te->setFormatSize(v);
+        } else if (!te && v > 0) {
+            p->pendingFont(nullptr, v);
         }
         p->refocus();
     };
     g_signal_connect(p->family, "changed", G_CALLBACK(applyFamily), p);
-    g_signal_connect(gtk_bin_get_child(GTK_BIN(p->family)), "activate",
-                     G_CALLBACK(+[](GtkEntry*, Panel* p) {
+    g_signal_connect(gtk_bin_get_child(GTK_BIN(p->family)), "activate", G_CALLBACK(+[](GtkEntry*, Panel* p) {
+                         const char* t = gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(p->family))));
                          if (auto* te = p->editor(); te) {
-                             te->setFormatFamily(gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(p->family)))));
+                             te->setFormatFamily(t);
+                         } else {
+                             p->pendingFont(t, 0);
                          }
                          p->refocus();
                      }),
@@ -357,6 +455,8 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
                          double v = g_ascii_strtod(gtk_entry_get_text(e), nullptr);
                          if (auto* te = p->editor(); te && v > 0) {
                              te->setFormatSize(v);
+                         } else if (!te && v > 0) {
+                             p->pendingFont(nullptr, v);
                          }
                          p->refocus();
                      }),
@@ -370,6 +470,8 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
     g_signal_connect(grow, "clicked", G_CALLBACK(+[](GtkButton*, Panel* p) {
                          if (auto* te = p->editor(); te) {
                              te->growFont(true);
+                         } else {
+                             p->pendingFont(nullptr, nextSize(p->control->getSettings()->getFont().getSize(), true));
                          }
                          p->update();
                      }),
@@ -377,6 +479,8 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
     g_signal_connect(shrink, "clicked", G_CALLBACK(+[](GtkButton*, Panel* p) {
                          if (auto* te = p->editor(); te) {
                              te->growFont(false);
+                         } else {
+                             p->pendingFont(nullptr, nextSize(p->control->getSettings()->getFont().getSize(), false));
                          }
                          p->update();
                      }),
@@ -393,12 +497,14 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
         gtk_box_pack_start(GTK_BOX(face), gtk_image_new_from_icon_name("pan-down-symbolic", GTK_ICON_SIZE_MENU), false,
                            false, 0);
         gtk_box_pack_start(GTK_BOX(row1),
-                           listMenuButton(p, face, cases, _("Change case"), +[](Panel* p, int i) {
-                               if (auto* te = p->editor(); te) {
-                                   te->changeCase(static_cast<TextEditor::CaseChange>(i));
-                               }
-                               p->refocus();
-                           }),
+                           listMenuButton(
+                                   p, face, cases, _("Change case"),
+                                   +[](Panel* p, int i) {
+                                       if (auto* te = p->editor(); te) {
+                                           te->changeCase(static_cast<TextEditor::CaseChange>(i));
+                                       }
+                                       p->refocus();
+                                   }),
                            false, false, 0);
         // Clear formatting
         GtkWidget* clear = flatButton(gtk_image_new_from_icon_name("xopp-format-clear", GTK_ICON_SIZE_SMALL_TOOLBAR),
@@ -406,6 +512,8 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
         g_signal_connect(clear, "clicked", G_CALLBACK(+[](GtkButton*, Panel* p) {
                              if (auto* te = p->editor(); te) {
                                  te->clearFormatting();
+                             } else {
+                                 pendingFormats.clear();
                              }
                              p->update();
                          }),
@@ -426,15 +534,19 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
                                         std::string("<span underline=\"double\">") + _("Double underline") + "</span>",
                                         std::string("<span underline=\"error\">") + _("Wavy underline") + "</span>"};
     gtk_box_pack_start(GTK_BOX(fmtRow),
-                       listMenuButton(p, gtk_image_new_from_icon_name("pan-down-symbolic", GTK_ICON_SIZE_MENU),
-                                      underlines, _("Underline style"), +[](Panel* p, int i) {
-                                          static const char* const V[] = {"single", "double", "wave"};
-                                          if (auto* te = p->editor(); te) {
-                                              te->applyFormat(FormatKind::UNDERLINE, std::string(V[i]));
-                                          }
-                                          p->refocus();
-                                          p->update();
-                                      }),
+                       listMenuButton(
+                               p, gtk_image_new_from_icon_name("pan-down-symbolic", GTK_ICON_SIZE_MENU), underlines,
+                               _("Underline style"),
+                               +[](Panel* p, int i) {
+                                   static const char* const V[] = {"single", "double", "wave"};
+                                   if (auto* te = p->editor(); te) {
+                                       te->applyFormat(FormatKind::UNDERLINE, std::string(V[i]));
+                                   } else {
+                                       p->pendingSet(FormatKind::UNDERLINE, std::string(V[i]));
+                                   }
+                                   p->refocus();
+                                   p->update();
+                               }),
                        false, false, 0);
     if (!mini) {
         addToggle(p, fmtRow, "<s>ab</s>", _("Strikethrough"), FormatKind::STRIKE, "1");
@@ -450,24 +562,29 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
     g_signal_connect(hl, "clicked", G_CALLBACK(+[](GtkButton*, Panel* p) {
                          if (auto* te = p->editor(); te) {
                              te->applyFormat(FormatKind::BACKGROUND, p->highlight);
+                         } else {
+                             p->pendingSet(FormatKind::BACKGROUND, p->highlight);
                          }
                          p->refocus();
                      }),
                      p);
     gtk_box_pack_start(GTK_BOX(fmtRow), hl, false, false, 0);
     gtk_box_pack_start(GTK_BOX(fmtRow),
-                       colorMenuButton(p, HIGHLIGHTS.data(), HIGHLIGHTS.size(), _("No color"),
-                                       _("Text highlight color"), +[](Panel* p, const std::string& c) {
-                                           if (!c.empty()) {
-                                               p->highlight = c;
-                                               setHighlightFace(p);
-                                           }
-                                           if (auto* te = p->editor(); te) {
-                                               te->applyFormat(FormatKind::BACKGROUND,
-                                                               c.empty() ? std::nullopt : std::optional(c));
-                                           }
-                                           p->refocus();
-                                       }),
+                       colorMenuButton(
+                               p, HIGHLIGHTS.data(), HIGHLIGHTS.size(), _("No color"), _("Text highlight color"),
+                               +[](Panel* p, const std::string& c) {
+                                   if (!c.empty()) {
+                                       p->highlight = c;
+                                       setHighlightFace(p);
+                                   }
+                                   auto v = c.empty() ? std::nullopt : std::optional(c);
+                                   if (auto* te = p->editor(); te) {
+                                       te->applyFormat(FormatKind::BACKGROUND, v);
+                                   } else {
+                                       p->pendingSet(FormatKind::BACKGROUND, v);
+                                   }
+                                   p->refocus();
+                               }),
                        false, false, 0);
     p->colorLabel = markupLabel("");
     setColorFace(p);
@@ -475,24 +592,29 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
     g_signal_connect(fc, "clicked", G_CALLBACK(+[](GtkButton*, Panel* p) {
                          if (auto* te = p->editor(); te) {
                              te->applyFormat(FormatKind::FOREGROUND, p->fontColor);
+                         } else {
+                             p->pendingSet(FormatKind::FOREGROUND, p->fontColor);
                          }
                          p->refocus();
                      }),
                      p);
     gtk_box_pack_start(GTK_BOX(fmtRow), fc, false, false, 0);
     gtk_box_pack_start(GTK_BOX(fmtRow),
-                       colorMenuButton(p, FONT_COLORS.data(), FONT_COLORS.size(), _("Automatic"), _("Font color"),
-                                       +[](Panel* p, const std::string& c) {
-                                           if (!c.empty()) {
-                                               p->fontColor = c;
-                                               setColorFace(p);
-                                           }
-                                           if (auto* te = p->editor(); te) {
-                                               te->applyFormat(FormatKind::FOREGROUND,
-                                                               c.empty() ? std::nullopt : std::optional(c));
-                                           }
-                                           p->refocus();
-                                       }),
+                       colorMenuButton(
+                               p, FONT_COLORS.data(), FONT_COLORS.size(), _("Automatic"), _("Font color"),
+                               +[](Panel* p, const std::string& c) {
+                                   if (!c.empty()) {
+                                       p->fontColor = c;
+                                       setColorFace(p);
+                                   }
+                                   auto v = c.empty() ? std::nullopt : std::optional(c);
+                                   if (auto* te = p->editor(); te) {
+                                       te->applyFormat(FormatKind::FOREGROUND, v);
+                                   } else {
+                                       p->pendingSet(FormatKind::FOREGROUND, v);
+                                   }
+                                   p->refocus();
+                               }),
                        false, false, 0);
 
     // Alignment (the actions of the whole text)
@@ -511,8 +633,8 @@ GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini) {
                                     xoj::util::makeGVariantSPtr(TextAlignment::RIGHT)),
                        false, false, 0);
     gtk_box_pack_start(GTK_BOX(alignRow),
-                       actionButton("xopp-format-justify-fill", _("Justify text"), Action::TEXT_JUSTIFY, {}), false, false,
-                       0);
+                       actionButton("xopp-format-justify-fill", _("Justify text"), Action::TEXT_JUSTIFY, {}), false,
+                       false, 0);
 
     GtkWidget* root = gtk_box_new(horizontal ? GTK_ORIENTATION_VERTICAL : GTK_ORIENTATION_VERTICAL, 0);
     gtk_box_pack_start(GTK_BOX(root), row1, false, false, 0);
@@ -588,7 +710,8 @@ void showTextContextMenu(Control* control, GtkWidget* parent, double x, double y
         g_object_set_data(G_OBJECT(b), "jm-run", reinterpret_cast<gpointer>(e.run));
         g_object_set_data(G_OBJECT(b), "jm-pop", pop);
         g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, Control* control) {
-                             auto run = reinterpret_cast<void (*)(TextEditor*)>(g_object_get_data(G_OBJECT(b), "jm-run"));
+                             auto run =
+                                     reinterpret_cast<void (*)(TextEditor*)>(g_object_get_data(G_OBJECT(b), "jm-run"));
                              gtk_popover_popdown(GTK_POPOVER(g_object_get_data(G_OBJECT(b), "jm-pop")));
                              if (auto* te = control->getTextEditor(); te) {
                                  run(te);
@@ -618,7 +741,8 @@ void showTextContextMenu(Control* control, GtkWidget* parent, double x, double y
 
 }  // namespace xoj::text
 
-TextFormatToolItem::TextFormatToolItem(Control* control): AbstractToolItem("TEXT_FORMAT", Category::TOOLS), control(control) {}
+TextFormatToolItem::TextFormatToolItem(Control* control):
+        AbstractToolItem("TEXT_FORMAT", Category::TOOLS), control(control) {}
 
 std::string TextFormatToolItem::getToolDisplayName() const { return _("Text format (font, bold, colors, alignment)"); }
 

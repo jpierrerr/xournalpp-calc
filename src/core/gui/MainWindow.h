@@ -172,6 +172,9 @@ private:
     ToolbarData* selectedToolbar = nullptr;
 
     std::unique_ptr<Menubar> menubar;
+    /// xournalpp-calc: the menu inside the window's own title bar (logo, menu, file name, window buttons)
+    GtkWidget* headerMenubar = nullptr;
+    void createHeaderBar(GladeSearchpath* gladeSearchPath);
 
     bool maximized = false;
     bool darkMode = false;

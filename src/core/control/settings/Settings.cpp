@@ -903,9 +903,10 @@ auto Settings::load() -> bool {
     // default toolbar). A customized copy of the default toolbar is kept and can still be chosen from the menu.
     if (this->jackmathUiVersion < 1) {
         this->iconTheme = ICON_THEME_LUCIDE;
-        if (this->selectedToolbar == std::string(DEFAULT_TOOLBAR) + "_custom") {
-            this->selectedToolbar = DEFAULT_TOOLBAR;
-        }
+    }
+    if (this->jackmathUiVersion < JACKMATH_UI_VERSION &&
+        this->selectedToolbar == std::string(DEFAULT_TOOLBAR) + "_custom") {
+        this->selectedToolbar = DEFAULT_TOOLBAR;  // the default toolbar changed (2: text button next to its format)
     }
     this->jackmathUiVersion = JACKMATH_UI_VERSION;
 

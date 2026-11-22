@@ -292,3 +292,70 @@ toolbar separator:not(.spacer) {
 .darkMode toolbar button:active { background-color: #3a434e; }
 .darkMode toolbar button:hover:not(:checked) { background-color: #2f363f; }
 .darkMode toolbar separator:not(.spacer) { background-color: #4a525c; }
+
+/* Xournal JackMath: font and size boxes of the text format block, white and rounded */
+toolbar combobox entry {
+  background-color: #ffffff;
+  background-image: none;
+  border: 1px solid #d5dbe1;
+  box-shadow: none;
+  min-height: 22px;
+  color: #2b3440;
+}
+toolbar combobox entry {
+  border-right-width: 0;
+  border-radius: 6px 0 0 6px;
+  padding: 0 8px;
+}
+toolbar combobox box.linked > button.combo,
+toolbar combobox box.linked > button.combo:not(:checked):not(:active):not(:hover) {
+  border: 1px solid #d5dbe1;
+  border-left-width: 0;
+  border-radius: 0 6px 6px 0;
+  background-color: #ffffff;
+  background-image: none;
+  box-shadow: none;
+  padding: 0 4px;
+  color: #566d86;
+}
+toolbar combobox box.linked > button.combo:hover { background-color: #eef2f6; }
+toolbar combobox entry:focus { border-color: #8aa0b6; }
+.darkMode toolbar combobox entry,
+.darkMode toolbar combobox box.linked > button.combo,
+.darkMode toolbar combobox box.linked > button.combo:not(:checked):not(:active):not(:hover) { background-color: #262b31; border-color: #4a525c; color: #e3e6ea; }
+
+/* The Text tool, next to its format block and a bit bigger */
+#jm-TEXT { min-width: 40px; min-height: 46px; margin-right: 4px; }
+#jm-TEXT image { -gtk-icon-transform: scale(1.3); }
+
+/* Title bar of the window: logo, menu, file name and window buttons in one light strip */
+headerbar.jm-headerbar {
+  background-color: #f6f6f6;
+  background-image: none;
+  border-bottom: 1px solid #e6e9ed;
+  box-shadow: none;
+  min-height: 34px;
+  padding: 0 0 0 8px;
+}
+headerbar.jm-headerbar .title { color: #8a97a6; font-size: 12px; font-weight: normal; }
+headerbar.jm-headerbar .jm-logo { margin-right: 4px; }
+headerbar.jm-headerbar menubar { background: transparent; box-shadow: none; border: none; padding: 0; }
+headerbar.jm-headerbar menubar > menuitem { padding: 4px 9px; border-radius: 6px; color: #3b4652; }
+headerbar.jm-headerbar menubar > menuitem:hover { background-color: #e6ebf0; }
+headerbar.jm-headerbar button.titlebutton {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  padding: 0 14px;
+  min-height: 34px;
+  margin: 0;
+  color: #3b4652;
+}
+headerbar.jm-headerbar button.titlebutton:hover { background-color: #e6ebf0; }
+headerbar.jm-headerbar button.titlebutton.close:hover { background-color: #e81123; color: #ffffff; }
+.darkMode headerbar.jm-headerbar { background-color: #23272d; border-bottom-color: #353b42; }
+.darkMode headerbar.jm-headerbar menubar > menuitem { color: #d7dce1; }
+.darkMode headerbar.jm-headerbar menubar > menuitem:hover,
+.darkMode headerbar.jm-headerbar button.titlebutton:hover { background-color: #343b44; }
+.darkMode headerbar.jm-headerbar button.titlebutton { color: #d7dce1; }

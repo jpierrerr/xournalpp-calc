@@ -159,6 +159,7 @@ void MainWindow::populate(GladeSearchpath* gladeSearchPath) {
 
     toolbar->populate(gladeSearchPath);
     menubar->populate(gladeSearchPath, this);
+    createHeaderBar(gladeSearchPath);
 
     // need to create tool buttons registered in plugins, so they can be added to toolbars
     control->registerPluginToolButtons(this->toolbar.get());
@@ -618,7 +619,35 @@ void MainWindow::setToolbarVisible(bool visible) {
 }
 
 void MainWindow::setMenubarVisible(bool visible) {
-    gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(this->getWindow()), visible);
+    // xournalpp-calc: the menu lives in the title bar (see createHeaderBar), never in a row of its own
+    gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(this->getWindow()), false);
+    if (headerMenubar) {
+        gtk_widget_set_visible(headerMenubar, visible);
+    }
+}
+
+void MainWindow::createHeaderBar(GladeSearchpath* gladeSearchPath) {
+    // One light strip instead of the system title bar plus the menu bar: logo, menu, file name, window buttons
+    GtkWidget* hb = gtk_header_bar_new();
+    gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(hb), true);
+    gtk_header_bar_set_decoration_layout(GTK_HEADER_BAR(hb), ":minimize,maximize,close");
+    gtk_header_bar_set_has_subtitle(GTK_HEADER_BAR(hb), false);
+    gtk_style_context_add_class(gtk_widget_get_style_context(hb), "jm-headerbar");
+
+    auto logo = gladeSearchPath->getFirstSearchPath() / "pixmaps" / "com.github.xournalpp.xournalpp.png";
+    if (GdkPixbuf* pb = gdk_pixbuf_new_from_file_at_size(char_cast(logo.u8string().c_str()), 22, 22, nullptr)) {
+        GtkWidget* img = gtk_image_new_from_pixbuf(pb);
+        g_object_unref(pb);
+        gtk_style_context_add_class(gtk_widget_get_style_context(img), "jm-logo");
+        gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), img);
+    }
+    headerMenubar = gtk_menu_bar_new_from_model(getMenuModel());
+    gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), headerMenubar);
+
+    gtk_widget_show_all(hb);
+    gtk_window_set_titlebar(GTK_WINDOW(this->window), hb);
+    gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(this->window), false);
+    gtk_widget_set_visible(headerMenubar, control->getSettings()->isMenubarVisible());
 }
 
 void MainWindow::setMaximized(bool maximized) { this->maximized = maximized; }

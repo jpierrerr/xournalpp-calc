@@ -1,5 +1,7 @@
 #include "PageView.h"
 
+#include "gui/toolbarMenubar/TextFormatPanel.h"  // for applyPendingFormat
+
 #include <algorithm>  // for max, find_if
 #include <cinttypes>  // for int64_t
 #include <cstdint>    // for int64_t
@@ -187,6 +189,7 @@ void XojPageView::startText(double x, double y) {
 
     if (this->textEditor == nullptr) {
         this->textEditor = std::make_unique<TextEditor>(xournal->getControl(), page, xournal->getWidget(), x, y);
+        xoj::text::applyPendingFormat(this->textEditor.get());  // format chosen before clicking (xournalpp-calc)
         this->overlayViews.emplace_back(std::make_unique<xoj::view::TextEditionView>(this->textEditor.get(), this));
     }
 }

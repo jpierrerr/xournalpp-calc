@@ -16,11 +16,16 @@
 
 class Control;
 
+class TextEditor;
+
 namespace xoj::text {
 
 /// The block of format buttons. They act on the text being edited and follow the format at its cursor.
 /// mini: the short version shown with the right-click menu
 GtkWidget* createFormatPanel(Control* control, bool horizontal, bool mini);
+
+/// Gives a new (empty) text the format chosen in the block while no text was being edited
+void applyPendingFormat(TextEditor* editor);
 
 /// Right click in the text being edited: format buttons, cut, copy and paste. (x, y): in the coordinates of `parent`
 void showTextContextMenu(Control* control, GtkWidget* parent, double x, double y);

@@ -34,6 +34,7 @@ auto ToolButton::createItem(bool horizontal) -> xoj::util::WidgetSPtr {
     gtk_widget_set_can_focus(btn, false);  // todo(gtk4) not necessary anymore
     gtk_button_set_child(GTK_BUTTON(btn), getNewToolIcon());
     gtk_widget_set_tooltip_text(btn, getToolDisplayName().c_str());
+    gtk_widget_set_name(btn, ("jm-" + getId()).c_str());  // xournalpp-calc: lets the CSS style single buttons
     gtk_actionable_set_action_name(GTK_ACTIONABLE(btn), (std::string("win.") + Action_toString(action)).c_str());
     if (target) {
         gtk_actionable_set_action_target_value(GTK_ACTIONABLE(btn), target.get());

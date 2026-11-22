@@ -15,8 +15,10 @@ class Control;
 
 namespace xoj::start {
 
-/// Shows the start screen over the main window (does nothing if it is already shown)
-void show(Control* control);
+/// Shows the start screen over the main window (does nothing if it is already shown).
+/// backstage: opened from "File" with a document in use (like Word): a format makes a new document, and the side
+/// panel also has Back, Save, Save as, Export as PDF, Print and Quit
+void show(Control* control, bool backstage = false);
 
 /// Removes the start screen, leaving the current document as it is
 void close();

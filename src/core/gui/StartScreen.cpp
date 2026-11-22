@@ -42,6 +42,7 @@ struct RecentEntry {
 
 struct State {
     Control* control = nullptr;
+    bool backstage = false;
     GtkWidget* screen = nullptr;
     GtkWidget* recentList = nullptr;
     GtkWidget* search = nullptr;
@@ -98,7 +99,7 @@ void addClass(GtkWidget* w, const char* cssClass) {
     gtk_style_context_add_class(gtk_widget_get_style_context(w), cssClass);
 }
 
-auto navButton(const char* iconName, const std::string& text, GCallback cb) -> GtkWidget* {
+auto navButton(const char* iconName, const std::string& text, GCallback cb, gpointer data = nullptr) -> GtkWidget* {
     GtkWidget* b = gtk_button_new();
     gtk_button_set_relief(GTK_BUTTON(b), GTK_RELIEF_NONE);
     addClass(b, "jm-nav-item");
@@ -106,7 +107,7 @@ auto navButton(const char* iconName, const std::string& text, GCallback cb) -> G
     gtk_box_pack_start(GTK_BOX(box), icon(iconName), false, false, 0);
     gtk_box_pack_start(GTK_BOX(box), label(text), false, false, 0);
     gtk_container_add(GTK_CONTAINER(b), box);
-    g_signal_connect(b, "clicked", cb, nullptr);
+    g_signal_connect(b, "clicked", cb, data);
     return b;
 }
 
@@ -164,12 +165,32 @@ void openFile(const fs::path& p) {
     control->openFile(p);
 }
 
-void applyFormat(PageType pt) {  // a copy: the button holding the original goes away in close()
-    Control* control = st->control;
-    close();
+void setFormat(Control* control, const PageType& pt) {
     control->getPageBackgroundChangeController()->changeCurrentPageBackground(pt);
     // A new sheet with the chosen format is not a change to be undone or saved
     control->getUndoRedoHandler()->clearContents();
+}
+
+void applyFormat(PageType pt) {  // a copy: the button holding the original goes away in close()
+    Control* control = st->control;
+    const bool backstage = st->backstage;
+    close();
+    if (backstage) {
+        // From "File": a new document with this format (asking first to save the one in use)
+        control->newFile({}, [control, pt]() { setFormat(control, pt); });
+    } else {
+        setFormat(control, pt);
+    }
+}
+
+/// A side panel button that closes the screen and runs an action of the program
+auto actionButton(const char* iconName, const std::string& text, Action action) -> GtkWidget* {
+    return navButton(iconName, text, G_CALLBACK(+[](GtkButton*, gpointer a) {
+                         Control* c = st->control;
+                         close();
+                         c->getActionDatabase()->fireActivateAction(static_cast<Action>(GPOINTER_TO_INT(a)));
+                     }),
+                     GINT_TO_POINTER(static_cast<int>(action)));
 }
 
 auto formatCard(const PageTypeInfo& info) -> GtkWidget* {
@@ -335,10 +356,22 @@ auto buildNav() -> GtkWidget* {
     gtk_box_pack_start(GTK_BOX(brand), names, false, false, 0);
     gtk_box_pack_start(GTK_BOX(nav), brand, false, false, 0);
 
-    GtkWidget* newBtn = navButton("xopp-document-new", _("New"), G_CALLBACK(+[](GtkButton*, gpointer) { close(); }));
-    addClass(newBtn, "active");
-    gtk_widget_set_tooltip_text(newBtn, _("Blank sheet as it is now (Esc)"));
-    gtk_box_pack_start(GTK_BOX(nav), newBtn, false, false, 0);
+    if (st->backstage) {
+        GtkWidget* back =
+                navButton("xopp-start-back", _("Go back"), G_CALLBACK(+[](GtkButton*, gpointer) { close(); }));
+        gtk_widget_set_tooltip_text(back, _("Back to the document (Esc)"));
+        addClass(back, "jm-nav-back");
+        gtk_box_pack_start(GTK_BOX(nav), back, false, false, 0);
+        GtkWidget* newBtn = actionButton("xopp-document-new", _("New"), Action::NEW_FILE);
+        gtk_widget_set_tooltip_text(newBtn, _("New blank document (or choose a format on the right)"));
+        gtk_box_pack_start(GTK_BOX(nav), newBtn, false, false, 0);
+    } else {
+        GtkWidget* newBtn =
+                navButton("xopp-document-new", _("New"), G_CALLBACK(+[](GtkButton*, gpointer) { close(); }));
+        addClass(newBtn, "active");
+        gtk_widget_set_tooltip_text(newBtn, _("Blank sheet as it is now (Esc)"));
+        gtk_box_pack_start(GTK_BOX(nav), newBtn, false, false, 0);
+    }
     gtk_box_pack_start(GTK_BOX(nav), navButton("xopp-document-open", _("Open…"), G_CALLBACK(+[](GtkButton*, gpointer) {
                                                    Control* c = st->control;
                                                    close();
@@ -356,6 +389,19 @@ auto buildNav() -> GtkWidget* {
                                                    gtk_widget_grab_focus(st->search);
                                                })),
                        false, false, 0);
+    if (st->backstage) {
+        GtkWidget* sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+        addClass(sep, "jm-nav-sep");
+        gtk_box_pack_start(GTK_BOX(nav), sep, false, false, 0);
+        gtk_box_pack_start(GTK_BOX(nav), actionButton("xopp-document-save", _("Save"), Action::SAVE), false, false, 0);
+        gtk_box_pack_start(GTK_BOX(nav), actionButton("xopp-start-save-as", _("Save as…"), Action::SAVE_AS), false,
+                           false, 0);
+        gtk_box_pack_start(GTK_BOX(nav),
+                           actionButton("xopp-document-export-pdf", _("Export as PDF…"), Action::EXPORT_AS_PDF), false,
+                           false, 0);
+        gtk_box_pack_start(GTK_BOX(nav), actionButton("xopp-document-print", _("Print…"), Action::PRINT), false, false,
+                           0);
+    }
 
     GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_box_pack_start(GTK_BOX(nav), spacer, true, true, 0);
@@ -378,6 +424,9 @@ auto buildNav() -> GtkWidget* {
                                      st->control->getActionDatabase()->fireActivateAction(Action::PREFERENCES);
                                  })),
                        false, false, 0);
+    if (st->backstage) {
+        gtk_box_pack_start(GTK_BOX(nav), actionButton("xopp-start-quit", _("Quit"), Action::QUIT), false, false, 0);
+    }
 
     GtkWidget* check = gtk_check_button_new_with_label(_("Show at startup"));
     addClass(check, "jm-dim");
@@ -512,7 +561,7 @@ auto buildMain() -> GtkWidget* {
 
 }  // namespace
 
-void show(Control* control) {
+void show(Control* control, bool backstage) {
     if (st) {
         return;
     }
@@ -523,13 +572,22 @@ void show(Control* control) {
     }
     st = new State();
     st->control = control;
+    st->backstage = backstage;
     st->pinned = loadPinned();
 
     st->screen = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     addClass(st->screen, "jm-start");
     gtk_widget_set_halign(st->screen, GTK_ALIGN_FILL);
     gtk_widget_set_valign(st->screen, GTK_ALIGN_FILL);
-    gtk_box_pack_start(GTK_BOX(st->screen), buildNav(), false, false, 0);
+    // The side panel scrolls when the window is too low for all its entries
+    GtkWidget* navScroll = gtk_scrolled_window_new(nullptr, nullptr);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(navScroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_scrolled_window_set_propagate_natural_width(GTK_SCROLLED_WINDOW(navScroll), true);
+    gtk_container_add(GTK_CONTAINER(navScroll), buildNav());
+    if (GtkWidget* vp = gtk_bin_get_child(GTK_BIN(navScroll))) {
+        gtk_viewport_set_shadow_type(GTK_VIEWPORT(vp), GTK_SHADOW_NONE);
+    }
+    gtk_box_pack_start(GTK_BOX(st->screen), navScroll, false, false, 0);
     gtk_box_pack_start(GTK_BOX(st->screen), buildMain(), true, true, 0);
 
     gtk_overlay_add_overlay(GTK_OVERLAY(overlay), st->screen);

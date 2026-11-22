@@ -5272,3 +5272,24 @@ msgstr "Buscar en recientes"
 
 msgid "No recent files yet."
 msgstr "Aún no hay archivos recientes."
+
+msgid "Go back"
+msgstr "Volver"
+
+msgid "Back to the document (Esc)"
+msgstr "Volver al documento (Esc)"
+
+msgid "New blank document (or choose a format on the right)"
+msgstr "Documento nuevo en blanco (o elige un formato a la derecha)"
+
+msgid "Save as…"
+msgstr "Guardar como…"
+
+msgid "Export as PDF…"
+msgstr "Exportar a PDF…"
+
+msgid "Print…"
+msgstr "Imprimir…"
+
+msgid "New, open, save, export and print"
+msgstr "Nuevo, abrir, guardar, exportar e imprimir"

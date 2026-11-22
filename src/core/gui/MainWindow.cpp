@@ -21,7 +21,7 @@
 #include "gui/GladeGui.h"                               // for GladeGui
 #include "gui/PdfFloatingToolbox.h"                     // for PdfFloatingToolbox
 #include "gui/SearchBar.h"                              // for SearchBar
-#include "gui/StartScreen.h"  // for xoj::start::handleKey
+#include "gui/StartScreen.h"                            // for xoj::start::handleKey
 #include "gui/inputdevices/InputEvents.h"               // for INPUT_DEVICE_TOUC...
 #include "gui/menus/menubar/Menubar.h"                  // for Menubar
 #include "gui/menus/menubar/ToolbarSelectionSubmenu.h"  // for ToolbarSelectionSubmenu
@@ -641,7 +641,35 @@ void MainWindow::createHeaderBar(GladeSearchpath* gladeSearchPath) {
         gtk_style_context_add_class(gtk_widget_get_style_context(img), "jm-logo");
         gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), img);
     }
-    headerMenubar = gtk_menu_bar_new_from_model(getMenuModel());
+    // "File" opens the start screen (like the backstage in Word) instead of a list: the menu goes on without it
+    GMenuModel* model = getMenuModel();
+    GMenu* rest = g_menu_new();
+    for (int i = 1; i < g_menu_model_get_n_items(model); i++) {
+        GMenuItem* item = g_menu_item_new_from_model(model, i);
+        g_menu_append_item(rest, item);
+        g_object_unref(item);
+    }
+    GtkWidget* menus = gtk_menu_bar_new_from_model(G_MENU_MODEL(rest));
+    g_object_unref(rest);
+
+    GtkWidget* fileBtn = gtk_button_new_with_mnemonic(_("_File"));
+    gtk_button_set_relief(GTK_BUTTON(fileBtn), GTK_RELIEF_NONE);
+    gtk_widget_set_focus_on_click(fileBtn, false);
+    gtk_style_context_add_class(gtk_widget_get_style_context(fileBtn), "jm-file-button");
+    gtk_widget_set_tooltip_text(fileBtn, _("New, open, save, export and print"));
+    g_signal_connect(fileBtn, "clicked", G_CALLBACK(+[](GtkButton*, Control* ctrl) {
+                         if (xoj::start::isShown()) {
+                             xoj::start::close();
+                         } else {
+                             xoj::start::show(ctrl, true);
+                         }
+                     }),
+                     control);
+
+    headerMenubar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_valign(fileBtn, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(headerMenubar), fileBtn, false, false, 0);
+    gtk_box_pack_start(GTK_BOX(headerMenubar), menus, false, false, 0);
     gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), headerMenubar);
 
     gtk_widget_show_all(hb);

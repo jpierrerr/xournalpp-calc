@@ -53,12 +53,12 @@
 #include "gui/dialog/ExportDialog.h"                             // for ExportDialog
 #include "gui/dialog/FormatDialog.h"                             // for Form...
 #include "gui/dialog/GotoDialog.h"                               // for Goto...
-#include "gui/dialog/ToolbarEditorDialog.h"                      // for ToolbarEditorDialog
 #include "gui/dialog/GreekPalette.h"                             // for GreekPalette
 #include "gui/dialog/PageTemplateDialog.h"                       // for Page...
 #include "gui/dialog/SelectBackgroundColorDialog.h"              // for Sele...
 #include "gui/dialog/SelectOpacityDialog.h"                      // for Opac...
 #include "gui/dialog/SettingsDialog.h"                           // for Sett...
+#include "gui/dialog/ToolbarEditorDialog.h"                      // for ToolbarEditorDialog
 #include "gui/dialog/ToolbarManageDialog.h"                      // for Tool...
 #include "gui/dialog/XojOpenDlg.h"                               // for XojO...
 #include "gui/dialog/XojSaveDlg.h"                               // for XojS...
@@ -1475,14 +1475,14 @@ void Control::toolChanged() {
     this->actionDB->setActionState(Action::SELECT_TOOL, type);
     this->fireTextFormatChanged();
 
-    this->actionDB->enableAction(Action::TOOL_DRAW_LINE, toolHandler->hasCapability(TOOL_CAP_RULER));
-    this->actionDB->enableAction(Action::TOOL_DRAW_RECTANGLE, toolHandler->hasCapability(TOOL_CAP_RECTANGLE));
-    this->actionDB->enableAction(Action::TOOL_DRAW_ELLIPSE, toolHandler->hasCapability(TOOL_CAP_ELLIPSE));
-    this->actionDB->enableAction(Action::TOOL_DRAW_ARROW, toolHandler->hasCapability(TOOL_CAP_ARROW));
-    this->actionDB->enableAction(Action::TOOL_DRAW_DOUBLE_ARROW, toolHandler->hasCapability(TOOL_CAP_DOUBLE_ARROW));
-    this->actionDB->enableAction(Action::TOOL_DRAW_COORDINATE_SYSTEM, toolHandler->hasCapability(TOOL_CAP_ARROW));
-    this->actionDB->enableAction(Action::TOOL_DRAW_SPLINE, toolHandler->hasCapability(TOOL_CAP_SPLINE));
-    this->actionDB->enableAction(Action::TOOL_DRAW_SHAPE_RECOGNIZER, toolHandler->hasCapability(TOOL_CAP_RECOGNIZER));
+    // xournalpp-calc: the pen options (shapes, recognizer, fill, thickness, color) stay usable with any tool:
+    // choosing one with a tool that lacks it takes the pen along with the option (see ActionProperties)
+    for (Action a: {Action::TOOL_DRAW_LINE, Action::TOOL_DRAW_RECTANGLE, Action::TOOL_DRAW_ELLIPSE,
+                    Action::TOOL_DRAW_ARROW, Action::TOOL_DRAW_DOUBLE_ARROW, Action::TOOL_DRAW_COORDINATE_SYSTEM,
+                    Action::TOOL_DRAW_SPLINE, Action::TOOL_DRAW_SHAPE_RECOGNIZER, Action::TOOL_SIZE, Action::TOOL_FILL,
+                    Action::TOOL_COLOR, Action::SELECT_COLOR}) {
+        this->actionDB->enableAction(a, true);
+    }
 
     DrawingType dt = toolHandler->getDrawingType();
     this->actionDB->setActionState(Action::TOOL_DRAW_LINE, dt == DRAWING_TYPE_LINE);
@@ -1494,26 +1494,24 @@ void Control::toolChanged() {
     this->actionDB->setActionState(Action::TOOL_DRAW_SPLINE, dt == DRAWING_TYPE_SPLINE);
     this->actionDB->setActionState(Action::TOOL_DRAW_SHAPE_RECOGNIZER, dt == DRAWING_TYPE_SHAPE_RECOGNIZER);
 
-    bool enableSize = toolHandler->hasCapability(TOOL_CAP_SIZE);
-    this->actionDB->enableAction(Action::TOOL_SIZE, enableSize);
-    if (enableSize) {
+    if (toolHandler->hasCapability(TOOL_CAP_SIZE)) {
         toolSizeChanged();
+    } else {
+        this->actionDB->setActionState(Action::TOOL_SIZE, TOOL_SIZE_NONE);
     }
 
     // Set or reset the lineStyle
     toolLineStyleChanged();
 
     bool enableFill = toolHandler->hasCapability(TOOL_CAP_FILL);
-    this->actionDB->enableAction(Action::TOOL_FILL, enableFill);
     this->actionDB->enableAction(Action::TOOL_FILL_OPACITY, enableFill);
     if (enableFill) {
         toolFillChanged();
+    } else {
+        this->actionDB->setActionState(Action::TOOL_FILL, false);
     }
 
-    bool enableColor = toolHandler->hasCapability(TOOL_CAP_COLOR);
-    this->actionDB->enableAction(Action::TOOL_COLOR, enableColor);
-    this->actionDB->enableAction(Action::SELECT_COLOR, enableColor);
-    if (enableColor) {
+    if (toolHandler->hasCapability(TOOL_CAP_COLOR)) {
         toolColorChanged();
     }
 
@@ -1792,11 +1790,14 @@ static std::unique_ptr<Document> createNewDocument(Control* ctrl, fs::path filep
     return newDoc;
 }
 
-void Control::newFile(fs::path filepath) {
+void Control::newFile(fs::path filepath, std::function<void()> afterNew) {
     this->close(
-            [ctrl = this, filepath = std::move(filepath)](bool closed) {
+            [ctrl = this, filepath = std::move(filepath), afterNew = std::move(afterNew)](bool closed) {
                 if (closed) {
                     ctrl->replaceDocument(createNewDocument(ctrl, std::move(filepath), std::nullopt), -1);
+                    if (afterNew) {
+                        afterNew();
+                    }
                 }
             },
             true);

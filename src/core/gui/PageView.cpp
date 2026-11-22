@@ -1,7 +1,5 @@
 #include "PageView.h"
 
-#include "gui/toolbarMenubar/TextFormatPanel.h"  // for applyPendingFormat
-
 #include <algorithm>  // for max, find_if
 #include <cinttypes>  // for int64_t
 #include <cstdint>    // for int64_t
@@ -55,6 +53,7 @@
 #include "gui/SearchBar.h"                          // for SearchBar
 #include "gui/inputdevices/PositionInputData.h"     // for PositionInputData
 #include "gui/scroll/ScrollHandling.h"              // for ScrollHandling
+#include "gui/toolbarMenubar/TextFormatPanel.h"     // for applyPendingFormat
 #include "model/Document.h"                         // for Document
 #include "model/Element.h"                          // for Element, ELEMENT_...
 #include "model/Layer.h"                            // for Layer, Layer::Index
@@ -407,6 +406,11 @@ auto XojPageView::onButtonPressEvent(const PositionInputData& pos) -> bool {
                 this->overlayViews.emplace_back(
                         std::make_unique<xoj::view::PdfElementSelectionView>(sel, this, settings->getSelectionColor()));
             }
+        } else if (h->getToolType() == TOOL_SELECT_OBJECT && !pos.isShiftDown() && !xournal->getSelection() &&
+                   this->isTextDoubleClick(pos)) {
+            // xournalpp-calc: "Select object" (the tool after Esc): a double click on an empty spot draws a selection
+            // rectangle, as with the text tool (it follows the pointer until the next click on a touchpad)
+            this->startDoubleClickSelection(x, y);
         } else if (h->getToolType() == TOOL_SELECT_OBJECT) {
             SelectObject select(this);
             if (pos.isShiftDown() && xournal->getSelection()) {
@@ -570,8 +574,8 @@ void XojPageView::startDoubleClickSelection(double x, double y) {
     this->endText();
     this->xournal->clearSelection();
     this->selector = std::make_unique<RectangularSelector>(x, y);
-    this->overlayViews.emplace_back(std::make_unique<xoj::view::SelectorView>(this->selector.get(), this,
-                                                                             this->settings->getSelectionColor()));
+    this->overlayViews.emplace_back(
+            std::make_unique<xoj::view::SelectorView>(this->selector.get(), this, this->settings->getSelectionColor()));
     this->selectionGridAnchor = std::make_pair(x, y);
 }
 

@@ -170,8 +170,16 @@ La barra predeterminada ("Portrait") va en dos filas que llenan el ancho de la v
 - Fila 1 (documento): nuevo, abrir, guardar | PDF, imprimir | deshacer, rehacer | cortar, copiar, pegar | páginas |
   insertar y borrar hoja … formato de texto | región de cálculo, alinear a la malla, malla visible, griegas, Excel.
 - Fila 2 (herramientas): lápiz, color, grosor | borrador, resaltador | texto, LaTeX, imagen, enlace | formas,
-  relleno, escuadra, compás | selección, espacio vertical, mano | puntero láser, texto del PDF … imanes de giro y de
-  malla | herramienta predeterminada, pantalla completa.
+  relleno, escuadra, compás | selección, espacio vertical, mano | puntero láser, texto del PDF … imán de giro |
+  herramienta predeterminada, pantalla completa.
+
+Hay un solo imán de malla: *Alinear a la malla* de JackMath es también el "Ajustar a la cuadrícula" de Xournal++ (los
+dos quedan siempre iguales; al abrir toma el valor guardado). El imán de giro pega los ángulos a múltiplos de 15° al
+girar una selección o dibujar líneas; Alt lo invierte mientras se mantiene.
+
+Las opciones del lápiz (formas, reconocedor, relleno, grosor y color) están siempre activas: elegidas con otra
+herramienta (borrador, mano, selección…) toman el lápiz junto con la opción. Con *Seleccionar objeto* (la herramienta
+tras Esc), un doble clic en un espacio vacío abre el rectángulo de selección.
 
 La grabación de audio ya no está en la barra predeterminada (se puede añadir con *Personalizar*). Al actualizar, una
 sola vez, una instalación anterior pasa a los iconos de línea y a esta barra (`jackmathUiVersion` en settings.xml);
@@ -183,3 +191,7 @@ muestra los demás), archivos recientes con buscador y la opción de fijarlos ar
 de configuración), Abrir, Anotar un PDF, Guía de uso (abre `Guia-Xournal-JackMath.pdf` de la carpeta de
 configuración si existe) y Preferencias. Esc o *Nuevo* dejan la hoja en blanco. *Mostrar al iniciar* la desactiva
 (`showStartScreen`).
+
+*Archivo* (en la barra de título) no abre una lista: vuelve a esta pantalla, como en Word. Ahí se suman *Volver*
+(o Esc), Guardar, Guardar como, Exportar a PDF, Imprimir y Salir; elegir un formato crea un documento nuevo (pregunta
+antes si se guarda el actual) y *Nuevo* crea uno en blanco.

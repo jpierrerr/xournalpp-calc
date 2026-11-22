@@ -704,7 +704,7 @@ private:
     IconTheme iconTheme;
 
     /// xournalpp-calc: interface defaults applied once to older settings files (see Settings::load)
-    static constexpr int JACKMATH_UI_VERSION = 2;
+    static constexpr int JACKMATH_UI_VERSION = 3;
     int jackmathUiVersion{};
 
     /**

@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include <cstddef>   // for size_t
+#include <cstddef>  // for size_t
 #include <functional>
 #include <memory>    // for unique_ptr
 #include <optional>  // for optional
@@ -93,7 +93,7 @@ public:
 
 public:
     /// Asymchronously closes the current document and replaces it by a new file
-    void newFile(fs::path filepath = {});
+    void newFile(fs::path filepath = {}, std::function<void()> afterNew = nullptr);
 
     /// @brief Shows an open file dialog and opens the selected file after closing the previously opened file
     void askToOpenFile();
@@ -181,7 +181,7 @@ public:
      */
     bool escapeCurrentTool();
 
-    void fontChanged(const XojFont& font);      ///< Set the font after the user selected a font
+    void fontChanged(const XojFont& font);  ///< Set the font after the user selected a font
 
     void updatePageNumbers(size_t page, size_t pdfPage);
 

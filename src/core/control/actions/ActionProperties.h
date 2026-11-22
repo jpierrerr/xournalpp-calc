@@ -253,6 +253,9 @@ struct ActionProperties<Action::GRID_SNAPPING> {
         g_simple_action_set_state(ga, p);
         bool enable = g_variant_get_boolean(p);
         ctrl->setGridSnapping(enable);
+        // xournalpp-calc: the same magnet as "Align to grid"
+        ctrl->setCalcGrid(enable);
+        ctrl->getActionDatabase()->setActionState(Action::CALC_GRID, enable);
     }
 };
 
@@ -598,6 +601,13 @@ struct ActionProperties<Action::SELECT_DEFAULT_TOOL> {
  * To have the menu entries drawn as check boxes and not as radio buttons, each drawing type has a boolean-state
  * action (on/off). This action cannot take a parameter: we need one callback per drawing type
  */
+/// xournalpp-calc: a pen option chosen with a tool that does not have it (eraser, hand, selection…) takes the pen
+inline void takePenFor(Control* ctrl, ToolCapabilities cap) {
+    if (!ctrl->getToolHandler()->hasCapability(cap)) {
+        ctrl->selectTool(TOOL_PEN);
+    }
+}
+
 template <DrawingType type>
 struct ActionPropDrawingTypes {
     using state_type = bool;
@@ -606,6 +616,9 @@ struct ActionPropDrawingTypes {
     }
     static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
         auto* actionDB = ctrl->getActionDatabase();
+        if (g_variant_get_boolean(p)) {
+            takePenFor(ctrl, TOOL_CAP_RECTANGLE);
+        }
 
         actionDB->setActionState(Action::TOOL_DRAW_SHAPE_RECOGNIZER, false);
         actionDB->setActionState(Action::TOOL_DRAW_RECTANGLE, false);
@@ -830,10 +843,17 @@ struct ActionProperties<Action::CALC_MODE> {
 template <>
 struct ActionProperties<Action::CALC_GRID> {
     using state_type = bool;
-    static state_type initialState(Control* ctrl) { return ctrl->isCalcGrid(); }
+    static state_type initialState(Control* ctrl) {
+        ctrl->setCalcGrid(ctrl->getSettings()->isSnapGrid());  // one magnet: starts as the saved grid snapping
+        return ctrl->isCalcGrid();
+    }
     static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
         g_simple_action_set_state(ga, p);
-        ctrl->setCalcGrid(g_variant_get_boolean(p));
+        // xournalpp-calc: one magnet for everything: text and calculation boxes, and the strokes being drawn
+        const bool enable = g_variant_get_boolean(p);
+        ctrl->setCalcGrid(enable);
+        ctrl->setGridSnapping(enable);
+        ctrl->getActionDatabase()->setActionState(Action::GRID_SNAPPING, enable);
     }
 };
 
@@ -1019,8 +1039,8 @@ struct ActionProperties<Action::TOOL_SIZE> {
         bool sizeEnable = ctrl->getToolHandler()->hasCapability(TOOL_CAP_SIZE);
         return sizeEnable ? ctrl->getToolHandler()->getActiveTool()->getSize() : TOOL_SIZE_NONE;
     }
-    static bool initiallyEnabled(Control* ctrl) { return ctrl->getToolHandler()->hasCapability(TOOL_CAP_SIZE); }
     static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
+        takePenFor(ctrl, TOOL_CAP_SIZE);
         g_simple_action_set_state(ga, p);
         ToolSize size = getGVariantValue<ToolSize>(p);
         xoj_assert(size < TOOL_SIZE_NONE);
@@ -1035,8 +1055,8 @@ struct ActionProperties<Action::TOOL_FILL> {
         return ctrl->getToolHandler()->hasCapability(TOOL_CAP_FILL) &&
                ctrl->getToolHandler()->getActiveTool()->getFill();
     }
-    static bool initiallyEnabled(Control* ctrl) { return ctrl->getToolHandler()->hasCapability(TOOL_CAP_FILL); }
     static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
+        takePenFor(ctrl, TOOL_CAP_FILL);
         g_simple_action_set_state(ga, p);
         bool enabled = g_variant_get_boolean(p);
         ctrl->setFill(enabled);
@@ -1065,8 +1085,8 @@ struct ActionProperties<Action::TOOL_COLOR> {
         bool enable = ctrl->getToolHandler()->hasCapability(TOOL_CAP_COLOR);
         return enable ? ctrl->getToolHandler()->getActiveTool()->getColor() : Colors::black;
     }
-    static bool initiallyEnabled(Control* ctrl) { return ctrl->getToolHandler()->hasCapability(TOOL_CAP_COLOR); }
     static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
+        takePenFor(ctrl, TOOL_CAP_COLOR);
         g_simple_action_set_state(ga, p);
         ctrl->getToolHandler()->setColor(getGVariantValue<Color>(p), true);
     }
@@ -1074,8 +1094,10 @@ struct ActionProperties<Action::TOOL_COLOR> {
 
 template <>
 struct ActionProperties<Action::SELECT_COLOR> {
-    static bool initiallyEnabled(Control* ctrl) { return ctrl->getToolHandler()->hasCapability(TOOL_CAP_COLOR); }
-    static void callback(GSimpleAction*, GVariant*, Control* ctrl) { ctrl->showColorChooserDialog(); }
+    static void callback(GSimpleAction*, GVariant*, Control* ctrl) {
+        takePenFor(ctrl, TOOL_CAP_COLOR);
+        ctrl->showColorChooserDialog();
+    }
 };
 
 // Layers
